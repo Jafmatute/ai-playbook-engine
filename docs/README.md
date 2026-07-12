@@ -16,6 +16,10 @@
 - [Version 1 Conceptual Domain Model](./domain/version-1-conceptual-model.md)
 - [Version 1 Domain Decisions](./domain/version-1-domain-decisions.md)
 
+## Technical Design
+
+- [Package Design](./technical/package-design.md)
+
 ## Architectural Decision Records
 
 - [ADR-001: Architectural Style](./adr/ADR-001-architecture-style.md)
