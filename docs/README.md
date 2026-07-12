@@ -11,6 +11,7 @@
 - [Ubiquitous Language](./domain/ubiquitous-language.md)
 - [Initial Aggregate Boundaries](./domain/aggregate-boundaries.md)
 - [Lifecycle State Machines](./domain/lifecycle-state-machines.md)
+- [Initial Application Use Cases](./domain/application-use-cases.md)
 
 ## Architectural Decision Records
 
