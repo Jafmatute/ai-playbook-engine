@@ -23,6 +23,7 @@
 - [Identifier Generation](./technical/id-generation.md)
 - [Error Model](./technical/error-model.md)
 - [Repository Contracts](./technical/repository-contracts.md)
+- [Storage Contracts](./technical/storage-contracts.md)
 
 ## Architectural Decision Records
 
