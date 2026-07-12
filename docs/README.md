@@ -9,6 +9,7 @@
 ## Domain
 
 - [Ubiquitous Language](./domain/ubiquitous-language.md)
+- [Initial Aggregate Boundaries](./domain/aggregate-boundaries.md)
 
 ## Architectural Decision Records
 
