@@ -21,6 +21,7 @@
 - [Package Design](./technical/package-design.md)
 - [Module and Package Dependencies](./technical/module-dependencies.md)
 - [Identifier Generation](./technical/id-generation.md)
+- [Error Model](./technical/error-model.md)
 
 ## Architectural Decision Records
 
