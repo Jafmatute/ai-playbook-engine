@@ -19,6 +19,7 @@
 ## Technical Design
 
 - [Package Design](./technical/package-design.md)
+- [Module and Package Dependencies](./technical/module-dependencies.md)
 
 ## Architectural Decision Records
 
