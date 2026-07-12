@@ -6,22 +6,22 @@ This document defines the initial application use cases of AI Playbook Engine.
 
 The catalog establishes:
 
-* The operations exposed by the application layer.
-* The Aggregate responsible for each primary invariant.
-* The coordination required between modules.
-* The expected inputs and outcomes.
-* The main failure conditions.
-* The operations intentionally deferred from version 1.
+- The operations exposed by the application layer.
+- The Aggregate responsible for each primary invariant.
+- The coordination required between modules.
+- The expected inputs and outcomes.
+- The main failure conditions.
+- The operations intentionally deferred from version 1.
 
 This document does not define:
 
-* HTTP endpoints.
-* CLI syntax.
-* Database transactions.
-* TypeScript interfaces.
-* DTO field names.
-* Authentication or authorization.
-* Final event schemas.
+- HTTP endpoints.
+- CLI syntax.
+- Database transactions.
+- TypeScript interfaces.
+- DTO field names.
+- Authentication or authorization.
+- Final event schemas.
 
 API, CLI, worker and automation entry points must invoke these use cases rather than implement business behavior directly.
 
@@ -31,36 +31,36 @@ Application use cases are responsible for orchestration.
 
 They may:
 
-* Resolve the current Workspace.
-* Load Aggregates through repository contracts.
-* Invoke domain behavior.
-* Coordinate more than one Aggregate.
-* Call external ports.
-* Persist state changes.
-* Publish domain or integration events.
-* Return application-level results.
+- Resolve the current Workspace.
+- Load Aggregates through repository contracts.
+- Invoke domain behavior.
+- Coordinate more than one Aggregate.
+- Call external ports.
+- Persist state changes.
+- Publish domain or integration events.
+- Return application-level results.
 
 Application use cases must not:
 
-* Contain vendor-specific SDK logic.
-* Expose ORM models.
-* Expose Notion structures.
-* Expose raw AI provider responses.
-* Implement HTTP or CLI formatting.
-* Bypass Aggregate invariants.
-* Silently select a Workspace.
-* Mutate historical records to simplify retries.
+- Contain vendor-specific SDK logic.
+- Expose ORM models.
+- Expose Notion structures.
+- Expose raw AI provider responses.
+- Implement HTTP or CLI formatting.
+- Bypass Aggregate invariants.
+- Silently select a Workspace.
+- Mutate historical records to simplify retries.
 
 ## Common Input Context
 
 Tenant-owned use cases are expected to receive or resolve:
 
-* Workspace identity.
-* Request or command identity for idempotency where needed.
-* Invocation origin.
-* Correlation or trace identity.
-* Current timestamp through a time abstraction.
-* Actor information when identity is introduced in the future.
+- Workspace identity.
+- Request or command identity for idempotency where needed.
+- Invocation origin.
+- Correlation or trace identity.
+- Current timestamp through a time abstraction.
+- Actor information when identity is introduced in the future.
 
 The initial personal version may resolve one configured Workspace through a centralized mechanism.
 
@@ -120,14 +120,14 @@ Workspace.
 
 ### Inputs
 
-* Workspace name.
-* Optional description.
-* Initialization origin.
+- Workspace name.
+- Optional description.
+- Initialization origin.
 
 ### Preconditions
 
-* Personal mode has not already been initialized.
-* The supplied name is valid.
+- Personal mode has not already been initialized.
+- The supplied name is valid.
 
 ### Main Flow
 
@@ -139,9 +139,9 @@ Workspace.
 
 ### Outcomes
 
-* Workspace created.
-* Initialization conflict.
-* Validation failure.
+- Workspace created.
+- Initialization conflict.
+- Validation failure.
 
 ### Notes
 
@@ -191,10 +191,10 @@ Workspace.
 
 ### Deferred Behavior
 
-* User notifications.
-* Subscription cancellation.
-* Data export.
-* Tenant deletion.
+- User notifications.
+- Subscription cancellation.
+- Data export.
+- Tenant deletion.
 
 ---
 
@@ -212,31 +212,31 @@ Playbook.
 
 ### Inputs
 
-* Workspace identity.
-* Name.
-* Description.
-* Optional initial metadata.
+- Workspace identity.
+- Name.
+- Description.
+- Optional initial metadata.
 
 ### Preconditions
 
-* Workspace permits creation.
-* Name is valid.
-* Uniqueness rules within the Workspace are satisfied.
+- Workspace permits creation.
+- Name is valid.
+- The normalized name is unique among non-Archived Playbooks in the Workspace.
 
 ### Main Flow
 
 1. Resolve the Workspace.
-2. Validate uniqueness.
+2. Trim and compare the name case-insensitively for uniqueness.
 3. Create the Playbook.
 4. Persist it.
 5. Return the Playbook identity.
 
 ### Outcomes
 
-* Playbook created.
-* Name conflict.
-* Workspace unavailable.
-* Validation failure.
+- Playbook created.
+- Name conflict.
+- Workspace unavailable.
+- Validation failure.
 
 ## Rename Playbook
 
@@ -248,7 +248,7 @@ Playbook.
 
 1. Load the Playbook within the Workspace.
 2. Validate the new name.
-3. Check applicable uniqueness rules.
+3. Check that its trimmed, case-insensitive form is unique among non-Archived Playbooks in the Workspace.
 4. Rename through Aggregate behavior.
 5. Persist the Playbook.
 
@@ -264,9 +264,9 @@ Playbook.
 
 ### Preconditions
 
-* Playbook exists in the Workspace.
-* Application policy permits archival.
-* Active or pending processes are handled according to policy.
+- Playbook exists in the Workspace.
+- Application policy permits archival.
+- Active or pending processes are handled according to policy.
 
 ### Main Flow
 
@@ -293,7 +293,7 @@ Playbook.
 ### Main Flow
 
 1. Load the archived Playbook.
-2. Verify restoration rules.
+2. Verify restoration rules, including that its normalized name does not conflict with a non-Archived Playbook in the Workspace.
 3. Restore it.
 4. Persist the change.
 
@@ -313,10 +313,10 @@ Playbook Version.
 
 ### Preconditions
 
-* Playbook and version belong to the same Workspace.
-* Version belongs to the Playbook.
-* Version is Published.
-* Version is not Archived.
+- Playbook and version belong to the same Workspace.
+- Version belongs to the Playbook.
+- Version is Published.
+- Version is not Archived.
 
 ### Main Flow
 
@@ -329,10 +329,10 @@ Playbook Version.
 
 ### Outcome
 
-* Version activated.
-* No change when already active.
-* Version not eligible.
-* Ownership conflict.
+- Version activated.
+- No change when already active.
+- Version not eligible.
+- Ownership conflict.
 
 ## Clear Active Playbook Version
 
@@ -358,10 +358,10 @@ Resolve the version selected by a Playbook for new operations.
 
 ### Behavior
 
-* Returns the active Published version.
-* Does not automatically choose the most recent version.
-* Does not publish a Draft version.
-* Does not reactivate an Archived version.
+- Returns the active Published version.
+- Does not automatically choose the most recent version.
+- Does not publish a Draft version.
+- Does not reactivate an Archived version.
 
 ---
 
@@ -383,20 +383,20 @@ Playbook.
 
 ### Inputs
 
-* Workspace identity.
-* Playbook identity.
-* Source type.
-* External root reference.
-* Credential reference.
-* Non-secret synchronization settings.
+- Workspace identity.
+- Playbook identity.
+- Source type.
+- External root reference.
+- Credential reference.
+- Non-secret synchronization settings.
 
 ### Preconditions
 
-* Playbook exists and is operational.
-* Playbook belongs to the Workspace.
-* Source type is supported.
-* Source configuration is structurally valid.
-* Credential reference exists or can be resolved.
+- Playbook exists and is operational.
+- Playbook belongs to the Workspace.
+- Source type is supported.
+- Source configuration is structurally valid.
+- Credential reference exists or can be resolved.
 
 ### Main Flow
 
@@ -411,6 +411,8 @@ Playbook.
 
 No external synchronization is required during registration unless a later verification use case explicitly requests it.
 
+A Playbook may retain multiple historical source records, but at most one source may be Enabled. Version 1 supports only Notion, and a version is produced from exactly one source and one Synchronization Snapshot. Disabled sources remain queryable; replacing a source does not modify historical snapshots or versions.
+
 ## Update Playbook Source
 
 ### Purpose
@@ -423,16 +425,16 @@ Playbook Source.
 
 ### Editable Candidates
 
-* External root reference.
-* Credential reference.
-* Non-secret settings.
-* Display metadata.
+- External root reference.
+- Credential reference.
+- Non-secret settings.
+- Display metadata.
 
 ### Restrictions
 
-* Workspace ownership cannot change.
-* Playbook ownership cannot change silently.
-* Existing Synchronization Runs retain the source state used at creation.
+- Workspace ownership cannot change.
+- Playbook ownership cannot change silently.
+- Existing Synchronization Runs retain the source state used at creation.
 
 ## Enable Playbook Source
 
@@ -442,9 +444,10 @@ Playbook Source.
 
 ### Preconditions
 
-* Required configuration is valid.
-* Credential reference is resolvable.
-* Parent Playbook is operational.
+- Required configuration is valid.
+- Credential reference is resolvable.
+- Parent Playbook is operational.
+- No other source for the Playbook is Enabled.
 
 ## Disable Playbook Source
 
@@ -458,7 +461,11 @@ New Synchronization Runs cannot start.
 
 Existing historical runs remain unchanged.
 
-Running work may be cancelled or allowed to finish according to application policy.
+Disabling a source does not alter historical runs. Version 1 does not cancel running synchronization work.
+
+## Replace Enabled Playbook Source
+
+Version 1 performs source replacement as explicit operations: register the new source Disabled, verify it, disable the current Enabled source, enable the new source, then start a new Synchronization Run. No atomic replacement use case is required.
 
 ## Verify Playbook Source Connection
 
@@ -504,17 +511,17 @@ Playbook Source.
 
 ### External Ports
 
-* Playbook source gateway.
-* Queue or execution dispatcher when asynchronous.
+- Playbook source gateway.
+- Queue or execution dispatcher when asynchronous.
 
 ### Preconditions
 
-* Workspace is operational.
-* Source exists in the Workspace.
-* Source is enabled.
-* Parent Playbook is operational.
-* Required configuration and credentials are resolvable.
-* Concurrency policy permits another run.
+- Workspace is operational.
+- Source exists in the Workspace.
+- Source is enabled.
+- Parent Playbook is operational.
+- Required configuration and credentials are resolvable.
+- Concurrency policy permits another run.
 
 ### Main Flow
 
@@ -543,10 +550,10 @@ Synchronization Run.
 
 ### External Ports
 
-* Playbook source gateway.
-* Snapshot storage.
-* Checksum service.
-* Time provider.
+- Playbook source gateway.
+- Snapshot storage.
+- Checksum service.
+- Time provider.
 
 ### Main Flow
 
@@ -569,29 +576,13 @@ Synchronization Run.
 4. Update source failure metadata when appropriate.
 5. Do not create a successful snapshot.
 
-## Cancel Synchronization Run
-
-### Primary Aggregate
-
-Synchronization Run.
-
-### Main Flow
-
-1. Load the run.
-2. Verify it is Pending or Running.
-3. Register the cancellation request.
-4. Coordinate cancellation with the processing mechanism.
-5. Mark the run Cancelled after acknowledgement.
-
-### Initial Scope
-
-Cancellation may be deferred from the first implementation if processing is sufficiently short-lived.
+Synchronization cancellation is not a version 1 use case and no CLI cancellation command exists. An unexpectedly interrupted process may be recovered as Failed. Cancellation may be introduced later when a Worker, durable queue and cooperative cancellation are available.
 
 ## Retry Synchronization
 
 ### Purpose
 
-Create a new Synchronization Run based on a failed or cancelled run.
+Create a new Synchronization Run based on a failed run.
 
 ### Primary Aggregate
 
@@ -599,9 +590,9 @@ New Synchronization Run.
 
 ### Preconditions
 
-* Original run is terminal.
-* Source remains enabled and valid.
-* Retry policy allows another attempt.
+- Original run is terminal.
+- Source remains enabled and valid.
+- Retry policy allows another attempt.
 
 ### Main Flow
 
@@ -622,12 +613,12 @@ Return the current operational state of a run.
 
 ### Output Candidates
 
-* Status.
-* Start and completion timestamps.
-* Progress summary.
-* Snapshot identity when Completed.
-* Failure summary when Failed.
-* Retry eligibility.
+- Status.
+- Start and completion timestamps.
+- Progress summary.
+- Snapshot identity when Completed.
+- Failure summary when Failed.
+- Retry eligibility.
 
 ## Compare Synchronization Snapshots
 
@@ -667,15 +658,15 @@ Playbook Version.
 
 ### Referenced Aggregates
 
-* Playbook.
-* Synchronization Snapshot.
+- Playbook.
+- Synchronization Snapshot.
 
 ### Preconditions
 
-* Playbook exists and is operational.
-* Snapshot belongs to the same Workspace.
-* Snapshot belongs to a source associated with the Playbook.
-* Snapshot has not already produced the same version candidate under the selected idempotency rule.
+- Playbook exists and is operational.
+- Snapshot belongs to the same Workspace.
+- Snapshot belongs to a source associated with the Playbook.
+- Snapshot has not already produced the same version candidate under the selected idempotency rule.
 
 ### Main Flow
 
@@ -707,30 +698,33 @@ Playbook Version.
 
 ### External Ports
 
-* Snapshot storage.
-* Source-content parser.
-* Knowledge persistence.
-* Checksum service.
+- Snapshot storage.
+- Source-content parser.
+- Knowledge persistence.
+- Checksum service.
 
 ### Preconditions
 
-* Version is Draft.
-* Snapshot content is accessible.
-* Parser version is known.
+- Version is Draft.
+- Snapshot content is accessible.
+- Parser version is known.
+- Normalization has not begun validation.
 
 ### Main Flow
 
-1. Load the Draft version and snapshot content.
-2. Parse source-specific structures.
-3. Convert them into provider-neutral and Notion-neutral knowledge candidates.
-4. Resolve stable internal identities where possible.
-5. Store normalized knowledge associated with the version.
-6. Store normalization metadata and checksum.
-7. Mark the version ready for validation through the approved lifecycle model.
+1. Load the Draft version and snapshot content with normalization Pending or Failed.
+2. Create a normalization attempt and mark it Running.
+3. Parse source-specific structures.
+4. Convert them into provider-neutral and Notion-neutral knowledge candidates.
+5. Derive deterministic, version-specific KnowledgeItemIds from PlaybookVersionId, SourceStableKey and the identity strategy version.
+6. Store normalized knowledge associated with the version.
+7. Store normalization metadata and checksum and mark the attempt Completed.
 
 ### Important Rule
 
 Normalization must not publish or activate the version.
+
+Failed normalization leaves the version Draft. Retrying creates a new attempt while preserving prior attempts; normalization cannot run after validation begins.
 
 ## Validate Playbook Version
 
@@ -744,9 +738,9 @@ Playbook Version.
 
 ### Supporting Services
 
-* Knowledge validator.
-* Reference resolver.
-* Validation rule registry.
+- Knowledge validator.
+- Reference resolver.
+- Validation rule registry.
 
 ### Main Flow
 
@@ -757,13 +751,12 @@ Playbook Version.
 5. Execute semantic validations.
 6. Resolve required references.
 7. Record validation findings.
-8. Publish when all blocking validations pass, or mark Invalid when any blocking validation fails.
+8. Persist the Validation Summary owned by the version and its separately stored Validation Findings atomically.
+9. Mark the version Validated when no blocking findings exist, or Invalid when any blocking finding exists.
 
 ### Design Note
 
-Publishing may remain a separate explicit use case even when validation passes.
-
-The final separation will be decided before implementation.
+Validation never publishes the version. Findings are immutable after validation completes, and corrections require a new version.
 
 ## Publish Playbook Version
 
@@ -777,11 +770,11 @@ Playbook Version.
 
 ### Preconditions
 
-* Version is Validating under the current state model.
-* Validation is complete.
-* No blocking issues exist.
-* Content checksum matches validated knowledge.
-* Required schema and parser versions are recorded.
+- Version is Validated.
+- Validation is complete.
+- No blocking issues exist.
+- Content checksum matches validated knowledge.
+- Required schema and parser versions are recorded.
 
 ### Main Flow
 
@@ -808,7 +801,7 @@ Playbook Version.
 
 ### Preconditions
 
-* Validation completed with blocking issues.
+- Validation completed with blocking issues.
 
 ### Main Flow
 
@@ -843,13 +836,13 @@ Return a query-oriented history of versions.
 
 ### Output Candidates
 
-* Version identity.
-* Sequence or label.
-* Status.
-* Snapshot reference.
-* Validation summary.
-* Publication timestamp.
-* Active indicator.
+- Version identity.
+- Sequence or label.
+- Status.
+- Snapshot reference.
+- Validation summary.
+- Publication timestamp.
+- Active indicator.
 
 ### Notes
 
@@ -867,9 +860,9 @@ Retrieve one normalized Knowledge Item from a specific Playbook Version.
 
 ### Preconditions
 
-* Version belongs to the Workspace.
-* Item belongs to the version.
-* Caller is permitted to read the version state.
+- Version belongs to the Workspace.
+- Item belongs to the version.
+- Caller is permitted to read the version state.
 
 ## Search Knowledge
 
@@ -879,12 +872,12 @@ Query normalized knowledge by semantic and structural filters.
 
 ### Input Candidates
 
-* Playbook Version.
-* Knowledge Type.
-* Tags or categories.
-* Stable identifier.
-* Text query.
-* Relationship criteria.
+- Playbook Version.
+- Knowledge Type.
+- Tags or categories.
+- Stable identifier.
+- Text query.
+- Relationship criteria.
 
 ### Notes
 
@@ -900,11 +893,11 @@ Resolve an internal reference from one Knowledge Item to another.
 
 ### Outcomes
 
-* Resolved.
-* Missing.
-* Ambiguous.
-* Incompatible type.
-* Cross-version reference rejected.
+- Resolved.
+- Missing.
+- Ambiguous.
+- Incompatible type.
+- Cross-version reference rejected.
 
 ## Get Workflow Definition
 
@@ -914,9 +907,9 @@ Retrieve an executable Workflow Definition from a Published Playbook Version.
 
 ### Preconditions
 
-* Version is Published.
-* Workflow exists.
-* Workflow passed required validation.
+- Version is Published.
+- Workflow exists.
+- Workflow passed required validation.
 
 ## Get Audit Definition
 
@@ -938,10 +931,10 @@ Run validators against normalized knowledge without necessarily changing Playboo
 
 ### Use
 
-* Development diagnostics.
-* Pre-publication validation.
-* Migration validation.
-* Parser regression testing.
+- Development diagnostics.
+- Pre-publication validation.
+- Migration validation.
+- Parser regression testing.
 
 ---
 
@@ -959,17 +952,17 @@ Project.
 
 ### Inputs
 
-* Workspace identity.
-* Name.
-* Project type.
-* Description.
-* Project Source configuration reference.
+- Workspace identity.
+- Name.
+- Project type.
+- Description.
+- Project Source configuration reference.
 
 ### Preconditions
 
-* Workspace permits creation.
-* Project type is supported.
-* Source configuration is structurally valid.
+- Workspace permits creation.
+- Project type is supported.
+- Source configuration is structurally valid.
 
 ## Update Project Metadata
 
@@ -979,15 +972,15 @@ Project.
 
 ### Allowed Changes
 
-* Name.
-* Description.
-* Non-secret source metadata.
+- Name.
+- Description.
+- Non-secret source metadata.
 
 ### Prohibited Changes
 
-* Workspace ownership.
-* Historical snapshot content.
-* Existing Execution references.
+- Workspace ownership.
+- Historical snapshot content.
+- Existing Execution references.
 
 ## Archive Project
 
@@ -1015,10 +1008,10 @@ Project.
 
 ### External Ports
 
-* Project source gateway.
-* Artifact storage.
-* Checksum service.
-* Project inspector.
+- Project source gateway.
+- Artifact storage.
+- Checksum service.
+- Project inspector.
 
 ### Main Flow
 
@@ -1056,9 +1049,9 @@ Retrieve one artifact through a controlled storage port.
 
 ### Rules
 
-* Artifact must belong to the requested snapshot.
-* Workspace scope must be validated.
-* Size and content restrictions may apply.
+- Artifact must belong to the requested snapshot.
+- Workspace scope must be validated.
+- Size and content restrictions may apply.
 
 ---
 
@@ -1076,18 +1069,18 @@ Execution.
 
 ### Referenced Concepts
 
-* Playbook.
-* Playbook Version.
-* Workflow Definition or operation definition.
-* Project Snapshot.
-* Provider Configuration where known.
+- Playbook.
+- Playbook Version.
+- Workflow Definition or operation definition.
+- Project Snapshot.
+- Provider Configuration where known.
 
 ### Version Resolution
 
 The request may specify:
 
-* An explicit Published Playbook Version.
-* A Playbook whose active version should be resolved.
+- An explicit Published Playbook Version.
+- A Playbook whose active version should be resolved.
 
 The resolved version becomes fixed in the Execution.
 
@@ -1138,11 +1131,11 @@ Execution.
 
 Depending on step type:
 
-* Deterministic step handler.
-* AI Gateway.
-* Human review gateway in the future.
-* Artifact reader.
-* Knowledge query service.
+- Deterministic step handler.
+- AI Gateway.
+- Human review gateway in the future.
+- Artifact reader.
+- Knowledge query service.
 
 ### Main Flow
 
@@ -1173,10 +1166,10 @@ Execution.
 
 ### Preconditions
 
-* Required steps satisfy completion policy.
-* Final output validation passes.
-* No blocking failure remains.
-* No active step remains.
+- Required steps satisfy completion policy.
+- Final output validation passes.
+- No blocking failure remains.
+- No active step remains.
 
 ### Main Flow
 
@@ -1195,9 +1188,9 @@ Execution.
 
 ### Preconditions
 
-* Completion is impossible under current policy.
-* Failure information is structured.
-* Retry or fallback policy is exhausted or not applicable.
+- Completion is impossible under current policy.
+- Failure information is structured.
+- Retry or fallback policy is exhausted or not applicable.
 
 ## Cancel Execution
 
@@ -1236,18 +1229,18 @@ The previous Execution is never reset.
 
 ### Output Candidates
 
-* Status.
-* Current and completed steps.
-* Progress summary.
-* Failure summary.
-* Usage summary.
-* Start and completion timestamps.
+- Status.
+- Current and completed steps.
+- Progress summary.
+- Failure summary.
+- Usage summary.
+- Start and completion timestamps.
 
 ## Get Execution Result
 
 ### Preconditions
 
-* Execution is Completed.
+- Execution is Completed.
 
 ### Behavior
 
@@ -1261,15 +1254,15 @@ Return connected runtime traceability information.
 
 ### Output Candidates
 
-* Playbook Version.
-* Project Snapshot.
-* Workflow.
-* Step history.
-* Provider Invocations.
-* Evidence references.
-* Errors.
-* Usage.
-* Timing.
+- Playbook Version.
+- Project Snapshot.
+- Workflow.
+- Step history.
+- Provider Invocations.
+- Evidence references.
+- Errors.
+- Usage.
+- Timing.
 
 ---
 
@@ -1283,10 +1276,10 @@ Determine whether an enabled provider and model can satisfy required capabilitie
 
 ### Inputs
 
-* Workspace.
-* Required capabilities.
-* Runtime constraints.
-* Optional provider or model restrictions.
+- Workspace.
+- Required capabilities.
+- Runtime constraints.
+- Optional provider or model restrictions.
 
 ### Output
 
@@ -1304,13 +1297,13 @@ Execute one normalized AI Request through an approved Provider Configuration.
 
 ### Application Responsibility
 
-* Validate provider availability.
-* Resolve secret reference.
-* Apply timeout and retry policy.
-* Call the adapter.
-* Normalize the response.
-* Record Provider Invocation metadata.
-* Return a provider-neutral AI Response.
+- Validate provider availability.
+- Resolve secret reference.
+- Apply timeout and retry policy.
+- Call the adapter.
+- Normalize the response.
+- Record Provider Invocation metadata.
+- Return a provider-neutral AI Response.
 
 ### Rule
 
@@ -1326,9 +1319,9 @@ Create a new attempt while preserving previous invocation history.
 
 ### Candidate Strategies
 
-* Same model and provider.
-* Different model under the same provider.
-* Fallback provider.
+- Same model and provider.
+- Different model under the same provider.
+- Fallback provider.
 
 The allowed strategy is determined by execution policy.
 
@@ -1346,11 +1339,11 @@ Provider Configuration.
 
 ### Inputs
 
-* Provider type.
-* Credential reference.
-* Enabled models.
-* Non-secret options.
-* Operational restrictions.
+- Provider type.
+- Credential reference.
+- Enabled models.
+- Non-secret options.
+- Operational restrictions.
 
 ### Rule
 
@@ -1394,10 +1387,10 @@ Audit.
 
 ### Referenced Concepts
 
-* Playbook Version.
-* Audit Definition.
-* Project Snapshot or other target snapshot.
-* Related Execution.
+- Playbook Version.
+- Audit Definition.
+- Project Snapshot or other target snapshot.
+- Related Execution.
 
 ### Main Flow
 
@@ -1422,10 +1415,10 @@ Audit.
 
 ### Supporting Services
 
-* Deterministic evaluators.
-* Execution step handlers.
-* AI Gateway.
-* Evidence resolver.
+- Deterministic evaluators.
+- Execution step handlers.
+- AI Gateway.
+- Evidence resolver.
 
 ### Main Flow
 
@@ -1446,10 +1439,10 @@ Audit.
 
 ### Preconditions
 
-* Finding belongs to the Audit.
-* Criterion reference is valid where required.
-* Severity follows the Audit Definition.
-* Evidence is traceable.
+- Finding belongs to the Audit.
+- Criterion reference is valid where required.
+- Severity follows the Audit Definition.
+- Evidence is traceable.
 
 ### Rule
 
@@ -1463,10 +1456,10 @@ Audit.
 
 ### Preconditions
 
-* All mandatory criteria were evaluated or explicitly marked unable to evaluate.
-* Required evidence rules are satisfied.
-* Findings are valid.
-* Summary can be produced.
+- All mandatory criteria were evaluated or explicitly marked unable to evaluate.
+- Required evidence rules are satisfied.
+- Findings are valid.
+- Summary can be produced.
 
 ### Main Flow
 
@@ -1497,10 +1490,10 @@ Audit under the initial model.
 
 ### Candidate Statuses
 
-* Open.
-* Accepted.
-* Resolved.
-* Dismissed.
+- Open.
+- Accepted.
+- Resolved.
+- Dismissed.
 
 ### Rule
 
@@ -1510,13 +1503,13 @@ Status changes must preserve history.
 
 ### Output Candidates
 
-* Audit summary.
-* Findings.
-* Evidence references.
-* Criterion results.
-* Playbook Version.
-* Target snapshot.
-* Related Execution.
+- Audit summary.
+- Findings.
+- Evidence references.
+- Criterion results.
+- Playbook Version.
+- Target snapshot.
+- Related Execution.
 
 ## Export Audit Report
 
@@ -1544,13 +1537,13 @@ Decision.
 
 ### Inputs
 
-* Workspace.
-* Playbook Version or Playbook.
-* Decision Matrix identity.
-* Decision question.
-* Alternatives.
-* Constraints.
-* Context and evidence.
+- Workspace.
+- Playbook Version or Playbook.
+- Decision Matrix identity.
+- Decision question.
+- Alternatives.
+- Constraints.
+- Context and evidence.
 
 ### Main Flow
 
@@ -1574,11 +1567,11 @@ Decision.
 
 One Criterion Evaluation containing:
 
-* Result or score.
-* Evidence.
-* Explanation.
-* Evaluation method.
-* Confidence when applicable.
+- Result or score.
+- Evidence.
+- Explanation.
+- Evaluation method.
+- Confidence when applicable.
 
 ## Generate Recommendation
 
@@ -1590,9 +1583,9 @@ Produce a ranked or selected recommendation without claiming a binding Decision.
 
 The Recommendation must state whether it is:
 
-* Deterministic.
-* AI-assisted.
-* Hybrid.
+- Deterministic.
+- AI-assisted.
+- Hybrid.
 
 ## Finalize Decision
 
@@ -1602,9 +1595,9 @@ Record the selected outcome.
 
 ### Preconditions
 
-* Required criteria were evaluated.
-* Candidate outcome is valid.
-* Human override is explicit when it selects an unevaluated or lower-ranked Alternative.
+- Required criteria were evaluated.
+- Candidate outcome is valid.
+- Human override is explicit when it selects an unevaluated or lower-ranked Alternative.
 
 ### Main Flow
 
@@ -1617,13 +1610,13 @@ Record the selected outcome.
 
 ### Output Candidates
 
-* Selected outcome.
-* Recommendation.
-* Ranking.
-* Criterion Evaluations.
-* Evidence.
-* Evaluation methods.
-* Playbook Version.
+- Selected outcome.
+- Recommendation.
+- Ranking.
+- Criterion Evaluations.
+- Evidence.
+- Evaluation methods.
+- Playbook Version.
 
 ## Compare Alternatives
 
@@ -1643,27 +1636,27 @@ Automation.
 
 ### Inputs
 
-* Workspace.
-* Name.
-* Trigger definition.
-* Target application use case.
-* Input template.
-* Retry policy.
+- Workspace.
+- Name.
+- Trigger definition.
+- Target application use case.
+- Input template.
+- Retry policy.
 
 ### Preconditions
 
-* Trigger type is supported.
-* Target use case is allowed for automation.
-* Input template is valid.
-* No secrets are embedded directly.
+- Trigger type is supported.
+- Target use case is allowed for automation.
+- Input template is valid.
+- No secrets are embedded directly.
 
 ## Enable Automation
 
 ### Preconditions
 
-* Configuration is complete.
-* Referenced resources exist.
-* Target use case remains available.
+- Configuration is complete.
+- Referenced resources exist.
+- Target use case remains available.
 
 ## Disable Automation
 
@@ -1717,9 +1710,9 @@ Create a presentation of authoritative Execution data.
 
 ### Inputs
 
-* Execution identity.
-* Report format.
-* Optional inclusion settings.
+- Execution identity.
+- Report format.
+- Optional inclusion settings.
 
 ### Rule
 
@@ -1743,12 +1736,12 @@ Present alternatives, criteria, recommendation and outcome.
 
 Aggregate measurable usage by:
 
-* Workspace.
-* Execution.
-* Provider.
-* Model.
-* Time range.
-* Operation type.
+- Workspace.
+- Execution.
+- Provider.
+- Model.
+- Time range.
+- Operation type.
 
 ### Rule
 
@@ -1805,12 +1798,14 @@ Coordinate the complete content ingestion pipeline.
 2. Create Draft version.
 3. Normalize knowledge.
 4. Validate version.
-5. Publish when eligible.
-6. Optionally request activation through an explicit parameter.
+5. Explicitly publish the Validated version when requested.
+6. Explicitly request activation only after publication when requested.
 
 ### Rule
 
 Activation must remain explicit.
+
+Validation completion and publication remain separate transitions even when one higher-level workflow coordinates them.
 
 A failure must not silently activate a previous or incomplete version.
 
@@ -1861,28 +1856,28 @@ Queries may use read models when they do not enforce state transitions.
 
 Initial query candidates:
 
-* List Workspaces.
-* List Playbooks.
-* Get Playbook details.
-* List Playbook Sources.
-* List Synchronization Runs.
-* Get Synchronization Run details.
-* List Playbook Versions.
-* Get validation findings.
-* Search Knowledge.
-* List Projects.
-* Get Project Snapshot.
-* List Executions.
-* Get Execution status.
-* Get Execution trace.
-* List Audits.
-* Get Audit results.
-* List Decisions.
-* Get Decision result.
-* List Provider Configurations without secrets.
-* List Automations.
-* Get Automation history.
-* Get usage summary.
+- List Workspaces.
+- List Playbooks.
+- Get Playbook details.
+- List Playbook Sources.
+- List Synchronization Runs.
+- Get Synchronization Run details.
+- List Playbook Versions.
+- Get validation findings.
+- Search Knowledge.
+- List Projects.
+- Get Project Snapshot.
+- List Executions.
+- Get Execution status.
+- Get Execution trace.
+- List Audits.
+- Get Audit results.
+- List Decisions.
+- Get Decision result.
+- List Provider Configurations without secrets.
+- List Automations.
+- Get Automation history.
+- Get usage summary.
 
 Read models must not become alternative sources of truth.
 
@@ -1892,20 +1887,20 @@ Read models must not become alternative sources of truth.
 
 The following commands are likely to require idempotency support:
 
-* Create Personal Workspace.
-* Start Synchronization.
-* Complete Synchronization.
-* Create Draft Playbook Version.
-* Publish Playbook Version.
-* Activate Playbook Version.
-* Create Project Snapshot.
-* Request Execution.
-* Complete Execution Step.
-* Complete Execution.
-* Request Audit.
-* Finalize Decision.
-* Trigger Automation.
-* Invoke AI Provider when retries may duplicate requests.
+- Create Personal Workspace.
+- Start Synchronization.
+- Complete Synchronization.
+- Create Draft Playbook Version.
+- Publish Playbook Version.
+- Activate Playbook Version.
+- Create Project Snapshot.
+- Request Execution.
+- Complete Execution Step.
+- Complete Execution.
+- Request Audit.
+- Finalize Decision.
+- Trigger Automation.
+- Invoke AI Provider when retries may duplicate requests.
 
 The final idempotency mechanism will be defined during application contract design.
 
@@ -1917,23 +1912,23 @@ A single transaction should normally update one Aggregate.
 
 Examples:
 
-* Create Playbook.
-* Complete Synchronization Run.
-* Publish Playbook Version.
-* Activate version in Playbook.
-* Complete Execution Step.
-* Add Audit Finding.
-* Finalize Decision.
+- Create Playbook.
+- Complete Synchronization Run.
+- Publish Playbook Version.
+- Activate version in Playbook.
+- Complete Execution Step.
+- Add Audit Finding.
+- Finalize Decision.
 
 Cross-Aggregate workflows should use application orchestration.
 
 Examples:
 
-* Publish and activate a version.
-* Complete Synchronization and update source metadata.
-* Complete Project Snapshot and update latest snapshot.
-* Complete Execution and trigger reporting.
-* Archive Workspace and disable Automations.
+- Publish and activate a version.
+- Complete Synchronization and update source metadata.
+- Complete Project Snapshot and update latest snapshot.
+- Complete Execution and trigger reporting.
+- Archive Workspace and disable Automations.
 
 The system must not require a distributed transaction across external systems.
 
@@ -1943,25 +1938,25 @@ The system must not require a distributed transaction across external systems.
 
 The following use cases are outside the initial personal version:
 
-* Register user.
-* Authenticate user.
-* Invite Workspace member.
-* Assign role.
-* Transfer Workspace ownership.
-* Create organization.
-* Configure SSO.
-* Provision tenant.
-* Manage subscription.
-* Enforce billing quota.
-* Delete tenant data.
-* Share Playbook publicly.
-* Collaboratively edit Playbook knowledge.
-* Automatically modify Notion methodology.
-* Marketplace publication.
-* Cross-Workspace data sharing.
-* Human approval inbox.
-* Interactive Execution resume.
-* Physical database migration per tenant.
+- Register user.
+- Authenticate user.
+- Invite Workspace member.
+- Assign role.
+- Transfer Workspace ownership.
+- Create organization.
+- Configure SSO.
+- Provision tenant.
+- Manage subscription.
+- Enforce billing quota.
+- Delete tenant data.
+- Share Playbook publicly.
+- Collaboratively edit Playbook knowledge.
+- Automatically modify Notion methodology.
+- Marketplace publication.
+- Cross-Workspace data sharing.
+- Human approval inbox.
+- Interactive Execution resume.
+- Physical database migration per tenant.
 
 These capabilities require later domain and architectural decisions.
 
@@ -1996,20 +1991,20 @@ The Engine can reliably transform the Notion Playbook into versioned internal kn
 
 # Open Questions
 
-* Which use cases must be synchronous in the first version?
-* Will the initial worker use a durable queue or direct in-process dispatch?
-* Is source connection verification mandatory before registration?
-* May one Playbook have multiple active Playbook Sources?
-* Can multiple sources contribute to one version?
-* Which Knowledge Types are required for the first publishable version?
-* Is validation automatically followed by publication?
-* Should CLI allow explicit use of a Published but inactive version?
-* Which operations require command identifiers for idempotency?
-* How are long-running use cases exposed through API and CLI?
-* Does Project Snapshot capture happen automatically when requesting an Execution?
-* Is Audit always built on an Execution?
-* Which Decision outcomes require human approval?
-* How is provider fallback policy represented?
-* When should reporting use projections rather than direct Aggregate queries?
+- Which use cases must be synchronous in the first version?
+- Will the initial worker use a durable queue or direct in-process dispatch?
+- Is source connection verification mandatory before registration?
+- May one Playbook have multiple active Playbook Sources?
+- Can multiple sources contribute to one version?
+- Which Knowledge Types are required for the first publishable version?
+- Is validation automatically followed by publication?
+- Should CLI allow explicit use of a Published but inactive version?
+- Which operations require command identifiers for idempotency?
+- How are long-running use cases exposed through API and CLI?
+- Does Project Snapshot capture happen automatically when requesting an Execution?
+- Is Audit always built on an Execution?
+- Which Decision outcomes require human approval?
+- How is provider fallback policy represented?
+- When should reporting use projections rather than direct Aggregate queries?
 
 These questions will be resolved before implementation of the affected modules.
