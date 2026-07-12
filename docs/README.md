@@ -13,6 +13,7 @@
 - [Lifecycle State Machines](./domain/lifecycle-state-machines.md)
 - [Initial Application Use Cases](./domain/application-use-cases.md)
 - [Version 1 Functional Scope](./domain/version-1-scope.md)
+- [Version 1 Conceptual Domain Model](./domain/version-1-conceptual-model.md)
 
 ## Architectural Decision Records
 
