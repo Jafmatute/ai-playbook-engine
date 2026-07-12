@@ -24,6 +24,7 @@
 - [Error Model](./technical/error-model.md)
 - [Repository Contracts](./technical/repository-contracts.md)
 - [Storage Contracts](./technical/storage-contracts.md)
+- [Configuration Contracts](./technical/configuration-contracts.md)
 
 ## Architectural Decision Records
 
