@@ -22,6 +22,7 @@
 - [Module and Package Dependencies](./technical/module-dependencies.md)
 - [Identifier Generation](./technical/id-generation.md)
 - [Error Model](./technical/error-model.md)
+- [Repository Contracts](./technical/repository-contracts.md)
 
 ## Architectural Decision Records
 
