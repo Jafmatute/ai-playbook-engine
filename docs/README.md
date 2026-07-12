@@ -25,6 +25,7 @@
 - [Repository Contracts](./technical/repository-contracts.md)
 - [Storage Contracts](./technical/storage-contracts.md)
 - [Configuration Contracts](./technical/configuration-contracts.md)
+- [Application Contracts](./technical/application-contracts.md)
 
 ## Architectural Decision Records
 
