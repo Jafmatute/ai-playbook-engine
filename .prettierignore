@@ -1,0 +1,9 @@
+﻿node_modules
+dist
+build
+coverage
+.pnpm-store
+*.tsbuildinfo
+pnpm-lock.yaml
+.env
+.env.*
