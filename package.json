@@ -20,7 +20,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "clean": "pnpm -r --if-present clean",
-    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test"
+    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "ci": "pnpm format && pnpm format:check && pnpm lint && pnpm typecheck && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
