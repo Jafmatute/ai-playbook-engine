@@ -12,6 +12,7 @@
 - [Initial Aggregate Boundaries](./domain/aggregate-boundaries.md)
 - [Lifecycle State Machines](./domain/lifecycle-state-machines.md)
 - [Initial Application Use Cases](./domain/application-use-cases.md)
+- [Version 1 Functional Scope](./domain/version-1-scope.md)
 
 ## Architectural Decision Records
 
