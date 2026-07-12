@@ -14,6 +14,7 @@
 - [Initial Application Use Cases](./domain/application-use-cases.md)
 - [Version 1 Functional Scope](./domain/version-1-scope.md)
 - [Version 1 Conceptual Domain Model](./domain/version-1-conceptual-model.md)
+- [Version 1 Domain Decisions](./domain/version-1-domain-decisions.md)
 
 ## Architectural Decision Records
 
