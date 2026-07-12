@@ -26,6 +26,7 @@
 - [Storage Contracts](./technical/storage-contracts.md)
 - [Configuration Contracts](./technical/configuration-contracts.md)
 - [Application Contracts](./technical/application-contracts.md)
+- [Testing Boundaries](./technical/testing-boundaries.md)
 
 ## Architectural Decision Records
 
