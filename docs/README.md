@@ -23,4 +23,4 @@
 
 ## Development
 
-Development guides will be added as the repository evolves.
+- [OpenCode Development Workflow](./development/opencode-workflow.md)
