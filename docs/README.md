@@ -3,6 +3,8 @@
 ## Architecture
 
 - [System Overview](./architecture/system-overview.md)
+- [Context Map](./architecture/context-map.md)
+- [Module Catalog](./architecture/module-catalog.md)
 
 ## Architectural Decision Records
 
