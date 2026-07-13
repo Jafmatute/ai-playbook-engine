@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  type NormalizationStatus,
-  type PlaybookVersionStatus,
-  PlaybookVersion,
-} from '../index.js';
+import { type NormalizationStatus, type PlaybookVersionStatus, PlaybookVersion } from '../index.js';
 import {
   contentChecksum,
   defaultNow,
