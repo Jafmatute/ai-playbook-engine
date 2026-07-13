@@ -1,0 +1,70 @@
+import { describe, expect, it } from 'vitest';
+
+import { NormalizationSchemaVersion } from '../index.js';
+
+describe('NormalizationSchemaVersion', () => {
+  it('accepts valid version', () => {
+    const result = NormalizationSchemaVersion.create('knowledge-schema/v1');
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.value.value).toBe('knowledge-schema/v1');
+    }
+  });
+
+  it('trims outer spaces', () => {
+    const result = NormalizationSchemaVersion.create('  normalization/1.0.0  ');
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.value.value).toBe('normalization/1.0.0');
+    }
+  });
+
+  it.each(['', '   '])('rejects empty: "%s"', (value) => {
+    expect(NormalizationSchemaVersion.create(value)).toMatchObject({
+      success: false,
+      error: { code: 'NORMALIZATION_SCHEMA_VERSION_REQUIRED' },
+    });
+  });
+
+  it('accepts exact maximum length', () => {
+    const value = 'a'.repeat(100);
+    const result = NormalizationSchemaVersion.create(value);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.value.value).toBe(value);
+    }
+  });
+
+  it('rejects exceeding maximum length', () => {
+    const result = NormalizationSchemaVersion.create('a'.repeat(101));
+
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        code: 'NORMALIZATION_SCHEMA_VERSION_INVALID',
+        details: { maximumLength: 100, actualLength: 101 },
+      },
+    });
+  });
+
+  it('preserves capitalization', () => {
+    const result = NormalizationSchemaVersion.create('knowledge-schema/v2');
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.value.value).toBe('knowledge-schema/v2');
+    }
+  });
+
+  it('equality is exact', () => {
+    const a = NormalizationSchemaVersion.create('knowledge-schema/v1');
+    const b = NormalizationSchemaVersion.create('knowledge-schema/v1');
+    const c = NormalizationSchemaVersion.create('Knowledge-Schema/v1');
+
+    expect(a.success && b.success && a.value.equals(b.value)).toBe(true);
+    expect(a.success && c.success && a.value.equals(c.value)).toBe(false);
+  });
+});

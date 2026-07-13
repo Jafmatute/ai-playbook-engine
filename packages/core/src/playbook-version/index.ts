@@ -25,3 +25,20 @@ export {
   type ValidationSummaryError,
   type ValidationSummarySnapshot,
 } from './validation-summary.js';
+export {
+  ParserVersion,
+  type ParserVersionError,
+  parserVersionMaximumLength,
+} from './parser-version.js';
+export {
+  NormalizationSchemaVersion,
+  type NormalizationSchemaVersionError,
+  normalizationSchemaVersionMaximumLength,
+} from './normalization-schema-version.js';
+export {
+  PlaybookVersion,
+  type PlaybookVersionCreationError,
+  type PlaybookVersionRestorationError,
+  type PlaybookVersionStateInvalidError,
+  type PlaybookVersionSnapshot,
+} from './playbook-version.js';
