@@ -28,6 +28,7 @@
 - [Application Contracts](./technical/application-contracts.md)
 - [Testing Boundaries](./technical/testing-boundaries.md)
 - [Logging and Traceability](./technical/logging.md)
+- [Internal Event Contracts](./technical/event-contracts.md)
 
 ## Architectural Decision Records
 
