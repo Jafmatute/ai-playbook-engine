@@ -82,12 +82,57 @@ export interface PlaybookVersionNormalizationAttemptInvalidError {
   };
 }
 
+export interface PlaybookVersionNormalizationIncompleteError {
+  readonly code: 'PLAYBOOK_VERSION_NORMALIZATION_INCOMPLETE';
+  readonly message: string;
+  readonly details: {
+    readonly operation: string;
+    readonly normalizationStatus: NormalizationStatus;
+  };
+}
+
+export interface PlaybookVersionValidationAlreadyStartedError {
+  readonly code: 'PLAYBOOK_VERSION_VALIDATION_ALREADY_STARTED';
+  readonly message: string;
+  readonly details: {
+    readonly operation: string;
+    readonly currentStatus: PlaybookVersionStatus;
+  };
+}
+
+export interface PlaybookVersionNotValidatingError {
+  readonly code: 'PLAYBOOK_VERSION_NOT_VALIDATING';
+  readonly message: string;
+  readonly details: {
+    readonly operation: string;
+    readonly currentStatus: PlaybookVersionStatus;
+  };
+}
+
+export interface PlaybookVersionValidationSummaryInvalidError {
+  readonly code: 'PLAYBOOK_VERSION_VALIDATION_SUMMARY_INVALID';
+  readonly message: string;
+  readonly details: {
+    readonly operation: string;
+    readonly reason:
+      | 'validation_summary_not_eligible'
+      | 'validation_summary_unexpectedly_eligible'
+      | 'validation_checksum_mismatch'
+      | 'validation_completion_mismatch';
+    readonly blockingFindingCount?: number;
+  };
+}
+
 export type PlaybookVersionTransitionError =
   | PlaybookVersionStateInvalidError
   | PlaybookVersionOperationNotAllowedError
   | PlaybookVersionNormalizationAlreadyRunningError
   | PlaybookVersionNormalizationNotRunningError
-  | PlaybookVersionNormalizationAttemptInvalidError;
+  | PlaybookVersionNormalizationAttemptInvalidError
+  | PlaybookVersionNormalizationIncompleteError
+  | PlaybookVersionValidationAlreadyStartedError
+  | PlaybookVersionNotValidatingError
+  | PlaybookVersionValidationSummaryInvalidError;
 
 export interface PlaybookVersionSnapshot {
   readonly playbookVersionId: PlaybookVersionId;
@@ -466,6 +511,256 @@ export class PlaybookVersion {
 
     this.#state.normalizationStatus = 'failed';
     this.#state.updatedAt = input.failedAt;
+    return ok(undefined);
+  }
+
+  beginValidation(input: {
+    readonly startedAt: Instant;
+  }): Result<void, PlaybookVersionTransitionError> {
+    const { status, normalizationStatus } = this.#state;
+
+    if (status !== 'draft') {
+      if (status === 'validating') {
+        return err(validationAlreadyStarted());
+      }
+
+      return err(
+        operationNotAllowed({
+          operation: 'begin_validation',
+          currentStatus: status,
+          normalizationStatus,
+          reason: 'version_not_draft',
+        }),
+      );
+    }
+
+    if (normalizationStatus !== 'completed') {
+      return err(normalizationIncomplete(normalizationStatus));
+    }
+
+    if (this.#state.normalizationAttemptId === null) {
+      return err(stateInvalid({ reason: 'normalization_attempt_required' }));
+    }
+
+    if (this.#state.validationSummary !== null) {
+      return err(stateInvalid({ reason: 'unexpected_validation_summary' }));
+    }
+
+    if (this.#state.validationStartedAt !== null) {
+      return err(stateInvalid({ reason: 'unexpected_timestamp', field: 'validationStartedAt' }));
+    }
+
+    if (this.#state.validatedAt !== null) {
+      return err(stateInvalid({ reason: 'unexpected_timestamp', field: 'validatedAt' }));
+    }
+
+    if (this.#state.publishedAt !== null) {
+      return err(stateInvalid({ reason: 'unexpected_timestamp', field: 'publishedAt' }));
+    }
+
+    if (this.#state.archivedAt !== null) {
+      return err(stateInvalid({ reason: 'unexpected_timestamp', field: 'archivedAt' }));
+    }
+
+    if (input.startedAt.compare(this.#state.updatedAt) < 0) {
+      return err(
+        stateInvalid({
+          reason: 'timestamp_order_invalid',
+          field: 'updatedAt',
+          operation: 'begin_validation',
+        }),
+      );
+    }
+
+    this.#state.status = 'validating';
+    this.#state.validationStartedAt = input.startedAt;
+    this.#state.updatedAt = input.startedAt;
+    return ok(undefined);
+  }
+
+  markValidated(input: {
+    readonly validationSummary: ValidationSummary;
+    readonly validatedAt: Instant;
+  }): Result<void, PlaybookVersionTransitionError> {
+    const { status } = this.#state;
+
+    if (status !== 'validating') {
+      return err(notValidating({ operation: 'mark_validated', currentStatus: status }));
+    }
+
+    if (this.#state.normalizationStatus !== 'completed') {
+      return err(
+        stateInvalid({
+          reason: 'normalization_incomplete',
+          normalizationStatus: this.#state.normalizationStatus,
+        }),
+      );
+    }
+
+    if (this.#state.normalizationAttemptId === null) {
+      return err(stateInvalid({ reason: 'normalization_attempt_required' }));
+    }
+
+    if (this.#state.validationStartedAt === null) {
+      return err(
+        stateInvalid({ reason: 'required_timestamp_missing', field: 'validationStartedAt' }),
+      );
+    }
+
+    if (this.#state.validationSummary !== null) {
+      return err(stateInvalid({ reason: 'unexpected_validation_summary' }));
+    }
+
+    if (input.validatedAt.compare(this.#state.validationStartedAt) < 0) {
+      return err(
+        stateInvalid({
+          reason: 'timestamp_order_invalid',
+          field: 'validatedAt',
+          operation: 'mark_validated',
+        }),
+      );
+    }
+
+    if (input.validatedAt.compare(this.#state.updatedAt) < 0) {
+      return err(
+        stateInvalid({
+          reason: 'timestamp_order_invalid',
+          field: 'validatedAt',
+          operation: 'mark_validated',
+        }),
+      );
+    }
+
+    if (
+      !input.validationSummary.publicationEligible ||
+      input.validationSummary.blockingFindingCount > 0
+    ) {
+      return err(
+        validationSummaryInvalid({
+          operation: 'mark_validated',
+          reason: 'validation_summary_not_eligible',
+          blockingFindingCount: input.validationSummary.blockingFindingCount,
+        }),
+      );
+    }
+
+    if (!input.validationSummary.completedAt.equals(input.validatedAt)) {
+      return err(
+        validationSummaryInvalid({
+          operation: 'mark_validated',
+          reason: 'validation_completion_mismatch',
+        }),
+      );
+    }
+
+    if (
+      !input.validationSummary.validatedContentChecksum.equals(this.#state.sourceContentChecksum)
+    ) {
+      return err(
+        validationSummaryInvalid({
+          operation: 'mark_validated',
+          reason: 'validation_checksum_mismatch',
+        }),
+      );
+    }
+
+    this.#state.status = 'validated';
+    this.#state.validationSummary = input.validationSummary;
+    this.#state.validatedAt = input.validatedAt;
+    this.#state.updatedAt = input.validatedAt;
+    return ok(undefined);
+  }
+
+  markInvalid(input: {
+    readonly validationSummary: ValidationSummary;
+    readonly validatedAt: Instant;
+  }): Result<void, PlaybookVersionTransitionError> {
+    const { status } = this.#state;
+
+    if (status !== 'validating') {
+      return err(notValidating({ operation: 'mark_invalid', currentStatus: status }));
+    }
+
+    if (this.#state.normalizationStatus !== 'completed') {
+      return err(
+        stateInvalid({
+          reason: 'normalization_incomplete',
+          normalizationStatus: this.#state.normalizationStatus,
+        }),
+      );
+    }
+
+    if (this.#state.normalizationAttemptId === null) {
+      return err(stateInvalid({ reason: 'normalization_attempt_required' }));
+    }
+
+    if (this.#state.validationStartedAt === null) {
+      return err(
+        stateInvalid({ reason: 'required_timestamp_missing', field: 'validationStartedAt' }),
+      );
+    }
+
+    if (this.#state.validationSummary !== null) {
+      return err(stateInvalid({ reason: 'unexpected_validation_summary' }));
+    }
+
+    if (input.validatedAt.compare(this.#state.validationStartedAt) < 0) {
+      return err(
+        stateInvalid({
+          reason: 'timestamp_order_invalid',
+          field: 'validatedAt',
+          operation: 'mark_invalid',
+        }),
+      );
+    }
+
+    if (input.validatedAt.compare(this.#state.updatedAt) < 0) {
+      return err(
+        stateInvalid({
+          reason: 'timestamp_order_invalid',
+          field: 'validatedAt',
+          operation: 'mark_invalid',
+        }),
+      );
+    }
+
+    if (
+      input.validationSummary.publicationEligible ||
+      input.validationSummary.blockingFindingCount === 0
+    ) {
+      return err(
+        validationSummaryInvalid({
+          operation: 'mark_invalid',
+          reason: 'validation_summary_unexpectedly_eligible',
+          blockingFindingCount: input.validationSummary.blockingFindingCount,
+        }),
+      );
+    }
+
+    if (!input.validationSummary.completedAt.equals(input.validatedAt)) {
+      return err(
+        validationSummaryInvalid({
+          operation: 'mark_invalid',
+          reason: 'validation_completion_mismatch',
+        }),
+      );
+    }
+
+    if (
+      !input.validationSummary.validatedContentChecksum.equals(this.#state.sourceContentChecksum)
+    ) {
+      return err(
+        validationSummaryInvalid({
+          operation: 'mark_invalid',
+          reason: 'validation_checksum_mismatch',
+        }),
+      );
+    }
+
+    this.#state.status = 'invalid';
+    this.#state.validationSummary = input.validationSummary;
+    this.#state.validatedAt = input.validatedAt;
+    this.#state.updatedAt = input.validatedAt;
     return ok(undefined);
   }
 
@@ -1013,6 +1308,50 @@ function normalizationAttemptInvalid(
   return Object.freeze({
     code: 'PLAYBOOK_VERSION_NORMALIZATION_ATTEMPT_INVALID' as const,
     message: 'A new normalization attempt must use a different identifier.',
+    details: Object.freeze(details),
+  });
+}
+
+function normalizationIncomplete(
+  normalizationStatus: NormalizationStatus,
+): PlaybookVersionNormalizationIncompleteError {
+  return Object.freeze({
+    code: 'PLAYBOOK_VERSION_NORMALIZATION_INCOMPLETE' as const,
+    message: 'Normalization must be completed before validation can begin.',
+    details: Object.freeze({
+      operation: 'begin_validation',
+      normalizationStatus,
+    }),
+  });
+}
+
+function validationAlreadyStarted(): PlaybookVersionValidationAlreadyStartedError {
+  return Object.freeze({
+    code: 'PLAYBOOK_VERSION_VALIDATION_ALREADY_STARTED' as const,
+    message: 'Validation is already in progress.',
+    details: Object.freeze({
+      operation: 'begin_validation',
+      currentStatus: 'validating' as const,
+    }),
+  });
+}
+
+function notValidating(
+  details: PlaybookVersionNotValidatingError['details'],
+): PlaybookVersionNotValidatingError {
+  return Object.freeze({
+    code: 'PLAYBOOK_VERSION_NOT_VALIDATING' as const,
+    message: 'The version must be in validating status.',
+    details: Object.freeze(details),
+  });
+}
+
+function validationSummaryInvalid(
+  details: PlaybookVersionValidationSummaryInvalidError['details'],
+): PlaybookVersionValidationSummaryInvalidError {
+  return Object.freeze({
+    code: 'PLAYBOOK_VERSION_VALIDATION_SUMMARY_INVALID' as const,
+    message: 'The validation summary is not valid for this transition.',
     details: Object.freeze(details),
   });
 }
