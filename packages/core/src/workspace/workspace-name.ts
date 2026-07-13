@@ -37,7 +37,7 @@ export class WorkspaceName {
       return err(workspaceNameInvalid(value.length));
     }
 
-    return ok(new WorkspaceName(value, value.toLocaleLowerCase('en-US')));
+    return ok(new WorkspaceName(value, value.toLowerCase()));
   }
 
   get value(): string {

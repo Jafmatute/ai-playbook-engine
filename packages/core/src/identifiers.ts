@@ -2,12 +2,17 @@ import { err, ok, type Result } from '@ai-playbook-engine/shared';
 
 declare const workspaceIdBrand: unique symbol;
 declare const playbookIdBrand: unique symbol;
+declare const canonicalUuidBrand: unique symbol;
 
-export type WorkspaceId = string & {
+type CanonicalUuid = string & {
+  readonly [canonicalUuidBrand]: true;
+};
+
+export type WorkspaceId = CanonicalUuid & {
   readonly [workspaceIdBrand]: true;
 };
 
-export type PlaybookId = string & {
+export type PlaybookId = CanonicalUuid & {
   readonly [playbookIdBrand]: true;
 };
 
@@ -24,23 +29,35 @@ const canonicalUuidPattern =
 
 export function parseWorkspaceId(rawValue: string): Result<WorkspaceId, IdentifierError> {
   const parsed = parseIdentifier(rawValue, 'workspace_id');
-  return parsed.success ? ok(parsed.value as WorkspaceId) : parsed;
+  return parsed.success ? ok(createWorkspaceId(parsed.value)) : parsed;
 }
 
 export function parsePlaybookId(rawValue: string): Result<PlaybookId, IdentifierError> {
   const parsed = parseIdentifier(rawValue, 'playbook_id');
-  return parsed.success ? ok(parsed.value as PlaybookId) : parsed;
+  return parsed.success ? ok(createPlaybookId(parsed.value)) : parsed;
 }
 
 function parseIdentifier(
   rawValue: string,
   expectedType: IdentifierError['details']['expectedType'],
-): Result<string, IdentifierError> {
+): Result<CanonicalUuid, IdentifierError> {
   if (!canonicalUuidPattern.test(rawValue)) {
     return err(invalidIdentifier(expectedType));
   }
 
-  return ok(rawValue.toLowerCase());
+  return ok(createCanonicalUuid(rawValue.toLowerCase()));
+}
+
+function createCanonicalUuid(value: string): CanonicalUuid {
+  return value as CanonicalUuid;
+}
+
+function createWorkspaceId(value: CanonicalUuid): WorkspaceId {
+  return value as WorkspaceId;
+}
+
+function createPlaybookId(value: CanonicalUuid): PlaybookId {
+  return value as PlaybookId;
 }
 
 function invalidIdentifier(
