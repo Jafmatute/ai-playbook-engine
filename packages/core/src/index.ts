@@ -53,6 +53,7 @@ export {
   type ValidationAttemptTransitionError,
   type RestoreValidationAttemptInput,
 } from './validation-attempt/index.js';
+export { isKnowledgeType, type KnowledgeType } from './knowledge-item/index.js';
 export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
