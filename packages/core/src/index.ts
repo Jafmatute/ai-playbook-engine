@@ -33,8 +33,16 @@ export {
   type RestoreNormalizationAttemptInput,
 } from './normalization-attempt/index.js';
 export {
+  ValidationAttempt,
+  type CreateValidationAttemptInput,
   isValidationAttemptStatus,
+  type ValidationAttemptCreationError,
+  type ValidationAttemptRestorationError,
+  type ValidationAttemptSnapshot,
+  type ValidationAttemptStateInvalidError,
+  type ValidationAttemptStateInvalidReason,
   type ValidationAttemptStatus,
+  type RestoreValidationAttemptInput,
 } from './validation-attempt/index.js';
 export {
   Workspace,
