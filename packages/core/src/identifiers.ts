@@ -3,6 +3,9 @@ import { err, ok, type Result } from '@ai-playbook-engine/shared';
 declare const workspaceIdBrand: unique symbol;
 declare const playbookIdBrand: unique symbol;
 declare const playbookVersionIdBrand: unique symbol;
+declare const synchronizationSnapshotIdBrand: unique symbol;
+declare const normalizationAttemptIdBrand: unique symbol;
+declare const validationAttemptIdBrand: unique symbol;
 declare const canonicalUuidBrand: unique symbol;
 
 type CanonicalUuid = string & {
@@ -21,11 +24,29 @@ export type PlaybookVersionId = CanonicalUuid & {
   readonly [playbookVersionIdBrand]: true;
 };
 
+export type SynchronizationSnapshotId = CanonicalUuid & {
+  readonly [synchronizationSnapshotIdBrand]: true;
+};
+
+export type NormalizationAttemptId = CanonicalUuid & {
+  readonly [normalizationAttemptIdBrand]: true;
+};
+
+export type ValidationAttemptId = CanonicalUuid & {
+  readonly [validationAttemptIdBrand]: true;
+};
+
 export interface IdentifierError {
   readonly code: 'INVALID_IDENTIFIER';
   readonly message: string;
   readonly details: {
-    readonly expectedType: 'workspace_id' | 'playbook_id' | 'playbook_version_id';
+    readonly expectedType:
+      | 'workspace_id'
+      | 'playbook_id'
+      | 'playbook_version_id'
+      | 'synchronization_snapshot_id'
+      | 'normalization_attempt_id'
+      | 'validation_attempt_id';
   };
 }
 
@@ -47,6 +68,27 @@ export function parsePlaybookVersionId(
 ): Result<PlaybookVersionId, IdentifierError> {
   const parsed = parseIdentifier(rawValue, 'playbook_version_id');
   return parsed.success ? ok(createPlaybookVersionId(parsed.value)) : parsed;
+}
+
+export function parseSynchronizationSnapshotId(
+  rawValue: string,
+): Result<SynchronizationSnapshotId, IdentifierError> {
+  const parsed = parseIdentifier(rawValue, 'synchronization_snapshot_id');
+  return parsed.success ? ok(createSynchronizationSnapshotId(parsed.value)) : parsed;
+}
+
+export function parseNormalizationAttemptId(
+  rawValue: string,
+): Result<NormalizationAttemptId, IdentifierError> {
+  const parsed = parseIdentifier(rawValue, 'normalization_attempt_id');
+  return parsed.success ? ok(createNormalizationAttemptId(parsed.value)) : parsed;
+}
+
+export function parseValidationAttemptId(
+  rawValue: string,
+): Result<ValidationAttemptId, IdentifierError> {
+  const parsed = parseIdentifier(rawValue, 'validation_attempt_id');
+  return parsed.success ? ok(createValidationAttemptId(parsed.value)) : parsed;
 }
 
 function parseIdentifier(
@@ -74,6 +116,18 @@ function createPlaybookId(value: CanonicalUuid): PlaybookId {
 
 function createPlaybookVersionId(value: CanonicalUuid): PlaybookVersionId {
   return value as PlaybookVersionId;
+}
+
+function createSynchronizationSnapshotId(value: CanonicalUuid): SynchronizationSnapshotId {
+  return value as SynchronizationSnapshotId;
+}
+
+function createNormalizationAttemptId(value: CanonicalUuid): NormalizationAttemptId {
+  return value as NormalizationAttemptId;
+}
+
+function createValidationAttemptId(value: CanonicalUuid): ValidationAttemptId {
+  return value as ValidationAttemptId;
 }
 
 function invalidIdentifier(

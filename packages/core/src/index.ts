@@ -1,10 +1,16 @@
 export {
+  parseNormalizationAttemptId,
   parsePlaybookId,
   parsePlaybookVersionId,
+  parseSynchronizationSnapshotId,
+  parseValidationAttemptId,
   parseWorkspaceId,
   type IdentifierError,
+  type NormalizationAttemptId,
   type PlaybookId,
   type PlaybookVersionId,
+  type SynchronizationSnapshotId,
+  type ValidationAttemptId,
   type WorkspaceId,
 } from './identifiers.js';
 export { Instant, type InstantError } from './instant.js';
@@ -37,3 +43,13 @@ export {
 } from './playbook/playbook.js';
 export { PlaybookName, type PlaybookNameError } from './playbook/playbook-name.js';
 export { playbookStatuses, type PlaybookStatus } from './playbook/playbook-status.js';
+export {
+  normalizationStatuses,
+  playbookVersionStatuses,
+  type NormalizationStatus,
+  type PlaybookVersionStatus,
+  VersionLabel,
+  type VersionLabelError,
+  VersionSequence,
+  type VersionSequenceError,
+} from './playbook-version/index.js';
