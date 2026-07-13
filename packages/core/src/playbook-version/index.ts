@@ -48,6 +48,9 @@ export {
   type PlaybookVersionValidationAlreadyStartedError,
   type PlaybookVersionNotValidatingError,
   type PlaybookVersionValidationSummaryInvalidError,
+  type PlaybookVersionAlreadyPublishedError,
+  type PlaybookVersionNotPublishableError,
+  type PlaybookVersionAlreadyArchivedError,
   type PlaybookVersionTransitionError,
   type PlaybookVersionSnapshot,
 } from './playbook-version.js';

@@ -43,6 +43,35 @@ export interface PlaybookVersionStateInvalidError {
   };
 }
 
+export interface PlaybookVersionAlreadyPublishedError {
+  readonly code: 'PLAYBOOK_VERSION_ALREADY_PUBLISHED';
+  readonly message: string;
+  readonly details: {
+    readonly operation: string;
+    readonly currentStatus: PlaybookVersionStatus;
+  };
+}
+
+export interface PlaybookVersionNotPublishableError {
+  readonly code: 'PLAYBOOK_VERSION_NOT_PUBLISHABLE';
+  readonly message: string;
+  readonly details: {
+    readonly operation: string;
+    readonly currentStatus?: PlaybookVersionStatus;
+    readonly reason: string;
+    readonly blockingFindingCount?: number;
+  };
+}
+
+export interface PlaybookVersionAlreadyArchivedError {
+  readonly code: 'PLAYBOOK_VERSION_ALREADY_ARCHIVED';
+  readonly message: string;
+  readonly details: {
+    readonly operation: string;
+    readonly currentStatus: PlaybookVersionStatus;
+  };
+}
+
 export type PlaybookVersionCreationError = PlaybookVersionStateInvalidError;
 
 export type PlaybookVersionRestorationError = PlaybookVersionStateInvalidError;
@@ -132,7 +161,10 @@ export type PlaybookVersionTransitionError =
   | PlaybookVersionNormalizationIncompleteError
   | PlaybookVersionValidationAlreadyStartedError
   | PlaybookVersionNotValidatingError
-  | PlaybookVersionValidationSummaryInvalidError;
+  | PlaybookVersionValidationSummaryInvalidError
+  | PlaybookVersionAlreadyPublishedError
+  | PlaybookVersionNotPublishableError
+  | PlaybookVersionAlreadyArchivedError;
 
 export interface PlaybookVersionSnapshot {
   readonly playbookVersionId: PlaybookVersionId;
@@ -764,6 +796,230 @@ export class PlaybookVersion {
     return ok(undefined);
   }
 
+  publish(input: { readonly publishedAt: Instant }): Result<void, PlaybookVersionTransitionError> {
+    const { status, normalizationStatus } = this.#state;
+
+    if (status === 'published') {
+      return err(alreadyPublished());
+    }
+
+    if (status !== 'validated') {
+      let reason: string;
+      if (status === 'draft' || status === 'validating') {
+        reason = 'version_not_validated';
+      } else if (status === 'invalid') {
+        reason = 'version_invalid';
+      } else {
+        reason = 'version_archived';
+      }
+      return err(notPublishable({ operation: 'publish', currentStatus: status, reason }));
+    }
+
+    if (normalizationStatus !== 'completed') {
+      return err(
+        stateInvalid({
+          reason: 'normalization_incomplete',
+          operation: 'publish',
+          normalizationStatus,
+        }),
+      );
+    }
+
+    if (this.#state.normalizationAttemptId === null) {
+      return err(stateInvalid({ reason: 'normalization_attempt_required' }));
+    }
+
+    if (this.#state.validationStartedAt === null) {
+      return err(
+        stateInvalid({ reason: 'required_timestamp_missing', field: 'validationStartedAt' }),
+      );
+    }
+
+    if (this.#state.validatedAt === null) {
+      return err(stateInvalid({ reason: 'required_timestamp_missing', field: 'validatedAt' }));
+    }
+
+    if (this.#state.validationSummary === null) {
+      return err(stateInvalid({ reason: 'validation_summary_required' }));
+    }
+
+    if (this.#state.publishedAt !== null) {
+      return err(stateInvalid({ reason: 'unexpected_timestamp', field: 'publishedAt' }));
+    }
+
+    if (this.#state.archivedAt !== null) {
+      return err(stateInvalid({ reason: 'unexpected_timestamp', field: 'archivedAt' }));
+    }
+
+    const summary = this.#state.validationSummary;
+    if (!summary.publicationEligible || summary.blockingFindingCount > 0) {
+      return err(
+        notPublishable({
+          operation: 'publish',
+          reason: 'validation_summary_not_eligible',
+          blockingFindingCount: summary.blockingFindingCount,
+        }),
+      );
+    }
+
+    if (!summary.validatedContentChecksum.equals(this.#state.sourceContentChecksum)) {
+      return err(notPublishable({ operation: 'publish', reason: 'validation_checksum_mismatch' }));
+    }
+
+    if (!summary.completedAt.equals(this.#state.validatedAt)) {
+      return err(
+        notPublishable({ operation: 'publish', reason: 'validation_completion_mismatch' }),
+      );
+    }
+
+    if (input.publishedAt.compare(this.#state.validatedAt) < 0) {
+      return err(
+        stateInvalid({
+          reason: 'timestamp_order_invalid',
+          field: 'publishedAt',
+          operation: 'publish',
+        }),
+      );
+    }
+
+    if (input.publishedAt.compare(this.#state.updatedAt) < 0) {
+      return err(
+        stateInvalid({
+          reason: 'timestamp_order_invalid',
+          field: 'publishedAt',
+          operation: 'publish',
+        }),
+      );
+    }
+
+    this.#state.status = 'published';
+    this.#state.publishedAt = input.publishedAt;
+    this.#state.updatedAt = input.publishedAt;
+    return ok(undefined);
+  }
+
+  archive(input: { readonly archivedAt: Instant }): Result<void, PlaybookVersionTransitionError> {
+    const { status } = this.#state;
+
+    if (status === 'archived') {
+      return err(alreadyArchived());
+    }
+
+    if (status === 'draft' || status === 'validating') {
+      return err(
+        operationNotAllowed({
+          operation: 'archive',
+          currentStatus: status,
+          reason: 'version_not_finalized',
+        }),
+      );
+    }
+
+    if (this.#state.normalizationStatus !== 'completed') {
+      return err(
+        stateInvalid({
+          reason: 'normalization_incomplete',
+          operation: 'archive',
+          normalizationStatus: this.#state.normalizationStatus,
+        }),
+      );
+    }
+
+    if (this.#state.normalizationAttemptId === null) {
+      return err(stateInvalid({ reason: 'normalization_attempt_required' }));
+    }
+
+    if (this.#state.validationStartedAt === null) {
+      return err(
+        stateInvalid({ reason: 'required_timestamp_missing', field: 'validationStartedAt' }),
+      );
+    }
+
+    if (this.#state.validatedAt === null) {
+      return err(stateInvalid({ reason: 'required_timestamp_missing', field: 'validatedAt' }));
+    }
+
+    if (this.#state.validationSummary === null) {
+      return err(stateInvalid({ reason: 'validation_summary_required' }));
+    }
+
+    if (this.#state.archivedAt !== null) {
+      return err(stateInvalid({ reason: 'unexpected_timestamp', field: 'archivedAt' }));
+    }
+
+    const summary = this.#state.validationSummary;
+    const validatedAt = this.#state.validatedAt;
+    const integrityError = checkFinalizedSummaryIntegrity(
+      summary,
+      validatedAt,
+      this.#state.sourceContentChecksum,
+    );
+    if (integrityError !== null) {
+      return err(integrityError);
+    }
+
+    if (input.archivedAt.compare(validatedAt) < 0) {
+      return err(
+        stateInvalid({
+          reason: 'timestamp_order_invalid',
+          field: 'archivedAt',
+          operation: 'archive',
+        }),
+      );
+    }
+
+    if (input.archivedAt.compare(this.#state.updatedAt) < 0) {
+      return err(
+        stateInvalid({
+          reason: 'timestamp_order_invalid',
+          field: 'archivedAt',
+          operation: 'archive',
+        }),
+      );
+    }
+
+    if (this.#state.publishedAt !== null && input.archivedAt.compare(this.#state.publishedAt) < 0) {
+      return err(
+        stateInvalid({
+          reason: 'timestamp_order_invalid',
+          field: 'archivedAt',
+          operation: 'archive',
+        }),
+      );
+    }
+
+    if (status === 'validated') {
+      if (!summary.publicationEligible || summary.blockingFindingCount !== 0) {
+        return err(stateInvalid({ reason: 'validation_summary_not_eligible' }));
+      }
+
+      if (this.#state.publishedAt !== null) {
+        return err(stateInvalid({ reason: 'status_combination_invalid' }));
+      }
+    } else if (status === 'invalid') {
+      if (summary.publicationEligible || summary.blockingFindingCount === 0) {
+        return err(stateInvalid({ reason: 'validation_summary_unexpectedly_eligible' }));
+      }
+
+      if (this.#state.publishedAt !== null) {
+        return err(stateInvalid({ reason: 'status_combination_invalid' }));
+      }
+    } else if (status === 'published') {
+      if (!summary.publicationEligible || summary.blockingFindingCount !== 0) {
+        return err(stateInvalid({ reason: 'validation_summary_not_eligible' }));
+      }
+
+      if (this.#state.publishedAt === null) {
+        return err(stateInvalid({ reason: 'required_timestamp_missing', field: 'publishedAt' }));
+      }
+    }
+
+    this.#state.status = 'archived';
+    this.#state.archivedAt = input.archivedAt;
+    this.#state.updatedAt = input.archivedAt;
+    return ok(undefined);
+  }
+
   toSnapshot(): PlaybookVersionSnapshot {
     return Object.freeze({
       playbookVersionId: this.#state.playbookVersionId,
@@ -1353,5 +1609,37 @@ function validationSummaryInvalid(
     code: 'PLAYBOOK_VERSION_VALIDATION_SUMMARY_INVALID' as const,
     message: 'The validation summary is not valid for this transition.',
     details: Object.freeze(details),
+  });
+}
+
+function alreadyPublished(): PlaybookVersionAlreadyPublishedError {
+  return Object.freeze({
+    code: 'PLAYBOOK_VERSION_ALREADY_PUBLISHED' as const,
+    message: 'The playbook version is already published.',
+    details: Object.freeze({
+      operation: 'publish' as const,
+      currentStatus: 'published' as const,
+    }),
+  });
+}
+
+function notPublishable(
+  details: PlaybookVersionNotPublishableError['details'],
+): PlaybookVersionNotPublishableError {
+  return Object.freeze({
+    code: 'PLAYBOOK_VERSION_NOT_PUBLISHABLE' as const,
+    message: 'The playbook version is not publishable.',
+    details: Object.freeze(details),
+  });
+}
+
+function alreadyArchived(): PlaybookVersionAlreadyArchivedError {
+  return Object.freeze({
+    code: 'PLAYBOOK_VERSION_ALREADY_ARCHIVED' as const,
+    message: 'The playbook version is already archived.',
+    details: Object.freeze({
+      operation: 'archive' as const,
+      currentStatus: 'archived' as const,
+    }),
   });
 }
