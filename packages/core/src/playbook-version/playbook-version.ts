@@ -13,217 +13,65 @@ import type { NormalizationStatus } from './normalization-status.js';
 import type { NormalizationSchemaVersion } from './normalization-schema-version.js';
 import type { ParserVersion } from './parser-version.js';
 import type { PlaybookVersionStatus } from './playbook-version-status.js';
-import type { ValidationSummary, ValidationSummarySnapshot } from './validation-summary.js';
+import type { ValidationSummary } from './validation-summary.js';
 import type { VersionLabel } from './version-label.js';
 import type { VersionSequence } from './version-sequence.js';
+import type { PlaybookVersionSnapshot } from './playbook-version-contracts.js';
+import type { PlaybookVersionState } from './playbook-version-contracts.js';
+import type { CreatePlaybookVersionInput } from './playbook-version-contracts.js';
+import type { RestorePlaybookVersionInput } from './playbook-version-contracts.js';
+import type { BeginNormalizationInput } from './playbook-version-contracts.js';
+import type { CompleteNormalizationInput } from './playbook-version-contracts.js';
+import type { FailNormalizationInput } from './playbook-version-contracts.js';
+import type { BeginValidationInput } from './playbook-version-contracts.js';
+import type { MarkValidatedInput } from './playbook-version-contracts.js';
+import type { MarkInvalidInput } from './playbook-version-contracts.js';
+import type { PublishInput } from './playbook-version-contracts.js';
+import type { ArchiveInput } from './playbook-version-contracts.js';
+import type {
+  PlaybookVersionCreationError,
+  PlaybookVersionRestorationError,
+  PlaybookVersionTransitionError,
+} from './playbook-version-errors.js';
+import {
+  stateInvalid,
+  operationNotAllowed,
+  normalizationAlreadyRunning,
+  normalizationNotRunning,
+  normalizationAttemptInvalid,
+  normalizationIncomplete,
+  validationAlreadyStarted,
+  notValidating,
+  validationSummaryInvalid,
+  alreadyPublished,
+  notPublishable,
+  alreadyArchived,
+} from './playbook-version-errors.js';
+import {
+  isPlaybookVersionStatus,
+  isNormalizationStatus,
+  validateRestoredState,
+} from './playbook-version-restoration.js';
+import { checkFinalizedSummaryIntegrity } from './playbook-version-invariants.js';
 
-export interface PlaybookVersionStateInvalidError {
-  readonly code: 'PLAYBOOK_VERSION_STATE_INVALID';
-  readonly message: string;
-  readonly details: {
-    readonly reason:
-      | 'updated_before_created'
-      | 'timestamp_order_invalid'
-      | 'unexpected_timestamp'
-      | 'required_timestamp_missing'
-      | 'unexpected_validation_summary'
-      | 'validation_summary_required'
-      | 'normalization_attempt_required'
-      | 'normalization_attempt_not_allowed'
-      | 'normalization_incomplete'
-      | 'validation_summary_not_eligible'
-      | 'validation_summary_unexpectedly_eligible'
-      | 'validation_checksum_mismatch'
-      | 'validation_completion_mismatch'
-      | 'status_combination_invalid';
-    readonly field?: string;
-    readonly currentStatus?: string;
-    readonly normalizationStatus?: string;
-    readonly operation?: string;
-  };
-}
-
-export interface PlaybookVersionAlreadyPublishedError {
-  readonly code: 'PLAYBOOK_VERSION_ALREADY_PUBLISHED';
-  readonly message: string;
-  readonly details: {
-    readonly operation: string;
-    readonly currentStatus: PlaybookVersionStatus;
-  };
-}
-
-export interface PlaybookVersionNotPublishableError {
-  readonly code: 'PLAYBOOK_VERSION_NOT_PUBLISHABLE';
-  readonly message: string;
-  readonly details: {
-    readonly operation: string;
-    readonly currentStatus?: PlaybookVersionStatus;
-    readonly reason: string;
-    readonly blockingFindingCount?: number;
-  };
-}
-
-export interface PlaybookVersionAlreadyArchivedError {
-  readonly code: 'PLAYBOOK_VERSION_ALREADY_ARCHIVED';
-  readonly message: string;
-  readonly details: {
-    readonly operation: string;
-    readonly currentStatus: PlaybookVersionStatus;
-  };
-}
-
-export type PlaybookVersionCreationError = PlaybookVersionStateInvalidError;
-
-export type PlaybookVersionRestorationError = PlaybookVersionStateInvalidError;
-
-export interface PlaybookVersionOperationNotAllowedError {
-  readonly code: 'PLAYBOOK_VERSION_OPERATION_NOT_ALLOWED';
-  readonly message: string;
-  readonly details: {
-    readonly operation: string;
-    readonly reason: string;
-    readonly currentStatus?: PlaybookVersionStatus;
-    readonly normalizationStatus?: NormalizationStatus;
-  };
-}
-
-export interface PlaybookVersionNormalizationAlreadyRunningError {
-  readonly code: 'PLAYBOOK_VERSION_NORMALIZATION_ALREADY_RUNNING';
-  readonly message: string;
-  readonly details: Record<string, never>;
-}
-
-export interface PlaybookVersionNormalizationNotRunningError {
-  readonly code: 'PLAYBOOK_VERSION_NORMALIZATION_NOT_RUNNING';
-  readonly message: string;
-  readonly details: {
-    readonly operation: string;
-    readonly normalizationStatus: NormalizationStatus;
-  };
-}
-
-export interface PlaybookVersionNormalizationAttemptInvalidError {
-  readonly code: 'PLAYBOOK_VERSION_NORMALIZATION_ATTEMPT_INVALID';
-  readonly message: string;
-  readonly details: {
-    readonly reason: 'attempt_must_change';
-    readonly normalizationAttemptId: string;
-  };
-}
-
-export interface PlaybookVersionNormalizationIncompleteError {
-  readonly code: 'PLAYBOOK_VERSION_NORMALIZATION_INCOMPLETE';
-  readonly message: string;
-  readonly details: {
-    readonly operation: string;
-    readonly normalizationStatus: NormalizationStatus;
-  };
-}
-
-export interface PlaybookVersionValidationAlreadyStartedError {
-  readonly code: 'PLAYBOOK_VERSION_VALIDATION_ALREADY_STARTED';
-  readonly message: string;
-  readonly details: {
-    readonly operation: string;
-    readonly currentStatus: PlaybookVersionStatus;
-  };
-}
-
-export interface PlaybookVersionNotValidatingError {
-  readonly code: 'PLAYBOOK_VERSION_NOT_VALIDATING';
-  readonly message: string;
-  readonly details: {
-    readonly operation: string;
-    readonly currentStatus: PlaybookVersionStatus;
-  };
-}
-
-export interface PlaybookVersionValidationSummaryInvalidError {
-  readonly code: 'PLAYBOOK_VERSION_VALIDATION_SUMMARY_INVALID';
-  readonly message: string;
-  readonly details: {
-    readonly operation: string;
-    readonly reason:
-      | 'validation_summary_not_eligible'
-      | 'validation_summary_unexpectedly_eligible'
-      | 'validation_checksum_mismatch'
-      | 'validation_completion_mismatch';
-    readonly blockingFindingCount?: number;
-  };
-}
-
-export type PlaybookVersionTransitionError =
-  | PlaybookVersionStateInvalidError
-  | PlaybookVersionOperationNotAllowedError
-  | PlaybookVersionNormalizationAlreadyRunningError
-  | PlaybookVersionNormalizationNotRunningError
-  | PlaybookVersionNormalizationAttemptInvalidError
-  | PlaybookVersionNormalizationIncompleteError
-  | PlaybookVersionValidationAlreadyStartedError
-  | PlaybookVersionNotValidatingError
-  | PlaybookVersionValidationSummaryInvalidError
-  | PlaybookVersionAlreadyPublishedError
-  | PlaybookVersionNotPublishableError
-  | PlaybookVersionAlreadyArchivedError;
-
-export interface PlaybookVersionSnapshot {
-  readonly playbookVersionId: PlaybookVersionId;
-  readonly workspaceId: WorkspaceId;
-  readonly playbookId: PlaybookId;
-  readonly synchronizationSnapshotId: SynchronizationSnapshotId;
-
-  readonly versionSequence: number;
-  readonly versionLabel: string | null;
-
-  readonly status: PlaybookVersionStatus;
-  readonly normalizationStatus: NormalizationStatus;
-
-  readonly parserVersion: string;
-  readonly normalizationSchemaVersion: string;
-
-  readonly sourceContentChecksum: {
-    readonly algorithm: 'sha256';
-    readonly value: string;
-  };
-
-  readonly normalizationAttemptId: NormalizationAttemptId | null;
-
-  readonly validationSummary: ValidationSummarySnapshot | null;
-
-  readonly createdAt: string;
-  readonly updatedAt: string;
-  readonly validationStartedAt: string | null;
-  readonly validatedAt: string | null;
-  readonly publishedAt: string | null;
-  readonly archivedAt: string | null;
-}
-
-interface PlaybookVersionState {
-  readonly playbookVersionId: PlaybookVersionId;
-  readonly workspaceId: WorkspaceId;
-  readonly playbookId: PlaybookId;
-  readonly synchronizationSnapshotId: SynchronizationSnapshotId;
-  readonly versionSequence: VersionSequence;
-  readonly versionLabel: VersionLabel | null;
-
-  status: PlaybookVersionStatus;
-  normalizationStatus: NormalizationStatus;
-
-  readonly parserVersion: ParserVersion;
-  readonly normalizationSchemaVersion: NormalizationSchemaVersion;
-  readonly sourceContentChecksum: ContentChecksum;
-
-  normalizationAttemptId: NormalizationAttemptId | null;
-  validationSummary: ValidationSummary | null;
-
-  readonly createdAt: Instant;
-  updatedAt: Instant;
-
-  validationStartedAt: Instant | null;
-  validatedAt: Instant | null;
-  publishedAt: Instant | null;
-  archivedAt: Instant | null;
-}
+export {
+  type PlaybookVersionCreationError,
+  type PlaybookVersionRestorationError,
+  type PlaybookVersionStateInvalidError,
+  type PlaybookVersionOperationNotAllowedError,
+  type PlaybookVersionNormalizationAlreadyRunningError,
+  type PlaybookVersionNormalizationNotRunningError,
+  type PlaybookVersionNormalizationAttemptInvalidError,
+  type PlaybookVersionNormalizationIncompleteError,
+  type PlaybookVersionValidationAlreadyStartedError,
+  type PlaybookVersionNotValidatingError,
+  type PlaybookVersionValidationSummaryInvalidError,
+  type PlaybookVersionAlreadyPublishedError,
+  type PlaybookVersionNotPublishableError,
+  type PlaybookVersionAlreadyArchivedError,
+  type PlaybookVersionTransitionError,
+} from './playbook-version-errors.js';
+export { type PlaybookVersionSnapshot } from './playbook-version-contracts.js';
 
 export class PlaybookVersion {
   #state: PlaybookVersionState;
@@ -232,18 +80,9 @@ export class PlaybookVersion {
     this.#state = state;
   }
 
-  static create(input: {
-    readonly playbookVersionId: PlaybookVersionId;
-    readonly workspaceId: WorkspaceId;
-    readonly playbookId: PlaybookId;
-    readonly synchronizationSnapshotId: SynchronizationSnapshotId;
-    readonly versionSequence: VersionSequence;
-    readonly versionLabel: VersionLabel | null;
-    readonly parserVersion: ParserVersion;
-    readonly normalizationSchemaVersion: NormalizationSchemaVersion;
-    readonly sourceContentChecksum: ContentChecksum;
-    readonly createdAt: Instant;
-  }): Result<PlaybookVersion, PlaybookVersionCreationError> {
+  static create(
+    input: CreatePlaybookVersionInput,
+  ): Result<PlaybookVersion, PlaybookVersionCreationError> {
     return ok(
       new PlaybookVersion({
         playbookVersionId: input.playbookVersionId,
@@ -269,27 +108,9 @@ export class PlaybookVersion {
     );
   }
 
-  static restore(input: {
-    readonly playbookVersionId: PlaybookVersionId;
-    readonly workspaceId: WorkspaceId;
-    readonly playbookId: PlaybookId;
-    readonly synchronizationSnapshotId: SynchronizationSnapshotId;
-    readonly versionSequence: VersionSequence;
-    readonly versionLabel: VersionLabel | null;
-    readonly status: PlaybookVersionStatus | string;
-    readonly normalizationStatus: NormalizationStatus | string;
-    readonly parserVersion: ParserVersion;
-    readonly normalizationSchemaVersion: NormalizationSchemaVersion;
-    readonly sourceContentChecksum: ContentChecksum;
-    readonly normalizationAttemptId: NormalizationAttemptId | null;
-    readonly validationSummary: ValidationSummary | null;
-    readonly createdAt: Instant;
-    readonly updatedAt: Instant;
-    readonly validationStartedAt: Instant | null;
-    readonly validatedAt: Instant | null;
-    readonly publishedAt: Instant | null;
-    readonly archivedAt: Instant | null;
-  }): Result<PlaybookVersion, PlaybookVersionRestorationError> {
+  static restore(
+    input: RestorePlaybookVersionInput,
+  ): Result<PlaybookVersion, PlaybookVersionRestorationError> {
     const status = input.status;
     if (!isPlaybookVersionStatus(status)) {
       return err(stateInvalid({ reason: 'status_combination_invalid', currentStatus: status }));
@@ -394,10 +215,7 @@ export class PlaybookVersion {
     return this.#state.archivedAt;
   }
 
-  beginNormalization(input: {
-    readonly normalizationAttemptId: NormalizationAttemptId;
-    readonly startedAt: Instant;
-  }): Result<void, PlaybookVersionTransitionError> {
+  beginNormalization(input: BeginNormalizationInput): Result<void, PlaybookVersionTransitionError> {
     const { status, normalizationStatus } = this.#state;
 
     if (status !== 'draft') {
@@ -462,9 +280,9 @@ export class PlaybookVersion {
     return ok(undefined);
   }
 
-  completeNormalization(input: {
-    readonly completedAt: Instant;
-  }): Result<void, PlaybookVersionTransitionError> {
+  completeNormalization(
+    input: CompleteNormalizationInput,
+  ): Result<void, PlaybookVersionTransitionError> {
     const { status, normalizationStatus } = this.#state;
 
     if (status !== 'draft') {
@@ -504,9 +322,7 @@ export class PlaybookVersion {
     return ok(undefined);
   }
 
-  failNormalization(input: {
-    readonly failedAt: Instant;
-  }): Result<void, PlaybookVersionTransitionError> {
+  failNormalization(input: FailNormalizationInput): Result<void, PlaybookVersionTransitionError> {
     const { status, normalizationStatus } = this.#state;
 
     if (status !== 'draft') {
@@ -546,9 +362,7 @@ export class PlaybookVersion {
     return ok(undefined);
   }
 
-  beginValidation(input: {
-    readonly startedAt: Instant;
-  }): Result<void, PlaybookVersionTransitionError> {
+  beginValidation(input: BeginValidationInput): Result<void, PlaybookVersionTransitionError> {
     const { status, normalizationStatus } = this.#state;
 
     if (status !== 'draft') {
@@ -610,10 +424,7 @@ export class PlaybookVersion {
     return ok(undefined);
   }
 
-  markValidated(input: {
-    readonly validationSummary: ValidationSummary;
-    readonly validatedAt: Instant;
-  }): Result<void, PlaybookVersionTransitionError> {
+  markValidated(input: MarkValidatedInput): Result<void, PlaybookVersionTransitionError> {
     const { status } = this.#state;
 
     if (status !== 'validating') {
@@ -703,10 +514,7 @@ export class PlaybookVersion {
     return ok(undefined);
   }
 
-  markInvalid(input: {
-    readonly validationSummary: ValidationSummary;
-    readonly validatedAt: Instant;
-  }): Result<void, PlaybookVersionTransitionError> {
+  markInvalid(input: MarkInvalidInput): Result<void, PlaybookVersionTransitionError> {
     const { status } = this.#state;
 
     if (status !== 'validating') {
@@ -796,7 +604,7 @@ export class PlaybookVersion {
     return ok(undefined);
   }
 
-  publish(input: { readonly publishedAt: Instant }): Result<void, PlaybookVersionTransitionError> {
+  publish(input: PublishInput): Result<void, PlaybookVersionTransitionError> {
     const { status, normalizationStatus } = this.#state;
 
     if (status === 'published') {
@@ -804,7 +612,7 @@ export class PlaybookVersion {
     }
 
     if (status !== 'validated') {
-      let reason: string;
+      let reason: 'version_not_validated' | 'version_invalid' | 'version_archived';
       if (status === 'draft' || status === 'validating') {
         reason = 'version_not_validated';
       } else if (status === 'invalid') {
@@ -898,7 +706,7 @@ export class PlaybookVersion {
     return ok(undefined);
   }
 
-  archive(input: { readonly archivedAt: Instant }): Result<void, PlaybookVersionTransitionError> {
+  archive(input: ArchiveInput): Result<void, PlaybookVersionTransitionError> {
     const { status } = this.#state;
 
     if (status === 'archived') {
@@ -1046,600 +854,4 @@ export class PlaybookVersion {
       archivedAt: this.#state.archivedAt?.toString() ?? null,
     });
   }
-}
-
-function validateRestoredState(input: {
-  readonly status: PlaybookVersionStatus;
-  readonly normalizationStatus: NormalizationStatus;
-  readonly createdAt: Instant;
-  readonly updatedAt: Instant;
-  readonly validationStartedAt: Instant | null;
-  readonly validatedAt: Instant | null;
-  readonly publishedAt: Instant | null;
-  readonly archivedAt: Instant | null;
-  readonly validationSummary: ValidationSummary | null;
-  readonly normalizationAttemptId: NormalizationAttemptId | null;
-  readonly sourceContentChecksum: ContentChecksum;
-}): PlaybookVersionStateInvalidError | null {
-  if (input.updatedAt.compare(input.createdAt) < 0) {
-    return stateInvalid({ reason: 'updated_before_created', field: 'updatedAt' });
-  }
-
-  if (input.archivedAt !== null && input.archivedAt.compare(input.createdAt) < 0) {
-    return stateInvalid({ reason: 'timestamp_order_invalid', field: 'archivedAt' });
-  }
-
-  if (
-    input.validationStartedAt !== null &&
-    input.validationStartedAt.compare(input.createdAt) < 0
-  ) {
-    return stateInvalid({ reason: 'timestamp_order_invalid', field: 'validationStartedAt' });
-  }
-
-  if (
-    input.validatedAt !== null &&
-    input.validationStartedAt !== null &&
-    input.validatedAt.compare(input.validationStartedAt) < 0
-  ) {
-    return stateInvalid({ reason: 'timestamp_order_invalid', field: 'validatedAt' });
-  }
-
-  if (
-    input.publishedAt !== null &&
-    input.validatedAt !== null &&
-    input.publishedAt.compare(input.validatedAt) < 0
-  ) {
-    return stateInvalid({ reason: 'timestamp_order_invalid', field: 'publishedAt' });
-  }
-
-  if (input.archivedAt !== null && input.updatedAt.compare(input.archivedAt) < 0) {
-    return stateInvalid({ reason: 'timestamp_order_invalid', field: 'updatedAt' });
-  }
-
-  if (
-    input.validationStartedAt !== null &&
-    input.updatedAt.compare(input.validationStartedAt) < 0
-  ) {
-    return stateInvalid({ reason: 'timestamp_order_invalid', field: 'updatedAt' });
-  }
-
-  if (input.validatedAt !== null && input.updatedAt.compare(input.validatedAt) < 0) {
-    return stateInvalid({ reason: 'timestamp_order_invalid', field: 'updatedAt' });
-  }
-
-  if (input.publishedAt !== null && input.updatedAt.compare(input.publishedAt) < 0) {
-    return stateInvalid({ reason: 'timestamp_order_invalid', field: 'updatedAt' });
-  }
-
-  if (input.publishedAt !== null && input.validationStartedAt === null) {
-    return stateInvalid({ reason: 'required_timestamp_missing', field: 'validationStartedAt' });
-  }
-
-  if (input.validatedAt !== null && input.validationStartedAt === null) {
-    return stateInvalid({ reason: 'required_timestamp_missing', field: 'validationStartedAt' });
-  }
-
-  switch (input.status) {
-    case 'draft':
-      return validateDraft(input);
-    case 'validating':
-      return validateValidating(input);
-    case 'validated':
-      return validateValidated(input);
-    case 'invalid':
-      return validateInvalid(input);
-    case 'published':
-      return validatePublished(input);
-    case 'archived':
-      return validateArchived(input);
-    default:
-      return stateInvalid({ reason: 'status_combination_invalid', currentStatus: input.status });
-  }
-}
-
-function validateDraft(input: {
-  readonly normalizationStatus: NormalizationStatus;
-  readonly normalizationAttemptId: NormalizationAttemptId | null;
-  readonly validationStartedAt: Instant | null;
-  readonly validatedAt: Instant | null;
-  readonly validationSummary: ValidationSummary | null;
-  readonly publishedAt: Instant | null;
-  readonly archivedAt: Instant | null;
-}): PlaybookVersionStateInvalidError | null {
-  if (input.validationStartedAt !== null) {
-    return stateInvalid({ reason: 'unexpected_timestamp', field: 'validationStartedAt' });
-  }
-
-  if (input.validatedAt !== null) {
-    return stateInvalid({ reason: 'unexpected_timestamp', field: 'validatedAt' });
-  }
-
-  if (input.validationSummary !== null) {
-    return stateInvalid({ reason: 'unexpected_validation_summary' });
-  }
-
-  if (input.publishedAt !== null) {
-    return stateInvalid({ reason: 'unexpected_timestamp', field: 'publishedAt' });
-  }
-
-  if (input.archivedAt !== null) {
-    return stateInvalid({ reason: 'unexpected_timestamp', field: 'archivedAt' });
-  }
-
-  switch (input.normalizationStatus) {
-    case 'pending':
-      if (input.normalizationAttemptId !== null) {
-        return stateInvalid({ reason: 'normalization_attempt_not_allowed' });
-      }
-      return null;
-    case 'running':
-    case 'completed':
-    case 'failed':
-      if (input.normalizationAttemptId === null) {
-        return stateInvalid({ reason: 'normalization_attempt_required' });
-      }
-      return null;
-    default:
-      return stateInvalid({
-        reason: 'status_combination_invalid',
-        normalizationStatus: input.normalizationStatus,
-      });
-  }
-}
-
-function validateValidating(input: {
-  readonly normalizationStatus: NormalizationStatus;
-  readonly normalizationAttemptId: NormalizationAttemptId | null;
-  readonly validationStartedAt: Instant | null;
-  readonly validatedAt: Instant | null;
-  readonly validationSummary: ValidationSummary | null;
-  readonly publishedAt: Instant | null;
-  readonly archivedAt: Instant | null;
-}): PlaybookVersionStateInvalidError | null {
-  if (input.normalizationStatus !== 'completed') {
-    return stateInvalid({
-      reason: 'normalization_incomplete',
-      normalizationStatus: input.normalizationStatus,
-    });
-  }
-
-  if (input.normalizationAttemptId === null) {
-    return stateInvalid({ reason: 'normalization_attempt_required' });
-  }
-
-  if (input.validationStartedAt === null) {
-    return stateInvalid({ reason: 'required_timestamp_missing', field: 'validationStartedAt' });
-  }
-
-  if (input.validatedAt !== null) {
-    return stateInvalid({ reason: 'unexpected_timestamp', field: 'validatedAt' });
-  }
-
-  if (input.validationSummary !== null) {
-    return stateInvalid({ reason: 'unexpected_validation_summary' });
-  }
-
-  if (input.publishedAt !== null) {
-    return stateInvalid({ reason: 'unexpected_timestamp', field: 'publishedAt' });
-  }
-
-  if (input.archivedAt !== null) {
-    return stateInvalid({ reason: 'unexpected_timestamp', field: 'archivedAt' });
-  }
-
-  return null;
-}
-
-function validateValidated(input: {
-  readonly normalizationStatus: NormalizationStatus;
-  readonly normalizationAttemptId: NormalizationAttemptId | null;
-  readonly validationStartedAt: Instant | null;
-  readonly validatedAt: Instant | null;
-  readonly validationSummary: ValidationSummary | null;
-  readonly publishedAt: Instant | null;
-  readonly archivedAt: Instant | null;
-  readonly sourceContentChecksum: ContentChecksum;
-}): PlaybookVersionStateInvalidError | null {
-  if (input.normalizationStatus !== 'completed') {
-    return stateInvalid({
-      reason: 'normalization_incomplete',
-      normalizationStatus: input.normalizationStatus,
-    });
-  }
-
-  if (input.normalizationAttemptId === null) {
-    return stateInvalid({ reason: 'normalization_attempt_required' });
-  }
-
-  if (input.validationStartedAt === null) {
-    return stateInvalid({ reason: 'required_timestamp_missing', field: 'validationStartedAt' });
-  }
-
-  if (input.validatedAt === null) {
-    return stateInvalid({ reason: 'required_timestamp_missing', field: 'validatedAt' });
-  }
-
-  if (input.validationSummary === null) {
-    return stateInvalid({ reason: 'validation_summary_required' });
-  }
-
-  if (!input.validationSummary.publicationEligible) {
-    return stateInvalid({ reason: 'validation_summary_not_eligible' });
-  }
-
-  if (input.validationSummary.blockingFindingCount > 0) {
-    return stateInvalid({ reason: 'validation_summary_not_eligible' });
-  }
-
-  const summaryErrorValidated = checkFinalizedSummaryIntegrity(
-    input.validationSummary,
-    input.validatedAt,
-    input.sourceContentChecksum,
-  );
-  if (summaryErrorValidated !== null) {
-    return summaryErrorValidated;
-  }
-
-  if (input.publishedAt !== null) {
-    return stateInvalid({ reason: 'unexpected_timestamp', field: 'publishedAt' });
-  }
-
-  if (input.archivedAt !== null) {
-    return stateInvalid({ reason: 'unexpected_timestamp', field: 'archivedAt' });
-  }
-
-  return null;
-}
-
-function validateInvalid(input: {
-  readonly normalizationStatus: NormalizationStatus;
-  readonly normalizationAttemptId: NormalizationAttemptId | null;
-  readonly validationStartedAt: Instant | null;
-  readonly validatedAt: Instant | null;
-  readonly validationSummary: ValidationSummary | null;
-  readonly publishedAt: Instant | null;
-  readonly archivedAt: Instant | null;
-  readonly sourceContentChecksum: ContentChecksum;
-}): PlaybookVersionStateInvalidError | null {
-  if (input.normalizationStatus !== 'completed') {
-    return stateInvalid({
-      reason: 'normalization_incomplete',
-      normalizationStatus: input.normalizationStatus,
-    });
-  }
-
-  if (input.normalizationAttemptId === null) {
-    return stateInvalid({ reason: 'normalization_attempt_required' });
-  }
-
-  if (input.validationStartedAt === null) {
-    return stateInvalid({ reason: 'required_timestamp_missing', field: 'validationStartedAt' });
-  }
-
-  if (input.validatedAt === null) {
-    return stateInvalid({ reason: 'required_timestamp_missing', field: 'validatedAt' });
-  }
-
-  if (input.validationSummary === null) {
-    return stateInvalid({ reason: 'validation_summary_required' });
-  }
-
-  if (input.validationSummary.publicationEligible) {
-    return stateInvalid({ reason: 'validation_summary_unexpectedly_eligible' });
-  }
-
-  if (input.validationSummary.blockingFindingCount === 0) {
-    return stateInvalid({ reason: 'validation_summary_not_eligible' });
-  }
-
-  const summaryErrorInvalid = checkFinalizedSummaryIntegrity(
-    input.validationSummary,
-    input.validatedAt,
-    input.sourceContentChecksum,
-  );
-  if (summaryErrorInvalid !== null) {
-    return summaryErrorInvalid;
-  }
-
-  if (input.publishedAt !== null) {
-    return stateInvalid({ reason: 'unexpected_timestamp', field: 'publishedAt' });
-  }
-
-  if (input.archivedAt !== null) {
-    return stateInvalid({ reason: 'unexpected_timestamp', field: 'archivedAt' });
-  }
-
-  return null;
-}
-
-function validatePublished(input: {
-  readonly normalizationStatus: NormalizationStatus;
-  readonly normalizationAttemptId: NormalizationAttemptId | null;
-  readonly validationStartedAt: Instant | null;
-  readonly validatedAt: Instant | null;
-  readonly validationSummary: ValidationSummary | null;
-  readonly publishedAt: Instant | null;
-  readonly archivedAt: Instant | null;
-  readonly sourceContentChecksum: ContentChecksum;
-}): PlaybookVersionStateInvalidError | null {
-  if (input.normalizationStatus !== 'completed') {
-    return stateInvalid({
-      reason: 'normalization_incomplete',
-      normalizationStatus: input.normalizationStatus,
-    });
-  }
-
-  if (input.normalizationAttemptId === null) {
-    return stateInvalid({ reason: 'normalization_attempt_required' });
-  }
-
-  if (input.validationStartedAt === null) {
-    return stateInvalid({ reason: 'required_timestamp_missing', field: 'validationStartedAt' });
-  }
-
-  if (input.validatedAt === null) {
-    return stateInvalid({ reason: 'required_timestamp_missing', field: 'validatedAt' });
-  }
-
-  if (input.validationSummary === null) {
-    return stateInvalid({ reason: 'validation_summary_required' });
-  }
-
-  if (!input.validationSummary.publicationEligible) {
-    return stateInvalid({ reason: 'validation_summary_not_eligible' });
-  }
-
-  if (input.validationSummary.blockingFindingCount !== 0) {
-    return stateInvalid({ reason: 'validation_summary_not_eligible' });
-  }
-
-  const summaryError = checkFinalizedSummaryIntegrity(
-    input.validationSummary,
-    input.validatedAt,
-    input.sourceContentChecksum,
-  );
-  if (summaryError !== null) {
-    return summaryError;
-  }
-
-  if (input.publishedAt === null) {
-    return stateInvalid({ reason: 'required_timestamp_missing', field: 'publishedAt' });
-  }
-
-  if (input.archivedAt !== null) {
-    return stateInvalid({ reason: 'unexpected_timestamp', field: 'archivedAt' });
-  }
-
-  return null;
-}
-
-function validateArchived(input: {
-  readonly normalizationStatus: NormalizationStatus;
-  readonly normalizationAttemptId: NormalizationAttemptId | null;
-  readonly validationStartedAt: Instant | null;
-  readonly validatedAt: Instant | null;
-  readonly validationSummary: ValidationSummary | null;
-  readonly publishedAt: Instant | null;
-  readonly archivedAt: Instant | null;
-  readonly sourceContentChecksum: ContentChecksum;
-}): PlaybookVersionStateInvalidError | null {
-  if (input.archivedAt === null) {
-    return stateInvalid({ reason: 'required_timestamp_missing', field: 'archivedAt' });
-  }
-
-  if (input.normalizationStatus !== 'completed') {
-    return stateInvalid({
-      reason: 'normalization_incomplete',
-      normalizationStatus: input.normalizationStatus,
-    });
-  }
-
-  if (input.normalizationAttemptId === null) {
-    return stateInvalid({ reason: 'normalization_attempt_required' });
-  }
-
-  if (input.validationStartedAt === null) {
-    return stateInvalid({ reason: 'required_timestamp_missing', field: 'validationStartedAt' });
-  }
-
-  if (input.validatedAt === null) {
-    return stateInvalid({ reason: 'required_timestamp_missing', field: 'validatedAt' });
-  }
-
-  if (input.validationSummary === null) {
-    return stateInvalid({ reason: 'validation_summary_required' });
-  }
-
-  if (input.archivedAt.compare(input.validatedAt) < 0) {
-    return stateInvalid({ reason: 'timestamp_order_invalid', field: 'archivedAt' });
-  }
-
-  if (input.publishedAt !== null && input.archivedAt.compare(input.publishedAt) < 0) {
-    return stateInvalid({ reason: 'timestamp_order_invalid', field: 'archivedAt' });
-  }
-
-  const summaryError = checkFinalizedSummaryIntegrity(
-    input.validationSummary,
-    input.validatedAt,
-    input.sourceContentChecksum,
-  );
-  if (summaryError !== null) {
-    return summaryError;
-  }
-
-  const previouslyPublished =
-    input.publishedAt !== null &&
-    input.validationSummary.publicationEligible &&
-    input.validationSummary.blockingFindingCount === 0;
-
-  const previouslyValidated =
-    input.publishedAt === null &&
-    input.validationSummary.publicationEligible &&
-    input.validationSummary.blockingFindingCount === 0;
-
-  const previouslyInvalid =
-    input.publishedAt === null &&
-    !input.validationSummary.publicationEligible &&
-    input.validationSummary.blockingFindingCount > 0;
-
-  if (!previouslyPublished && !previouslyValidated && !previouslyInvalid) {
-    return stateInvalid({ reason: 'status_combination_invalid' });
-  }
-
-  return null;
-}
-
-function checkFinalizedSummaryIntegrity(
-  summary: ValidationSummary,
-  validatedAt: Instant,
-  sourceContentChecksum: ContentChecksum,
-): PlaybookVersionStateInvalidError | null {
-  if (!summary.completedAt.equals(validatedAt)) {
-    return stateInvalid({ reason: 'validation_completion_mismatch' });
-  }
-
-  if (!summary.validatedContentChecksum.equals(sourceContentChecksum)) {
-    return stateInvalid({ reason: 'validation_checksum_mismatch' });
-  }
-
-  return null;
-}
-
-function isPlaybookVersionStatus(value: string): value is PlaybookVersionStatus {
-  return (
-    value === 'draft' ||
-    value === 'validating' ||
-    value === 'validated' ||
-    value === 'invalid' ||
-    value === 'published' ||
-    value === 'archived'
-  );
-}
-
-function isNormalizationStatus(value: string): value is NormalizationStatus {
-  return value === 'pending' || value === 'running' || value === 'completed' || value === 'failed';
-}
-
-function stateInvalid(
-  details: PlaybookVersionStateInvalidError['details'],
-): PlaybookVersionStateInvalidError {
-  return Object.freeze({
-    code: 'PLAYBOOK_VERSION_STATE_INVALID' as const,
-    message: 'The playbook version state is inconsistent.',
-    details: Object.freeze(details),
-  });
-}
-
-function operationNotAllowed(
-  details: PlaybookVersionOperationNotAllowedError['details'],
-): PlaybookVersionOperationNotAllowedError {
-  return Object.freeze({
-    code: 'PLAYBOOK_VERSION_OPERATION_NOT_ALLOWED' as const,
-    message: 'The operation is not allowed for the current version state.',
-    details: Object.freeze(details),
-  });
-}
-
-function normalizationAlreadyRunning(): PlaybookVersionNormalizationAlreadyRunningError {
-  return Object.freeze({
-    code: 'PLAYBOOK_VERSION_NORMALIZATION_ALREADY_RUNNING' as const,
-    message: 'Normalization is already running.',
-    details: Object.freeze({}),
-  });
-}
-
-function normalizationNotRunning(
-  details: PlaybookVersionNormalizationNotRunningError['details'],
-): PlaybookVersionNormalizationNotRunningError {
-  return Object.freeze({
-    code: 'PLAYBOOK_VERSION_NORMALIZATION_NOT_RUNNING' as const,
-    message: 'Normalization must be running to perform this operation.',
-    details: Object.freeze(details),
-  });
-}
-
-function normalizationAttemptInvalid(
-  details: PlaybookVersionNormalizationAttemptInvalidError['details'],
-): PlaybookVersionNormalizationAttemptInvalidError {
-  return Object.freeze({
-    code: 'PLAYBOOK_VERSION_NORMALIZATION_ATTEMPT_INVALID' as const,
-    message: 'A new normalization attempt must use a different identifier.',
-    details: Object.freeze(details),
-  });
-}
-
-function normalizationIncomplete(
-  normalizationStatus: NormalizationStatus,
-): PlaybookVersionNormalizationIncompleteError {
-  return Object.freeze({
-    code: 'PLAYBOOK_VERSION_NORMALIZATION_INCOMPLETE' as const,
-    message: 'Normalization must be completed before validation can begin.',
-    details: Object.freeze({
-      operation: 'begin_validation',
-      normalizationStatus,
-    }),
-  });
-}
-
-function validationAlreadyStarted(): PlaybookVersionValidationAlreadyStartedError {
-  return Object.freeze({
-    code: 'PLAYBOOK_VERSION_VALIDATION_ALREADY_STARTED' as const,
-    message: 'Validation is already in progress.',
-    details: Object.freeze({
-      operation: 'begin_validation',
-      currentStatus: 'validating' as const,
-    }),
-  });
-}
-
-function notValidating(
-  details: PlaybookVersionNotValidatingError['details'],
-): PlaybookVersionNotValidatingError {
-  return Object.freeze({
-    code: 'PLAYBOOK_VERSION_NOT_VALIDATING' as const,
-    message: 'The version must be in validating status.',
-    details: Object.freeze(details),
-  });
-}
-
-function validationSummaryInvalid(
-  details: PlaybookVersionValidationSummaryInvalidError['details'],
-): PlaybookVersionValidationSummaryInvalidError {
-  return Object.freeze({
-    code: 'PLAYBOOK_VERSION_VALIDATION_SUMMARY_INVALID' as const,
-    message: 'The validation summary is not valid for this transition.',
-    details: Object.freeze(details),
-  });
-}
-
-function alreadyPublished(): PlaybookVersionAlreadyPublishedError {
-  return Object.freeze({
-    code: 'PLAYBOOK_VERSION_ALREADY_PUBLISHED' as const,
-    message: 'The playbook version is already published.',
-    details: Object.freeze({
-      operation: 'publish' as const,
-      currentStatus: 'published' as const,
-    }),
-  });
-}
-
-function notPublishable(
-  details: PlaybookVersionNotPublishableError['details'],
-): PlaybookVersionNotPublishableError {
-  return Object.freeze({
-    code: 'PLAYBOOK_VERSION_NOT_PUBLISHABLE' as const,
-    message: 'The playbook version is not publishable.',
-    details: Object.freeze(details),
-  });
-}
-
-function alreadyArchived(): PlaybookVersionAlreadyArchivedError {
-  return Object.freeze({
-    code: 'PLAYBOOK_VERSION_ALREADY_ARCHIVED' as const,
-    message: 'The playbook version is already archived.',
-    details: Object.freeze({
-      operation: 'archive' as const,
-      currentStatus: 'archived' as const,
-    }),
-  });
 }
