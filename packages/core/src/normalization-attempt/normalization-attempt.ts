@@ -8,6 +8,7 @@ import type {
   CreateNormalizationAttemptInput,
   RestoreNormalizationAttemptInput,
   CompleteNormalizationAttemptInput,
+  FailNormalizationAttemptInput,
 } from './normalization-attempt-contracts.js';
 import type {
   NormalizationAttemptCreationError,
@@ -197,6 +198,27 @@ export class NormalizationAttempt {
     this.#state.status = 'completed';
     this.#state.completedAt = input.completedAt;
     this.#state.failedAt = null;
+    return ok(undefined);
+  }
+
+  fail(input: FailNormalizationAttemptInput): Result<void, NormalizationAttemptTransitionError> {
+    if (this.#state.status !== 'running') {
+      return err(notRunning({ operation: 'fail', currentStatus: this.#state.status }));
+    }
+
+    if (input.failedAt.compare(this.#state.startedAt) < 0) {
+      return err(
+        timestampInvalid({
+          operation: 'fail',
+          field: 'failedAt',
+          reason: 'timestamp_before_started',
+        }),
+      );
+    }
+
+    this.#state.status = 'failed';
+    this.#state.failedAt = input.failedAt;
+    this.#state.completedAt = null;
     return ok(undefined);
   }
 

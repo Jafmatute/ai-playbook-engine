@@ -18,6 +18,7 @@ export {
   NormalizationAttempt,
   type CompleteNormalizationAttemptInput,
   type CreateNormalizationAttemptInput,
+  type FailNormalizationAttemptInput,
   isNormalizationAttemptStatus,
   type NormalizationAttemptCreationError,
   type NormalizationAttemptNotRunningError,

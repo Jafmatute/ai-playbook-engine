@@ -665,3 +665,266 @@ describe('NormalizationAttempt.complete — error immutability', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// fail
+// ---------------------------------------------------------------------------
+
+describe('NormalizationAttempt.fail', () => {
+  const failedAt = instant('2026-07-12T10:05:00Z');
+
+  it('fails a running attempt', () => {
+    const attempt = createAttempt();
+    const result = attempt.fail({ failedAt });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('changes status to failed', () => {
+    const attempt = createAttempt();
+    attempt.fail({ failedAt });
+
+    expect(attempt.status).toBe('failed');
+  });
+
+  it('sets failedAt', () => {
+    const attempt = createAttempt();
+    attempt.fail({ failedAt });
+
+    expect(attempt.failedAt?.equals(failedAt)).toBe(true);
+  });
+
+  it('keeps completedAt as null', () => {
+    const attempt = createAttempt();
+    attempt.fail({ failedAt });
+
+    expect(attempt.completedAt).toBeNull();
+  });
+
+  it('accepts failedAt equal to startedAt', () => {
+    const attempt = createAttempt();
+    const result = attempt.fail({ failedAt: startedAt });
+
+    expect(result.success).toBe(true);
+    expect(attempt.failedAt?.equals(startedAt)).toBe(true);
+  });
+
+  it('snapshot reflects failed state', () => {
+    const attempt = createAttempt();
+    attempt.fail({ failedAt });
+    const snapshot = attempt.toSnapshot();
+
+    expect(snapshot.status).toBe('failed');
+    expect(snapshot.failedAt).toBe('2026-07-12T10:05:00.000Z');
+    expect(snapshot.completedAt).toBeNull();
+  });
+});
+
+describe('NormalizationAttempt.fail — timestamp invalid', () => {
+  const beforeStarted = instant('2026-07-12T09:00:00Z');
+
+  it('rejects failedAt before startedAt', () => {
+    const attempt = createAttempt();
+    const result = attempt.fail({ failedAt: beforeStarted });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('returns NORMALIZATION_ATTEMPT_TIMESTAMP_INVALID', () => {
+    const attempt = createAttempt();
+    const result = attempt.fail({ failedAt: beforeStarted });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: { code: 'NORMALIZATION_ATTEMPT_TIMESTAMP_INVALID' },
+    });
+  });
+
+  it('returns operation, field and reason', () => {
+    const attempt = createAttempt();
+    const result = attempt.fail({ failedAt: beforeStarted });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        details: {
+          operation: 'fail',
+          field: 'failedAt',
+          reason: 'timestamp_before_started',
+        },
+      },
+    });
+  });
+
+  it('preserves running status on invalid timestamp', () => {
+    const attempt = createAttempt();
+    attempt.fail({ failedAt: beforeStarted });
+
+    expect(attempt.status).toBe('running');
+  });
+
+  it('preserves failedAt as null on invalid timestamp', () => {
+    const attempt = createAttempt();
+    attempt.fail({ failedAt: beforeStarted });
+
+    expect(attempt.failedAt).toBeNull();
+  });
+
+  it('preserves completedAt as null on invalid timestamp', () => {
+    const attempt = createAttempt();
+    attempt.fail({ failedAt: beforeStarted });
+
+    expect(attempt.completedAt).toBeNull();
+  });
+});
+
+describe('NormalizationAttempt.fail — already failed', () => {
+  const failedAt = instant('2026-07-12T10:05:00Z');
+  const laterFailed = instant('2026-07-12T10:10:00Z');
+
+  it('rejects a second call to fail', () => {
+    const attempt = createAttempt();
+    attempt.fail({ failedAt });
+    const result = attempt.fail({ failedAt: laterFailed });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('returns NORMALIZATION_ATTEMPT_NOT_RUNNING', () => {
+    const attempt = createAttempt();
+    attempt.fail({ failedAt });
+    const result = attempt.fail({ failedAt: laterFailed });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: { code: 'NORMALIZATION_ATTEMPT_NOT_RUNNING' },
+    });
+  });
+
+  it('reports currentStatus failed', () => {
+    const attempt = createAttempt();
+    attempt.fail({ failedAt });
+    const result = attempt.fail({ failedAt: laterFailed });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        details: { operation: 'fail', currentStatus: 'failed' },
+      },
+    });
+  });
+
+  it('does not replace the original failedAt', () => {
+    const attempt = createAttempt();
+    attempt.fail({ failedAt });
+    attempt.fail({ failedAt: laterFailed });
+
+    expect(attempt.failedAt?.equals(failedAt)).toBe(true);
+  });
+});
+
+describe('NormalizationAttempt.fail — completed attempt', () => {
+  const completedAt = instant('2026-07-12T10:05:00Z');
+  const failedAt = instant('2026-07-12T10:10:00Z');
+
+  function restoreCompleted(): NormalizationAttempt {
+    const result = NormalizationAttempt.restore({
+      normalizationAttemptId: fixtureNormalizationAttemptId,
+      playbookVersionId: fixturePlaybookVersionId,
+      status: 'completed',
+      startedAt,
+      completedAt,
+      failedAt: null,
+    });
+    if (!result.success) throw new Error('Unexpected restore failure');
+    return result.value;
+  }
+
+  it('rejects fail on completed attempt', () => {
+    const attempt = restoreCompleted();
+    const result = attempt.fail({ failedAt });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('returns NORMALIZATION_ATTEMPT_NOT_RUNNING', () => {
+    const attempt = restoreCompleted();
+    const result = attempt.fail({ failedAt });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: { code: 'NORMALIZATION_ATTEMPT_NOT_RUNNING' },
+    });
+  });
+
+  it('reports currentStatus completed', () => {
+    const attempt = restoreCompleted();
+    const result = attempt.fail({ failedAt });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        details: { operation: 'fail', currentStatus: 'completed' },
+      },
+    });
+  });
+
+  it('preserves completed status', () => {
+    const attempt = restoreCompleted();
+    attempt.fail({ failedAt });
+
+    expect(attempt.status).toBe('completed');
+  });
+
+  it('preserves completedAt', () => {
+    const attempt = restoreCompleted();
+    attempt.fail({ failedAt });
+
+    expect(attempt.completedAt?.equals(completedAt)).toBe(true);
+  });
+
+  it('keeps failedAt as null', () => {
+    const attempt = restoreCompleted();
+    attempt.fail({ failedAt });
+
+    expect(attempt.failedAt).toBeNull();
+  });
+});
+
+describe('NormalizationAttempt.fail — validation order', () => {
+  it('returns NOT_RUNNING before TIMESTAMP_INVALID on terminal attempt', () => {
+    const attempt = createAttempt();
+    const completedAt = instant('2026-07-12T10:05:00Z');
+    const beforeStarted = instant('2026-07-12T09:00:00Z');
+    attempt.complete({ completedAt });
+
+    const result = attempt.fail({ failedAt: beforeStarted });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: { code: 'NORMALIZATION_ATTEMPT_NOT_RUNNING' },
+    });
+  });
+});
+
+describe('NormalizationAttempt.fail — error immutability', () => {
+  it('error root object is frozen', () => {
+    const attempt = createAttempt();
+    const beforeStarted = instant('2026-07-12T09:00:00Z');
+    const result = attempt.fail({ failedAt: beforeStarted });
+
+    if (!result.success) {
+      expect(Object.isFrozen(result.error)).toBe(true);
+    }
+  });
+
+  it('error details are frozen', () => {
+    const attempt = createAttempt();
+    const beforeStarted = instant('2026-07-12T09:00:00Z');
+    const result = attempt.fail({ failedAt: beforeStarted });
+
+    if (!result.success) {
+      expect(Object.isFrozen(result.error.details)).toBe(true);
+    }
+  });
+});

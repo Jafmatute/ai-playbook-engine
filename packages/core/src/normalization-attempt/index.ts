@@ -5,6 +5,7 @@ export {
 export {
   type CompleteNormalizationAttemptInput,
   type CreateNormalizationAttemptInput,
+  type FailNormalizationAttemptInput,
   type NormalizationAttemptSnapshot,
   type RestoreNormalizationAttemptInput,
 } from './normalization-attempt-contracts.js';

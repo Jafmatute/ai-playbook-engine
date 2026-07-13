@@ -34,7 +34,7 @@ export function stateInvalid(
 
 import type { NormalizationAttemptStatus } from './normalization-attempt-status.js';
 
-export type NormalizationAttemptOperation = 'complete';
+export type NormalizationAttemptOperation = 'complete' | 'fail';
 
 export interface NormalizationAttemptNotRunningError {
   readonly code: 'NORMALIZATION_ATTEMPT_NOT_RUNNING';
@@ -50,7 +50,7 @@ export interface NormalizationAttemptTimestampInvalidError {
   readonly message: string;
   readonly details: {
     readonly operation: NormalizationAttemptOperation;
-    readonly field: 'completedAt';
+    readonly field: 'completedAt' | 'failedAt';
     readonly reason: 'timestamp_before_started';
   };
 }

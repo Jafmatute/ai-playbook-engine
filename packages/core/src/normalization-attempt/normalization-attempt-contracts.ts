@@ -30,6 +30,10 @@ export interface CompleteNormalizationAttemptInput {
   readonly completedAt: Instant;
 }
 
+export interface FailNormalizationAttemptInput {
+  readonly failedAt: Instant;
+}
+
 export interface NormalizationAttemptSnapshot {
   readonly normalizationAttemptId: NormalizationAttemptId;
   readonly playbookVersionId: PlaybookVersionId;
