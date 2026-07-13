@@ -14,3 +14,8 @@ export {
   type KnowledgeSlugError,
   type KnowledgeSlugInvalidReason,
 } from './knowledge-slug.js';
+export {
+  DisplayOrder,
+  type DisplayOrderError,
+  type DisplayOrderInvalidReason,
+} from './display-order.js';

@@ -70,6 +70,11 @@ export {
   type KnowledgeSlugInvalidReason,
 } from './knowledge-item/index.js';
 export {
+  DisplayOrder,
+  type DisplayOrderError,
+  type DisplayOrderInvalidReason,
+} from './knowledge-item/index.js';
+export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
   type WorkspaceCreationError,
