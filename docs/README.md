@@ -30,6 +30,7 @@
 - [Logging and Traceability](./technical/logging.md)
 - [Internal Event Contracts](./technical/event-contracts.md)
 - [Result and Exception Pattern](./technical/result-pattern.md)
+- [Domain Implementation Patterns](./technical/domain-implementation-patterns.md)
 
 ## Architectural Decision Records
 
