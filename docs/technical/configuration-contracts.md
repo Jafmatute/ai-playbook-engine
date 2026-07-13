@@ -6,36 +6,36 @@ This document defines the configuration model for AI Playbook Engine version 1.
 
 It establishes:
 
-* Configuration ownership.
-* Configuration sources.
-* Source precedence.
-* Startup validation.
-* Secret references.
-* Redaction rules.
-* Environment-specific behavior.
-* Package boundaries.
-* Configuration diagnostics.
-* Testing requirements.
+- Configuration ownership.
+- Configuration sources.
+- Source precedence.
+- Startup validation.
+- Secret references.
+- Redaction rules.
+- Environment-specific behavior.
+- Package boundaries.
+- Configuration diagnostics.
+- Testing requirements.
 
 The objective is to ensure that runtime configuration is:
 
-* Centralized.
-* Typed.
-* Validated.
-* Explicit.
-* Secure.
-* Independent from domain behavior.
-* Consistent across CLI, future API and future Worker applications.
+- Centralized.
+- Typed.
+- Validated.
+- Explicit.
+- Secure.
+- Independent from domain behavior.
+- Consistent across CLI, future API and future Worker applications.
 
 This document does not define:
 
-* Final environment-variable names for every future module.
-* Cloud secret-management services.
-* Production deployment configuration.
-* Kubernetes manifests.
-* CI/CD secret configuration.
-* Authentication settings.
-* SaaS tenant configuration.
+- Final environment-variable names for every future module.
+- Cloud secret-management services.
+- Production deployment configuration.
+- Kubernetes manifests.
+- CI/CD secret configuration.
+- Authentication settings.
+- SaaS tenant configuration.
 
 ---
 
@@ -47,36 +47,36 @@ Configuration provides values required to assemble and operate the application.
 
 Examples:
 
-* Application environment.
-* PostgreSQL connection.
-* Snapshot storage location.
-* Notion credential reference.
-* Logging level.
-* Synchronization limits.
-* CLI output defaults.
+- Application environment.
+- PostgreSQL connection.
+- Snapshot storage location.
+- Notion credential reference.
+- Logging level.
+- Synchronization limits.
+- CLI output defaults.
 
 Configuration must not define business truth that belongs to persisted domain state.
 
 Examples of data that must not exist only as runtime configuration:
 
-* Playbook name.
-* Playbook lifecycle status.
-* Active Playbook Version.
-* Synchronization Run state.
-* Validation Findings.
-* Knowledge Items.
+- Playbook name.
+- Playbook lifecycle status.
+- Active Playbook Version.
+- Synchronization Run state.
+- Validation Findings.
+- Knowledge Items.
 
 ## Domain Independence
 
 Core must not:
 
-* Read environment variables.
-* Import Config.
-* Parse connection strings.
-* Know `.env` files.
-* Know Notion token names.
-* Read process-level globals.
-* Depend on deployment environments.
+- Read environment variables.
+- Import Config.
+- Parse connection strings.
+- Know `.env` files.
+- Know Notion token names.
+- Read process-level globals.
+- Depend on deployment environments.
 
 Application must receive already validated values or abstractions.
 
@@ -88,10 +88,10 @@ The application should not start partially configured and fail later during unre
 
 Examples:
 
-* Invalid database URL fails startup.
-* Missing snapshot storage root fails startup when storage is required.
-* Missing Notion credential may fail only commands requiring Notion when optional startup mode is explicitly supported.
-* Invalid synchronization limits fail validation before synchronization starts.
+- Invalid database URL fails startup.
+- Missing snapshot storage root fails startup when storage is required.
+- Missing Notion credential may fail only commands requiring Notion when optional startup mode is explicitly supported.
+- Invalid synchronization limits fail validation before synchronization starts.
 
 ## Configuration Must Be Typed
 
@@ -99,12 +99,12 @@ After validation, consuming packages receive typed configuration objects.
 
 They must not repeatedly parse:
 
-* Strings into numbers.
-* Strings into booleans.
-* Paths.
-* Durations.
-* Enumerated values.
-* UUIDs.
+- Strings into numbers.
+- Strings into booleans.
+- Paths.
+- Durations.
+- Enumerated values.
+- UUIDs.
 
 Parsing occurs once in Config.
 
@@ -114,9 +114,9 @@ A secret value may enter the process through a configuration source, but it must
 
 Normal configuration diagnostics must expose:
 
-* Whether a secret is configured.
-* Which credential reference is selected.
-* Which source supplied it when safe.
+- Whether a secret is configured.
+- Which credential reference is selected.
+- Which source supplied it when safe.
 
 They must not expose the actual secret.
 
@@ -128,24 +128,24 @@ They must not expose the actual secret.
 
 Owns:
 
-* Configuration schemas.
-* Source loading.
-* Source precedence.
-* Parsing.
-* Validation.
-* Default values.
-* Redacted diagnostics.
-* Configuration error codes.
-* Typed runtime configuration contracts.
+- Configuration schemas.
+- Source loading.
+- Source precedence.
+- Parsing.
+- Validation.
+- Default values.
+- Redacted diagnostics.
+- Configuration error codes.
+- Typed runtime configuration contracts.
 
 ## `apps/*`
 
 Composition roots:
 
-* Invoke the Config loader.
-* Receive validated configuration.
-* Construct adapters and use cases.
-* Decide which optional capabilities are required for the current command or application mode.
+- Invoke the Config loader.
+- Receive validated configuration.
+- Construct adapters and use cases.
+- Decide which optional capabilities are required for the current command or application mode.
 
 Applications must not parse environment variables independently.
 
@@ -153,11 +153,11 @@ Applications must not parse environment variables independently.
 
 Consumes validated configuration for:
 
-* PostgreSQL.
-* Snapshot storage.
-* Logging.
-* Identifier implementations.
-* Personal Workspace resolution.
+- PostgreSQL.
+- Snapshot storage.
+- Logging.
+- Identifier implementations.
+- Personal Workspace resolution.
 
 Infrastructure does not read environment variables directly.
 
@@ -173,10 +173,10 @@ Must not depend on Config.
 
 Application receives:
 
-* Ports.
-* Validated primitive limits.
-* Explicit policies.
-* Application options.
+- Ports.
+- Validated primitive limits.
+- Explicit policies.
+- Application options.
 
 It must not receive the complete global runtime configuration object when only one value is needed.
 
@@ -204,29 +204,29 @@ Not every source must be implemented immediately.
 
 Built-in defaults are allowed only for values that are:
 
-* Safe.
-* Environment-independent.
-* Non-secret.
-* Operational rather than business-critical.
-* Clearly documented.
+- Safe.
+- Environment-independent.
+- Non-secret.
+- Operational rather than business-critical.
+- Clearly documented.
 
 Candidate defaults:
 
-* Log level in local development.
-* CLI output mode.
-* Maximum list page size.
-* Temporary-file cleanup interval.
-* Notion retry count within a conservative bound.
+- Log level in local development.
+- CLI output mode.
+- Maximum list page size.
+- Temporary-file cleanup interval.
+- Notion retry count within a conservative bound.
 
 Prohibited defaults:
 
-* Database credentials.
-* Notion token.
-* Production storage path.
-* Workspace identifier distributed as a magic constant.
-* Destructive behavior.
-* Automatic publication.
-* Automatic activation.
+- Database credentials.
+- Notion token.
+- Production storage path.
+- Workspace identifier distributed as a magic constant.
+- Destructive behavior.
+- Automatic publication.
+- Automatic activation.
 
 ---
 
@@ -251,12 +251,12 @@ The format must not be selected until implementation requires it.
 
 A configuration file must:
 
-* Be explicitly located or discovered through documented rules.
-* Be validated with the same schema as other sources.
-* Avoid containing secrets by default.
-* Support comments only when the selected format safely supports them.
-* Not silently override explicit CLI values.
-* Not be searched recursively across arbitrary directories.
+- Be explicitly located or discovered through documented rules.
+- Be validated with the same schema as other sources.
+- Avoid containing secrets by default.
+- Support comments only when the selected format safely supports them.
+- Not silently override explicit CLI values.
+- Not be searched recursively across arbitrary directories.
 
 ## Secret Values
 
@@ -264,10 +264,10 @@ Real secrets should preferably remain outside committed configuration files.
 
 If a local file contains secrets:
 
-* It must be excluded from Git.
-* Its permissions must be reviewed.
-* Diagnostics must redact it.
-* `.env.example` or sample configuration must use fake placeholders.
+- It must be excluded from Git.
+- Its permissions must be reviewed.
+- Diagnostics must redact it.
+- `.env.example` or sample configuration must use fake placeholders.
 
 ---
 
@@ -319,13 +319,13 @@ Final names may be refined during implementation.
 
 ## Rules
 
-* Names use uppercase snake case.
-* Units appear in the variable name when ambiguity exists.
-* Boolean values use documented accepted forms.
-* Empty strings do not count as valid required values.
-* Surrounding whitespace is handled explicitly.
-* Unknown project-prefixed variables may produce warnings in strict validation mode.
-* Deprecated variables must produce diagnostics before removal.
+- Names use uppercase snake case.
+- Units appear in the variable name when ambiguity exists.
+- Boolean values use documented accepted forms.
+- Empty strings do not count as valid required values.
+- Surrounding whitespace is handled explicitly.
+- Unknown project-prefixed variables may produce warnings in strict validation mode.
+- Deprecated variables must produce diagnostics before removal.
 
 ---
 
@@ -343,19 +343,19 @@ Candidate examples:
 
 CLI overrides must not normally accept:
 
-* Raw database passwords.
-* Raw Notion tokens.
-* Full connection strings that could appear in shell history.
-* Permanent Workspace ownership changes.
-* Domain lifecycle state.
+- Raw database passwords.
+- Raw Notion tokens.
+- Full connection strings that could appear in shell history.
+- Permanent Workspace ownership changes.
+- Domain lifecycle state.
 
 ## Rules
 
-* CLI override scope is the current invocation.
-* It does not mutate persisted configuration.
-* It has higher precedence than environment or file values.
-* It must pass the same validation rules.
-* Secret overrides require an explicit later security decision.
+- CLI override scope is the current invocation.
+- It does not mutate persisted configuration.
+- It has higher precedence than environment or file values.
+- It must pass the same validation rules.
+- Secret overrides require an explicit later security decision.
 
 ---
 
@@ -365,12 +365,12 @@ Tests may construct validated configuration directly.
 
 Test configuration must:
 
-* Use fake credentials.
-* Avoid reading developer machine environment by default.
-* Be deterministic.
-* Isolate file-system paths.
-* Use test database settings.
-* Prevent accidental access to production or personal Notion resources.
+- Use fake credentials.
+- Avoid reading developer machine environment by default.
+- Be deterministic.
+- Isolate file-system paths.
+- Use test database settings.
+- Prevent accidental access to production or personal Notion resources.
 
 Live integration tests must require an explicit opt-in flag.
 
@@ -448,20 +448,20 @@ A single unstructured map is prohibited.
 
 ## Candidate Fields
 
-* Application environment.
-* Application name.
-* Application version.
-* Runtime mode.
-* Strict configuration mode.
-* Optional diagnostic mode.
+- Application environment.
+- Application name.
+- Application version.
+- Runtime mode.
+- Strict configuration mode.
+- Optional diagnostic mode.
 
 ## Application Environment
 
 Initial values:
 
-* Development.
-* Test.
-* Production.
+- Development.
+- Test.
+- Production.
 
 The serialized representation may use:
 
@@ -473,10 +473,10 @@ production
 
 ## Rules
 
-* Environment must be explicit or default safely to Development for local CLI use.
-* Production must never inherit unsafe development defaults.
-* Tests must use Test explicitly.
-* Domain behavior must not branch directly on application environment.
+- Environment must be explicit or default safely to Development for local CLI use.
+- Production must never inherit unsafe development defaults.
+- Tests must use Test explicitly.
+- Domain behavior must not branch directly on application environment.
 
 ---
 
@@ -484,25 +484,25 @@ production
 
 ## Candidate Fields
 
-* Connection URL or structured connection settings.
-* Pool minimum.
-* Pool maximum.
-* Connection timeout.
-* Statement timeout.
-* Migration mode.
-* Optional SSL behavior.
-* Application name for PostgreSQL sessions.
+- Connection URL or structured connection settings.
+- Pool minimum.
+- Pool maximum.
+- Connection timeout.
+- Statement timeout.
+- Migration mode.
+- Optional SSL behavior.
+- Application name for PostgreSQL sessions.
 
 ## Rules
 
-* Database URL is sensitive.
-* Diagnostics must redact credentials.
-* Pool sizes must be positive and bounded.
-* Minimum must not exceed maximum.
-* Timeouts use explicit units.
-* Production SSL behavior must not be disabled silently.
-* Migration execution must be explicit.
-* Core and Application never receive DatabaseConfig.
+- Database URL is sensitive.
+- Diagnostics must redact credentials.
+- Pool sizes must be positive and bounded.
+- Minimum must not exceed maximum.
+- Timeouts use explicit units.
+- Production SSL behavior must not be disabled silently.
+- Migration execution must be explicit.
+- Core and Application never receive DatabaseConfig.
 
 ## Connection String Redaction
 
@@ -520,13 +520,13 @@ It must not show the actual password.
 
 ## Candidate Fields
 
-* Logical storage implementation type.
-* Local storage root.
-* Maximum payload size.
-* Checksum verification policy.
-* Temporary-file suffix or subdirectory.
-* Stale temporary-file age.
-* Optional orphan safety interval.
+- Logical storage implementation type.
+- Local storage root.
+- Maximum payload size.
+- Checksum verification policy.
+- Temporary-file suffix or subdirectory.
+- Stale temporary-file age.
+- Optional orphan safety interval.
 
 ## Version 1 Implementation Type
 
@@ -538,13 +538,13 @@ local
 
 ## Rules
 
-* Root path is required for local storage.
-* Root path must be normalized and validated.
-* Relative paths must be resolved through an explicit documented base.
-* Application diagnostics should not expose the physical path unless local diagnostic mode allows it.
-* Payload-size limits must be positive.
-* Cleanup intervals must be bounded.
-* Snapshot storage must not use the repository root implicitly without configuration.
+- Root path is required for local storage.
+- Root path must be normalized and validated.
+- Relative paths must be resolved through an explicit documented base.
+- Application diagnostics should not expose the physical path unless local diagnostic mode allows it.
+- Payload-size limits must be positive.
+- Cleanup intervals must be bounded.
+- Snapshot storage must not use the repository root implicitly without configuration.
 
 ---
 
@@ -552,25 +552,25 @@ local
 
 ## Candidate Fields
 
-* Credential reference.
-* Resolved token supplied only to adapter construction.
-* API version when required.
-* Request timeout.
-* Maximum retry count.
-* Base retry delay.
-* Maximum retry delay.
-* User-agent metadata.
-* Optional request concurrency limit.
+- Credential reference.
+- Resolved token supplied only to adapter construction.
+- API version when required.
+- Request timeout.
+- Maximum retry count.
+- Base retry delay.
+- Maximum retry delay.
+- User-agent metadata.
+- Optional request concurrency limit.
 
 ## Rules
 
-* Token is required only for commands that access Notion, unless the complete CLI composition always initializes Notion.
-* Credential reference and secret value remain distinct.
-* Token must not appear in normal typed configuration diagnostics.
-* Retry values must be bounded.
-* Request timeout must be positive.
-* Base URL override is prohibited in normal production use unless testing or a future proxy requires it.
-* Notion configuration must not define Playbook source roots; those belong to persisted PlaybookSource records.
+- Token is required only for commands that access Notion, unless the complete CLI composition always initializes Notion.
+- Credential reference and secret value remain distinct.
+- Token must not appear in normal typed configuration diagnostics.
+- Retry values must be bounded.
+- Request timeout must be positive.
+- Base URL override is prohibited in normal production use unless testing or a future proxy requires it.
+- Notion configuration must not define Playbook source roots; those belong to persisted PlaybookSource records.
 
 ## Credential Reference
 
@@ -590,20 +590,20 @@ The persisted PlaybookSource stores the reference, not the token.
 
 ## Candidate Fields
 
-* Log level.
-* Output format.
-* Pretty-printing mode.
-* Destination.
-* Redaction behavior.
-* Include correlation identifiers.
-* Optional file output.
+- Log level.
+- Output format.
+- Pretty-printing mode.
+- Destination.
+- Redaction behavior.
+- Include correlation identifiers.
+- Optional file output.
 
 ## Initial Log Levels
 
-* Debug.
-* Information.
-* Warning.
-* Error.
+- Debug.
+- Information.
+- Warning.
+- Error.
 
 Serialized values may be:
 
@@ -616,12 +616,12 @@ error
 
 ## Rules
 
-* Production defaults must not use Debug.
-* JSON structured logging is preferred for machine processing.
-* Pretty output may be enabled for local development.
-* Secret redaction is always enabled.
-* Core does not consume LoggingConfig.
-* Logging configuration must not alter domain outcomes.
+- Production defaults must not use Debug.
+- JSON structured logging is preferred for machine processing.
+- Pretty output may be enabled for local development.
+- Secret redaction is always enabled.
+- Core does not consume LoggingConfig.
+- Logging configuration must not alter domain outcomes.
 
 ---
 
@@ -629,27 +629,27 @@ error
 
 ## Candidate Fields
 
-* Default output mode.
-* Color behavior.
-* Verbosity.
-* Debug display.
-* Table page size.
-* Interactive prompts enabled or disabled.
+- Default output mode.
+- Color behavior.
+- Verbosity.
+- Debug display.
+- Table page size.
+- Interactive prompts enabled or disabled.
 
 ## Output Modes
 
 Initial values:
 
-* Human.
-* JSON.
+- Human.
+- JSON.
 
 ## Rules
 
-* JSON output must remain stable and non-interactive.
-* Debug display does not disable secret redaction.
-* Commands used in automation must be able to disable prompts.
-* Color may be disabled when output is redirected.
-* CLI defaults are delivery concerns and must not enter Application or Core.
+- JSON output must remain stable and non-interactive.
+- Debug display does not disable secret redaction.
+- Commands used in automation must be able to disable prompts.
+- Color may be disabled when output is redirected.
+- CLI defaults are delivery concerns and must not enter Application or Core.
 
 ---
 
@@ -657,26 +657,26 @@ Initial values:
 
 ## Candidate Fields
 
-* Maximum traversal depth.
-* Maximum source objects.
-* Maximum total blocks.
-* Maximum payload size.
-* Request timeout.
-* Maximum technical retries.
-* Retry delay bounds.
-* Progress update frequency.
-* Stale-running threshold.
-* Unsupported-content policy.
+- Maximum traversal depth.
+- Maximum source objects.
+- Maximum total blocks.
+- Maximum payload size.
+- Request timeout.
+- Maximum technical retries.
+- Retry delay bounds.
+- Progress update frequency.
+- Stale-running threshold.
+- Unsupported-content policy.
 
 ## Rules
 
-* Limits must be positive and bounded.
-* Unlimited values are prohibited unless explicitly represented and justified.
-* Technical retry count must not create unbounded CLI execution.
-* Unsupported-content policy must not silently discard content.
-* These settings may be snapshotted into SynchronizationRun source configuration metadata.
-* Changes affect future runs only.
-* Historical runs retain the values used.
+- Limits must be positive and bounded.
+- Unlimited values are prohibited unless explicitly represented and justified.
+- Technical retry count must not create unbounded CLI execution.
+- Unsupported-content policy must not silently discard content.
+- These settings may be snapshotted into SynchronizationRun source configuration metadata.
+- Changes affect future runs only.
+- Historical runs retain the values used.
 
 ## Business Versus Operational Policy
 
@@ -688,14 +688,14 @@ Examples:
 
 Allowed:
 
-* Maximum request retries.
-* Maximum traversal depth.
+- Maximum request retries.
+- Maximum traversal depth.
 
 Not allowed:
 
-* Whether a Failed run becomes Completed.
-* Whether validation automatically publishes.
-* Whether an Archived Playbook may synchronize.
+- Whether a Failed run becomes Completed.
+- Whether validation automatically publishes.
+- Whether an Archived Playbook may synchronize.
 
 ---
 
@@ -707,29 +707,29 @@ Support current Workspace resolution in personal mode.
 
 ## Candidate Fields
 
-* Configured WorkspaceId.
-* Bootstrap behavior.
-* Whether automatic initialization is permitted.
-* Optional expected Workspace name for diagnostics.
+- Configured WorkspaceId.
+- Bootstrap behavior.
+- Whether automatic initialization is permitted.
+- Optional expected Workspace name for diagnostics.
 
 ## Rules
 
-* Config may contain a canonical WorkspaceId string.
-* Infrastructure converts it into the typed WorkspaceId.
-* Application verifies that the Workspace exists and is usable.
-* Core never reads it.
-* The identifier must not be duplicated across arbitrary files.
-* A missing configured Workspace must produce a clear initialization requirement.
-* Configuration must not create Workspace domain state silently unless the explicit bootstrap use case is invoked.
+- Config may contain a canonical WorkspaceId string.
+- Infrastructure converts it into the typed WorkspaceId.
+- Application verifies that the Workspace exists and is usable.
+- Core never reads it.
+- The identifier must not be duplicated across arbitrary files.
+- A missing configured Workspace must produce a clear initialization requirement.
+- Configuration must not create Workspace domain state silently unless the explicit bootstrap use case is invoked.
 
 ## Preferred Version 1 Behavior
 
 After initialization:
 
-* The generated WorkspaceId is persisted.
-* The local configuration references it.
-* CurrentWorkspaceProvider resolves it.
-* WorkspaceRepository verifies it.
+- The generated WorkspaceId is persisted.
+- The local configuration references it.
+- CurrentWorkspaceProvider resolves it.
+- WorkspaceRepository verifies it.
 
 ---
 
@@ -759,9 +759,9 @@ Version 1 may resolve a Notion secret from an environment variable.
 
 The design must still preserve the conceptual separation between:
 
-* CredentialReference.
-* Secret value.
-* Adapter configuration.
+- CredentialReference.
+- Secret value.
+- Adapter configuration.
 
 ## SecretResolver Contract
 
@@ -775,13 +775,13 @@ The exact ownership will be defined before implementation.
 
 ## Rules
 
-* Secret values are short-lived where practical.
-* Secret values are never persisted in domain repositories.
-* Secret values are never included in Application outputs.
-* Secret values are never included in normal logs.
-* Unknown references produce a stable configuration or credential error.
-* Secret resolution must not occur in Core.
-* Test resolvers use clearly fake values.
+- Secret values are short-lived where practical.
+- Secret values are never persisted in domain repositories.
+- Secret values are never included in Application outputs.
+- Secret values are never included in normal logs.
+- Unknown references produce a stable configuration or credential error.
+- Secret resolution must not occur in Core.
+- Test resolvers use clearly fake values.
 
 ---
 
@@ -793,42 +793,42 @@ The exact ownership will be defined before implementation.
 
 Collect values from:
 
-* Defaults.
-* Optional configuration file.
-* Environment.
-* CLI overrides.
+- Defaults.
+- Optional configuration file.
+- Environment.
+- CLI overrides.
 
 ### Phase 2 — Parsing
 
 Convert raw strings into:
 
-* Numbers.
-* Booleans.
-* Enumerated values.
-* Durations.
-* Paths.
-* Canonical identifier strings.
+- Numbers.
+- Booleans.
+- Enumerated values.
+- Durations.
+- Paths.
+- Canonical identifier strings.
 
 ### Phase 3 — Schema Validation
 
 Check:
 
-* Required values.
-* Ranges.
-* Formats.
-* Cross-field constraints.
-* Environment-specific requirements.
+- Required values.
+- Ranges.
+- Formats.
+- Cross-field constraints.
+- Environment-specific requirements.
 
 ### Phase 4 — Safe Normalization
 
 Normalize:
 
-* Paths.
-* Case-insensitive values.
-* Output modes.
-* Log levels.
-* UUID casing.
-* Optional empty values.
+- Paths.
+- Case-insensitive values.
+- Output modes.
+- Log levels.
+- UUID casing.
+- Optional empty values.
 
 ### Phase 5 — Typed Configuration Creation
 
@@ -836,12 +836,12 @@ Return immutable typed configuration.
 
 ## Cross-Field Validation Examples
 
-* Database pool minimum cannot exceed maximum.
-* Retry base delay cannot exceed maximum delay.
-* Snapshot maximum payload must not exceed an approved process limit.
-* Production cannot use an unsafe database SSL setting without explicit approval.
-* Personal WorkspaceId must be valid when bootstrap mode is disabled.
-* JSON CLI mode cannot require interactive prompts.
+- Database pool minimum cannot exceed maximum.
+- Retry base delay cannot exceed maximum delay.
+- Snapshot maximum payload must not exceed an approved process limit.
+- Production cannot use an unsafe database SSL setting without explicit approval.
+- Personal WorkspaceId must be valid when bootstrap mode is disabled.
+- JSON CLI mode cannot require interactive prompts.
 
 ---
 
@@ -851,11 +851,11 @@ Not every command requires every external capability.
 
 Examples:
 
-* `workspace show` may require database but not Notion.
-* `config validate` may validate all sections.
-* `source verify` requires Notion.
-* `knowledge list` requires database but not Notion.
-* `sync start` requires database, storage and Notion.
+- `workspace show` may require database but not Notion.
+- `config validate` may validate all sections.
+- `source verify` requires Notion.
+- `knowledge list` requires database but not Notion.
+- `sync start` requires database, storage and Notion.
 
 ## Design Direction
 
@@ -867,12 +867,12 @@ Validate all configuration before any command runs.
 
 Advantages:
 
-* Simpler composition.
-* Problems found early.
+- Simpler composition.
+- Problems found early.
 
 Disadvantages:
 
-* Commands unrelated to Notion fail when Notion is not configured.
+- Commands unrelated to Notion fail when Notion is not configured.
 
 ### Capability-Aware Validation
 
@@ -880,12 +880,12 @@ Validate common configuration first, then command-specific sections.
 
 Advantages:
 
-* Better local usability.
-* Commands require only relevant capabilities.
+- Better local usability.
+- Commands require only relevant capabilities.
 
 Disadvantages:
 
-* More composition complexity.
+- More composition complexity.
 
 ## Approved Version 1 Direction
 
@@ -893,16 +893,16 @@ Use capability-aware validation.
 
 Common startup validation includes:
 
-* Application.
-* Logging.
-* CLI.
+- Application.
+- Logging.
+- CLI.
 
 Command-specific composition validates:
 
-* Database.
-* Snapshot storage.
-* Notion.
-* Personal Workspace.
+- Database.
+- Snapshot storage.
+- Notion.
+- Personal Workspace.
 
 A command must declare its required capabilities.
 
@@ -916,8 +916,8 @@ Version 1 does not support live configuration reload.
 
 Changes require:
 
-* Updating the source.
-* Starting a new CLI process.
+- Updating the source.
+- Starting a new CLI process.
 
 ## Reasoning
 
@@ -941,13 +941,13 @@ config validate
 
 It reports:
 
-* Valid sections.
-* Invalid sections.
-* Missing required values.
-* Deprecated keys.
-* Safe effective values.
-* Source of each value when useful.
-* Whether secrets are configured.
+- Valid sections.
+- Invalid sections.
+- Missing required values.
+- Deprecated keys.
+- Safe effective values.
+- Source of each value when useful.
+- Whether secrets are configured.
 
 It must not reveal secret values.
 
@@ -955,11 +955,11 @@ It must not reveal secret values.
 
 A future command may report operational readiness:
 
-* Database reachable.
-* Snapshot storage writable.
-* Workspace resolvable.
-* Notion credential configured.
-* Notion connection verified when explicitly requested.
+- Database reachable.
+- Snapshot storage writable.
+- Workspace resolvable.
+- Notion credential configured.
+- Notion connection verified when explicitly requested.
 
 Configuration validity and external connectivity must remain distinct.
 
@@ -967,13 +967,13 @@ Configuration validity and external connectivity must remain distinct.
 
 Candidate statuses:
 
-* Valid.
-* Invalid.
-* Missing.
-* Not Required.
-* Configured.
-* Redacted.
-* Unverified.
+- Valid.
+- Invalid.
+- Missing.
+- Not Required.
+- Configured.
+- Redacted.
+- Unverified.
 
 ---
 
@@ -1011,11 +1011,11 @@ Provide safe diagnostics without exposing secrets.
 
 ## Rules
 
-* Secret fields never expose raw values.
-* Password-bearing URLs are redacted.
-* Physical paths may be hidden or shortened in non-debug mode.
-* Unknown arbitrary values must not be reflected without review.
-* Redacted output must be safe for bug reports.
+- Secret fields never expose raw values.
+- Password-bearing URLs are redacted.
+- Physical paths may be hidden or shortened in non-debug mode.
+- Unknown arbitrary values must not be reflected without review.
+- Redacted output must be safe for bug reports.
 
 ---
 
@@ -1047,12 +1047,12 @@ DEPRECATED_CONFIGURATION_KEY
 
 Safe details may include:
 
-* Configuration key.
-* Section.
-* Expected format.
-* Allowed values.
-* Minimum or maximum.
-* Source name.
+- Configuration key.
+- Section.
+- Expected format.
+- Allowed values.
+- Minimum or maximum.
+- Source name.
 
 They must not include the rejected secret value.
 
@@ -1064,11 +1064,11 @@ They must not include the rejected secret value.
 
 May allow:
 
-* Pretty logs.
-* Local storage paths.
-* Local PostgreSQL.
-* More verbose diagnostics.
-* Optional automatic `.env` loading.
+- Pretty logs.
+- Local storage paths.
+- Local PostgreSQL.
+- More verbose diagnostics.
+- Optional automatic `.env` loading.
 
 Must still preserve secret redaction.
 
@@ -1076,24 +1076,24 @@ Must still preserve secret redaction.
 
 Must:
 
-* Avoid loading developer `.env` by default.
-* Use isolated temporary storage.
-* Use test database configuration.
-* Use fake credentials.
-* Disable interactive CLI behavior.
-* Produce deterministic values.
+- Avoid loading developer `.env` by default.
+- Use isolated temporary storage.
+- Use test database configuration.
+- Use fake credentials.
+- Disable interactive CLI behavior.
+- Produce deterministic values.
 
 ## Production
 
 Must:
 
-* Require explicit database configuration.
-* Require explicit storage configuration.
-* Avoid Debug logging by default.
-* Avoid unsafe TLS defaults.
-* Avoid implicit `.env` discovery unless deployment explicitly uses it.
-* Fail on deprecated or unknown critical keys in strict mode.
-* Never auto-initialize domain state silently.
+- Require explicit database configuration.
+- Require explicit storage configuration.
+- Avoid Debug logging by default.
+- Avoid unsafe TLS defaults.
+- Avoid implicit `.env` discovery unless deployment explicitly uses it.
+- Fail on deprecated or unknown critical keys in strict mode.
+- Never auto-initialize domain state silently.
 
 ---
 
@@ -1105,24 +1105,24 @@ A local `.env` file may be supported for developer convenience.
 
 Rules:
 
-* `.env` is ignored by Git.
-* `.env.example` is committed.
-* `.env.example` contains no real secrets.
-* Loading behavior is explicit and limited to approved environments.
-* Test execution does not load `.env` automatically unless explicitly requested.
-* Production behavior does not assume `.env` exists.
+- `.env` is ignored by Git.
+- `.env.example` is committed.
+- `.env.example` contains no real secrets.
+- Loading behavior is explicit and limited to approved environments.
+- Test execution does not load `.env` automatically unless explicitly requested.
+- Production behavior does not assume `.env` exists.
 
 ## `.env.example`
 
 Must document:
 
-* Variable name.
-* Purpose.
-* Required or optional.
-* Safe example.
-* Unit.
-* Allowed values.
-* Related command capability.
+- Variable name.
+- Purpose.
+- Required or optional.
+- Safe example.
+- Unit.
+- Allowed values.
+- Related command capability.
 
 Secret examples use placeholders:
 
@@ -1157,11 +1157,11 @@ Detect typos and obsolete settings.
 
 ## Rules
 
-* Unknown keys with the project prefix should produce a warning in Development.
-* Production strict mode may treat unknown keys as errors.
-* Non-project environment variables are ignored.
-* Deprecated keys produce a dedicated warning or error.
-* Suggestions may be offered when a known key is similar.
+- Unknown keys with the project prefix should produce a warning in Development.
+- Production strict mode may treat unknown keys as errors.
+- Non-project environment variables are ignored.
+- Deprecated keys produce a dedicated warning or error.
+- Suggestions may be offered when a known key is similar.
 
 Example:
 
@@ -1187,18 +1187,18 @@ The configuration model may have an internal schema version.
 
 Versioning supports:
 
-* Deprecation.
-* Migration.
-* Diagnostics.
-* Future configuration files.
+- Deprecation.
+- Migration.
+- Diagnostics.
+- Future configuration files.
 
 ## Rules
 
-* Environment-variable configurations do not require users to provide a schema version initially.
-* Configuration-file formats should include a version when introduced.
-* Breaking configuration changes require migration documentation.
-* Deprecated settings must not disappear without notice.
-* Persisted historical domain records do not depend on current runtime configuration except through recorded snapshots of relevant operational values.
+- Environment-variable configurations do not require users to provide a schema version initially.
+- Configuration-file formats should include a version when introduced.
+- Breaking configuration changes require migration documentation.
+- Deprecated settings must not disappear without notice.
+- Persisted historical domain records do not depend on current runtime configuration except through recorded snapshots of relevant operational values.
 
 ---
 
@@ -1208,18 +1208,18 @@ Historical operations must preserve relevant effective operational values.
 
 Examples for SynchronizationRun:
 
-* Maximum traversal depth.
-* Parser version.
-* Retry policy version.
-* External root reference.
-* Source settings.
-* Credential reference identifier.
+- Maximum traversal depth.
+- Parser version.
+- Retry policy version.
+- External root reference.
+- Source settings.
+- Credential reference identifier.
 
 Do not persist:
 
-* Secret token.
-* Database URL.
-* Full global ApplicationConfig.
+- Secret token.
+- Database URL.
+- Full global ApplicationConfig.
 
 ## Rule
 
@@ -1276,11 +1276,11 @@ execute CLI command
 
 ## Rules
 
-* Configuration objects are passed explicitly.
-* No global mutable configuration singleton.
-* No service locator.
-* No package reads configuration after composition unless explicitly injected.
-* Tests can replace configuration easily.
+- Configuration objects are passed explicitly.
+- No global mutable configuration singleton.
+- No service locator.
+- No package reads configuration after composition unless explicitly injected.
+- Tests can replace configuration easily.
 
 ---
 
@@ -1327,69 +1327,69 @@ A configuration failure must still be reported safely.
 
 Test:
 
-* Required fields.
-* Optional fields.
-* Defaults.
-* Number parsing.
-* Boolean parsing.
-* Enum parsing.
-* UUID parsing.
-* Duration parsing.
-* Empty strings.
-* Surrounding whitespace.
-* Invalid formats.
-* Range constraints.
+- Required fields.
+- Optional fields.
+- Defaults.
+- Number parsing.
+- Boolean parsing.
+- Enum parsing.
+- UUID parsing.
+- Duration parsing.
+- Empty strings.
+- Surrounding whitespace.
+- Invalid formats.
+- Range constraints.
 
 ## Precedence Tests
 
 Test:
 
-* Environment overrides file.
-* CLI overrides environment.
-* Defaults apply only when no source supplies a value.
-* Test injection has highest precedence.
-* Nested fields merge correctly.
-* Secret values remain redacted.
+- Environment overrides file.
+- CLI overrides environment.
+- Defaults apply only when no source supplies a value.
+- Test injection has highest precedence.
+- Nested fields merge correctly.
+- Secret values remain redacted.
 
 ## Cross-Field Validation Tests
 
 Test:
 
-* Database pool bounds.
-* Retry delay ordering.
-* Production restrictions.
-* Workspace bootstrap rules.
-* CLI JSON and interactive compatibility.
-* Snapshot size and process limits.
+- Database pool bounds.
+- Retry delay ordering.
+- Production restrictions.
+- Workspace bootstrap rules.
+- CLI JSON and interactive compatibility.
+- Snapshot size and process limits.
 
 ## Capability Validation Tests
 
 Test:
 
-* Workspace-only command without Notion.
-* Knowledge query without Notion.
-* Synchronization command missing Notion.
-* Synchronization command missing storage.
-* Config validation across all sections.
+- Workspace-only command without Notion.
+- Knowledge query without Notion.
+- Synchronization command missing Notion.
+- Synchronization command missing storage.
+- Config validation across all sections.
 
 ## Redaction Tests
 
 Test that diagnostics never expose:
 
-* Notion token.
-* Database password.
-* Full connection string.
-* Secret environment value.
-* Authorization metadata.
+- Notion token.
+- Database password.
+- Full connection string.
+- Secret environment value.
+- Authorization metadata.
 
 ## Environment Isolation Tests
 
 Test:
 
-* Unit tests do not load developer `.env`.
-* Production mode does not use unsafe Development defaults.
-* Test paths use temporary directories.
-* Live Notion tests require explicit opt-in.
+- Unit tests do not load developer `.env`.
+- Production mode does not use unsafe Development defaults.
+- Test paths use temporary directories.
+- Live Notion tests require explicit opt-in.
 
 ---
 
@@ -1397,19 +1397,19 @@ Test:
 
 The following are prohibited:
 
-* `process.env` access outside Config.
-* Core importing Config.
-* Application importing Config.
-* Notion loading environment variables.
-* Infrastructure constructing its own global configuration.
-* CLI commands reading secrets directly.
-* Passing complete configuration objects everywhere.
-* Logging configuration before redaction.
-* Using configuration to bypass domain invariants.
-* Persisting raw secrets.
-* Committing real `.env` files.
-* Using developer machine defaults in tests.
-* Silently accepting invalid numeric values.
+- `process.env` access outside Config.
+- Core importing Config.
+- Application importing Config.
+- Notion loading environment variables.
+- Infrastructure constructing its own global configuration.
+- CLI commands reading secrets directly.
+- Passing complete configuration objects everywhere.
+- Logging configuration before redaction.
+- Using configuration to bypass domain invariants.
+- Persisting raw secrets.
+- Committing real `.env` files.
+- Using developer machine defaults in tests.
+- Silently accepting invalid numeric values.
 
 ---
 
@@ -1419,38 +1419,38 @@ The first implementation is expected to require configuration equivalent to:
 
 ## Common
 
-* Application environment.
-* Log level.
-* CLI output mode.
+- Application environment.
+- Log level.
+- CLI output mode.
 
 ## Database
 
-* PostgreSQL connection URL.
-* Pool maximum.
-* Connection timeout.
+- PostgreSQL connection URL.
+- Pool maximum.
+- Connection timeout.
 
 ## Snapshot Storage
 
-* Local storage root.
-* Maximum payload size.
+- Local storage root.
+- Maximum payload size.
 
 ## Personal Workspace
 
-* Current WorkspaceId after initialization.
+- Current WorkspaceId after initialization.
 
 ## Notion
 
-* Credential reference.
-* Token.
-* Request timeout.
-* Maximum retries.
+- Credential reference.
+- Token.
+- Request timeout.
+- Maximum retries.
 
 ## Synchronization
 
-* Maximum traversal depth.
-* Maximum source objects.
-* Maximum payload size.
-* Stale-running threshold.
+- Maximum traversal depth.
+- Maximum source objects.
+- Maximum payload size.
+- Stale-running threshold.
 
 Only settings required by implemented behavior should be added.
 
@@ -1460,18 +1460,18 @@ Only settings required by implemented behavior should be added.
 
 The following remain deferred:
 
-* Configuration-file format.
-* Cloud secret manager.
-* Encrypted local secret store.
-* Interactive configuration wizard.
-* Live configuration reload.
-* API-specific configuration.
-* Worker and queue configuration.
-* AI-provider configuration.
-* Tenant-specific runtime configuration.
-* Remote feature flags.
-* Dynamic policy management.
-* Centralized configuration service.
+- Configuration-file format.
+- Cloud secret manager.
+- Encrypted local secret store.
+- Interactive configuration wizard.
+- Live configuration reload.
+- API-specific configuration.
+- Worker and queue configuration.
+- AI-provider configuration.
+- Tenant-specific runtime configuration.
+- Remote feature flags.
+- Dynamic policy management.
+- Centralized configuration service.
 
 These future decisions must preserve the package and security boundaries defined here.
 
@@ -1481,21 +1481,21 @@ These future decisions must preserve the package and security boundaries defined
 
 Version 1 will use:
 
-* `packages/config` as the only environment-reading package.
-* Typed immutable configuration.
-* Capability-aware validation.
-* Environment variables as the minimum source.
-* Optional local `.env` support for Development.
-* Explicit source precedence.
-* Redacted diagnostics.
-* Separate secret references and values.
-* Focused configuration sections.
-* Explicit units and bounds.
-* No live reload.
-* No global mutable configuration singleton.
-* No domain behavior controlled by undocumented feature flags.
-* `.env.example` with fake values.
-* Direct test configuration injection.
+- `packages/config` as the only environment-reading package.
+- Typed immutable configuration.
+- Capability-aware validation.
+- Environment variables as the minimum source.
+- Optional local `.env` support for Development.
+- Explicit source precedence.
+- Redacted diagnostics.
+- Separate secret references and values.
+- Focused configuration sections.
+- Explicit units and bounds.
+- No live reload.
+- No global mutable configuration singleton.
+- No domain behavior controlled by undocumented feature flags.
+- `.env.example` with fake values.
+- Direct test configuration injection.
 
 ---
 
@@ -1503,13 +1503,13 @@ Version 1 will use:
 
 Configuration contracts are ready for implementation when:
 
-* Configuration ownership is explicit.
-* Environment access is isolated.
-* Source precedence is defined.
-* Required sections are typed and validated.
-* Command capability requirements can be expressed.
-* Secrets cannot enter normal diagnostics.
-* Personal Workspace resolution is centralized.
-* Historical operations can record relevant effective settings.
-* Production, Development and Test behavior are distinguishable.
-* Tests can construct configuration without developer environment leakage.
+- Configuration ownership is explicit.
+- Environment access is isolated.
+- Source precedence is defined.
+- Required sections are typed and validated.
+- Command capability requirements can be expressed.
+- Secrets cannot enter normal diagnostics.
+- Personal Workspace resolution is centralized.
+- Historical operations can record relevant effective settings.
+- Production, Development and Test behavior are distinguishable.
+- Tests can construct configuration without developer environment leakage.

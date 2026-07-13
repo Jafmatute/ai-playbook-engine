@@ -6,29 +6,29 @@ This document defines the logging and operational traceability strategy for AI P
 
 It establishes:
 
-* Log structure.
-* Log levels.
-* Correlation context.
-* Domain and resource identifiers.
-* Package responsibilities.
-* Secret and sensitive-data redaction.
-* Error logging.
-* Synchronization traceability.
-* CLI behavior.
-* Testing requirements.
+- Log structure.
+- Log levels.
+- Correlation context.
+- Domain and resource identifiers.
+- Package responsibilities.
+- Secret and sensitive-data redaction.
+- Error logging.
+- Synchronization traceability.
+- CLI behavior.
+- Testing requirements.
 
 The objective is to make operations diagnosable without exposing secrets, leaking private Playbook content or coupling the domain to a logging framework.
 
 This document does not define:
 
-* A specific logging library.
-* A centralized cloud observability platform.
-* Distributed tracing infrastructure.
-* Metrics collection.
-* Alerting rules.
-* Log retention policies.
-* Production log shipping.
-* SaaS audit logging for human actors.
+- A specific logging library.
+- A centralized cloud observability platform.
+- Distributed tracing infrastructure.
+- Metrics collection.
+- Alerting rules.
+- Log retention policies.
+- Production log shipping.
+- SaaS audit logging for human actors.
 
 ---
 
@@ -40,23 +40,23 @@ Logs describe what the running system did.
 
 They support:
 
-* Debugging.
-* Failure diagnosis.
-* Performance analysis.
-* Correlation of related operations.
-* Verification of lifecycle progress.
-* Detection of unexpected behavior.
+- Debugging.
+- Failure diagnosis.
+- Performance analysis.
+- Correlation of related operations.
+- Verification of lifecycle progress.
+- Detection of unexpected behavior.
 
 Logs are not the authoritative source of domain state.
 
 Authoritative state remains in:
 
-* Aggregates.
-* Repositories.
-* Synchronization Runs.
-* Snapshots.
-* Playbook Versions.
-* Validation Findings.
+- Aggregates.
+- Repositories.
+- Synchronization Runs.
+- Snapshots.
+- Playbook Versions.
+- Validation Findings.
 
 ## Structured Logging
 
@@ -85,9 +85,9 @@ Logging failures must not normally alter domain outcomes.
 
 Examples:
 
-* Failure to write one debug log must not invalidate a Playbook Version.
-* Logging must not be required for lifecycle transitions.
-* Logging must not become the mechanism for persistence or idempotency.
+- Failure to write one debug log must not invalidate a Playbook Version.
+- Logging must not be required for lifecycle transitions.
+- Logging must not become the mechanism for persistence or idempotency.
 
 Critical logger initialization failure may block startup when no safe fallback exists.
 
@@ -95,18 +95,18 @@ Critical logger initialization failure may block startup when no safe fallback e
 
 Core must not depend on:
 
-* A logging framework.
-* Logger instances.
-* Log levels.
-* Structured-log field names.
-* Output destinations.
+- A logging framework.
+- Logger instances.
+- Log levels.
+- Structured-log field names.
+- Output destinations.
 
 Domain code communicates behavior through:
 
-* Return values.
-* Errors.
-* State transitions.
-* Domain events when introduced.
+- Return values.
+- Errors.
+- State transitions.
+- Domain events when introduced.
 
 Application and adapter layers decide what to log.
 
@@ -120,15 +120,15 @@ May define only genuinely generic logging-related contracts when justified.
 
 Candidate generic concepts:
 
-* Safe JSON metadata.
-* CorrelationId.
-* Redacted value marker.
+- Safe JSON metadata.
+- CorrelationId.
+- Redacted value marker.
 
 Shared must not define:
 
-* Synchronization-specific log events.
-* Playbook-specific logging.
-* Notion-specific fields.
+- Synchronization-specific log events.
+- Playbook-specific logging.
+- Notion-specific fields.
 
 ## Core
 
@@ -136,10 +136,10 @@ Does not perform operational logging.
 
 Core may expose:
 
-* Domain errors.
-* State transitions.
-* Domain events.
-* Stable identifiers.
+- Domain errors.
+- State transitions.
+- Domain events.
+- Stable identifiers.
 
 These can be logged by Application or delivery layers.
 
@@ -147,32 +147,32 @@ These can be logged by Application or delivery layers.
 
 May log:
 
-* Use-case start.
-* Use-case completion.
-* Use-case failure.
-* Duration.
-* Resource identifiers.
-* State transition outcomes.
-* External-port invocation outcomes.
-* Partial progress.
+- Use-case start.
+- Use-case completion.
+- Use-case failure.
+- Duration.
+- Resource identifiers.
+- State transition outcomes.
+- External-port invocation outcomes.
+- Partial progress.
 
 Application must not log:
 
-* Raw credentials.
-* Full Snapshot payloads.
-* Full Knowledge content.
-* Raw Notion responses.
-* Database connection details.
+- Raw credentials.
+- Full Snapshot payloads.
+- Full Knowledge content.
+- Raw Notion responses.
+- Database connection details.
 
 ## Config
 
 Owns:
 
-* Logging configuration.
-* Level validation.
-* Output-mode validation.
-* Redaction configuration.
-* Safe logging diagnostics.
+- Logging configuration.
+- Level validation.
+- Output-mode validation.
+- Redaction configuration.
+- Safe logging diagnostics.
 
 Config must not log raw configuration before redaction is active.
 
@@ -182,50 +182,50 @@ Owns the concrete logger implementation and technical adapter logs.
 
 May log:
 
-* Database connection lifecycle.
-* Migration execution.
-* Transaction failures.
-* Snapshot storage operations.
-* Checksum verification.
-* Orphan detection.
-* File-system diagnostics.
+- Database connection lifecycle.
+- Migration execution.
+- Transaction failures.
+- Snapshot storage operations.
+- Checksum verification.
+- Orphan detection.
+- File-system diagnostics.
 
 Must not expose:
 
-* Passwords.
-* Full connection strings.
-* Physical paths in normal logs when unnecessary.
-* Snapshot content.
+- Passwords.
+- Full connection strings.
+- Physical paths in normal logs when unnecessary.
+- Snapshot content.
 
 ## Notion
 
 May log:
 
-* Request attempt.
-* Operation type.
-* Pagination progress.
-* Rate-limit handling.
-* Retry behavior.
-* Safe external request identifiers.
-* Unsupported content diagnostics.
+- Request attempt.
+- Operation type.
+- Pagination progress.
+- Rate-limit handling.
+- Retry behavior.
+- Safe external request identifiers.
+- Unsupported content diagnostics.
 
 Must not log:
 
-* Notion token.
-* Authorization headers.
-* Full API request objects.
-* Full raw responses.
-* Full private page content.
+- Notion token.
+- Authorization headers.
+- Full API request objects.
+- Full raw responses.
+- Full private page content.
 
 ## CLI
 
 Owns:
 
-* Final user-facing command messages.
-* Human-readable diagnostics.
-* Correlation identifier display when useful.
-* Debug-mode presentation.
-* Separation between normal output and logs.
+- Final user-facing command messages.
+- Human-readable diagnostics.
+- Correlation identifier display when useful.
+- Debug-mode presentation.
+- Separation between normal output and logs.
 
 Normal CLI output is not automatically a log record.
 
@@ -248,13 +248,13 @@ Use for detailed diagnostic information useful during development or troubleshoo
 
 Examples:
 
-* Repository method timing.
-* Pagination cursor progression.
-* Snapshot serialization stages.
-* Retry attempt number.
-* Validation rule execution.
-* Mapping counts.
-* Temporary-file cleanup details.
+- Repository method timing.
+- Pagination cursor progression.
+- Snapshot serialization stages.
+- Retry attempt number.
+- Validation rule execution.
+- Mapping counts.
+- Temporary-file cleanup details.
 
 Debug logs must remain safe.
 
@@ -266,17 +266,17 @@ Use for meaningful normal operational milestones.
 
 Examples:
 
-* CLI command started.
-* Workspace initialized.
-* Playbook created.
-* Synchronization Run started.
-* Snapshot stored.
-* Draft version created.
-* Normalization completed.
-* Validation completed.
-* Version published.
-* Version activated.
-* Command completed.
+- CLI command started.
+- Workspace initialized.
+- Playbook created.
+- Synchronization Run started.
+- Snapshot stored.
+- Draft version created.
+- Normalization completed.
+- Validation completed.
+- Version published.
+- Version activated.
+- Command completed.
 
 Info logs should not record every low-level internal step.
 
@@ -286,14 +286,14 @@ Use for recoverable or notable conditions.
 
 Examples:
 
-* Notion rate limit encountered and retried.
-* Unsupported non-blocking block type.
-* Stale Running synchronization detected.
-* Validation produced warnings.
-* Temporary cleanup failed.
-* Deprecated configuration key.
-* Orphaned payload detected.
-* Retryable external failure.
+- Notion rate limit encountered and retried.
+- Unsupported non-blocking block type.
+- Stale Running synchronization detected.
+- Validation produced warnings.
+- Temporary cleanup failed.
+- Deprecated configuration key.
+- Orphaned payload detected.
+- Retryable external failure.
 
 Warn indicates attention may be required, but the process may still succeed.
 
@@ -303,21 +303,21 @@ Use when an operation fails or an unexpected condition occurs.
 
 Examples:
 
-* Synchronization Run failed.
-* Snapshot write failed.
-* Database transaction failed.
-* Version publication failed because persisted state was inconsistent.
-* Unexpected exception reached the outer boundary.
-* Stored payload checksum mismatch.
-* Required migration failed.
+- Synchronization Run failed.
+- Snapshot write failed.
+- Database transaction failed.
+- Version publication failed because persisted state was inconsistent.
+- Unexpected exception reached the outer boundary.
+- Stored payload checksum mismatch.
+- Required migration failed.
 
 Expected user validation errors do not always require Error level.
 
 For example:
 
-* Invalid CLI argument may be Warn or not logged.
-* Playbook not found may be Info or Warn depending on context.
-* Domain conflict may be Warn.
+- Invalid CLI argument may be Warn or not logged.
+- Playbook not found may be Info or Warn depending on context.
+- Domain conflict may be Warn.
 
 ---
 
@@ -388,12 +388,12 @@ persistence.constraint_conflict
 
 Event names must:
 
-* Be stable.
-* Use lowercase dot-separated notation.
-* Describe what happened.
-* Avoid implementation-class names.
-* Avoid dynamic values.
-* Be distinct from human-readable messages.
+- Be stable.
+- Use lowercase dot-separated notation.
+- Describe what happened.
+- Avoid implementation-class names.
+- Avoid dynamic values.
+- Be distinct from human-readable messages.
 
 The human-readable message may change.
 
@@ -467,12 +467,12 @@ expected
 
 ## Rules
 
-* Identifiers use canonical string form.
-* Timestamps use ISO 8601 UTC.
-* Durations use explicit units such as `durationMs`.
-* Field names remain consistent across packages.
-* Optional fields are omitted rather than set inconsistently to null.
-* Arbitrary nested objects should be avoided.
+- Identifiers use canonical string form.
+- Timestamps use ISO 8601 UTC.
+- Durations use explicit units such as `durationMs`.
+- Field names remain consistent across packages.
+- Optional fields are omitted rather than set inconsistently to null.
+- Arbitrary nested objects should be avoided.
 
 ---
 
@@ -484,10 +484,10 @@ CorrelationId connects all logs belonging to one logical operation.
 
 Examples:
 
-* One CLI command.
-* One synchronization.
-* One ingestion pipeline.
-* One validation operation.
+- One CLI command.
+- One synchronization.
+- One ingestion pipeline.
+- One validation operation.
 
 ## Creation
 
@@ -513,12 +513,12 @@ Notion adapter
 
 ## Rules
 
-* Must not change during one logical operation.
-* Must not be generated independently by every adapter.
-* May be included in user-facing error output.
-* Is not domain identity.
-* Is not authorization context.
-* Must not contain personal data.
+- Must not change during one logical operation.
+- Must not be generated independently by every adapter.
+- May be included in user-facing error output.
+- Is not domain identity.
+- Is not authorization context.
+- Must not contain personal data.
 
 ---
 
@@ -538,8 +538,8 @@ One CorrelationId may include several internal Commands.
 
 A retried invocation may:
 
-* Reuse the same CommandId.
-* Receive a new CorrelationId.
+- Reuse the same CommandId.
+- Receive a new CorrelationId.
 
 Both should be logged separately when available.
 
@@ -569,9 +569,9 @@ Operation names should align with use-case terminology.
 
 Avoid using:
 
-* Handler class names.
-* CLI command syntax as the only operation identity.
-* Dynamic operation names.
+- Handler class names.
+- CLI command syntax as the only operation identity.
+- Dynamic operation names.
 
 ---
 
@@ -583,35 +583,35 @@ Used for successful command results.
 
 Examples:
 
-* Created identifier.
-* Human-readable table.
-* JSON result.
+- Created identifier.
+- Human-readable table.
+- JSON result.
 
 ## Standard Error
 
 Used for:
 
-* User-facing errors.
-* Warnings when appropriate.
-* Diagnostic logging in interactive local mode.
+- User-facing errors.
+- Warnings when appropriate.
+- Diagnostic logging in interactive local mode.
 
 ## Structured Logs
 
 May be written to:
 
-* Standard error.
-* A configured file.
-* Another future destination.
+- Standard error.
+- A configured file.
+- Another future destination.
 
 ## Rules
 
 In JSON CLI output mode:
 
-* Standard output must remain valid JSON for the command result.
-* Logs must not corrupt standard output.
-* Logs should go to standard error or another destination.
-* Human progress animations must be disabled.
-* Errors should use the approved JSON error contract.
+- Standard output must remain valid JSON for the command result.
+- Logs must not corrupt standard output.
+- Logs should go to standard error or another destination.
+- Human progress animations must be disabled.
+- Errors should use the approved JSON error contract.
 
 ---
 
@@ -653,10 +653,10 @@ retryable
 
 ## Rules
 
-* Do not log the complete raw Command object automatically.
-* Log selected safe fields only.
-* User-provided content must be bounded and reviewed.
-* Secret-bearing options are never logged.
+- Do not log the complete raw Command object automatically.
+- Log selected safe fields only.
+- User-provided content must be bounded and reviewed.
+- Secret-bearing options are never logged.
 
 ---
 
@@ -713,9 +713,9 @@ Avoid one Info log per block.
 
 Preferred:
 
-* Debug for low-level pagination.
-* Periodic Info progress by configured count or duration.
-* Final Info summary.
+- Debug for low-level pagination.
+- Periodic Info progress by configured count or duration.
+- Final Info summary.
 
 ## Completion
 
@@ -799,19 +799,19 @@ attempt
 
 Do not log:
 
-* Full block text.
-* Full page content.
-* Full property values.
-* Raw request body.
-* Raw response body.
+- Full block text.
+- Full page content.
+- Full property values.
+- Raw request body.
+- Raw response body.
 
 Safe diagnostics may include:
 
-* Object counts.
-* Object type.
-* External identifier.
-* Unsupported block type.
-* Safe property names when necessary.
+- Object counts.
+- Object type.
+- External identifier.
+- Unsupported block type.
+- Safe property names when necessary.
 
 ---
 
@@ -965,10 +965,10 @@ Validation Findings are domain records.
 
 Recommended mapping:
 
-* Error-severity blocking finding: Warn or Debug individually.
-* Warning finding: Debug individually.
-* Summary: Info.
-* Validation process failure: Error.
+- Error-severity blocking finding: Warn or Debug individually.
+- Warning finding: Debug individually.
+- Summary: Info.
+- Validation process failure: Error.
 
 This prevents expected invalid Playbook content from polluting operational error logs.
 
@@ -978,12 +978,12 @@ This prevents expected invalid Playbook content from polluting operational error
 
 Infrastructure may log:
 
-* Connection established.
-* Migration started and completed.
-* Transaction rollback.
-* Concurrency conflict.
-* Known constraint conflict.
-* Slow query warning when introduced.
+- Connection established.
+- Migration started and completed.
+- Transaction rollback.
+- Concurrency conflict.
+- Known constraint conflict.
+- Slow query warning when introduced.
 
 ## Query Content
 
@@ -991,11 +991,11 @@ Do not log full SQL parameters when they may include private content.
 
 Safe fields:
 
-* Repository operation.
-* Table or mapped concept.
-* Duration.
-* Row count.
-* Error classification.
+- Repository operation.
+- Table or mapped concept.
+- Duration.
+- Row count.
+- Error classification.
 
 ## SQL Logging
 
@@ -1028,14 +1028,14 @@ Examples:
 
 Unexpected errors should include:
 
-* CorrelationId.
-* Operation.
-* Stable public error code.
-* Internal error type.
-* Safe stack trace.
-* Cause chain when safe.
-* Package or component.
-* Duration.
+- CorrelationId.
+- Operation.
+- Stable public error code.
+- Internal error type.
+- Safe stack trace.
+- Cause chain when safe.
+- Package or component.
+- Duration.
 
 The public CLI response remains generic.
 
@@ -1043,16 +1043,16 @@ The public CLI response remains generic.
 
 Avoid logging the same failure as Error in:
 
-* Adapter.
-* Infrastructure.
-* Application.
-* CLI.
+- Adapter.
+- Infrastructure.
+- Application.
+- CLI.
 
 Preferred pattern:
 
-* Lower layer translates and returns the error.
-* Boundary responsible for operation visibility logs the terminal failure.
-* Lower layers may emit Debug diagnostics or Warn for retries.
+- Lower layer translates and returns the error.
+- Boundary responsible for operation visibility logs the terminal failure.
+- Lower layers may emit Debug diagnostics or Warn for retries.
 
 ---
 
@@ -1135,23 +1135,23 @@ Playbook content may be private even when it is not a credential.
 
 Normal logs must not contain:
 
-* Full page content.
-* Full prompts.
-* Full methodology text.
-* Full audit definitions.
-* Raw Snapshot payload.
-* Large Knowledge Item content.
+- Full page content.
+- Full prompts.
+- Full methodology text.
+- Full audit definitions.
+- Raw Snapshot payload.
+- Large Knowledge Item content.
 
 ## Safe Alternatives
 
 Log:
 
-* KnowledgeItemId.
-* KnowledgeType.
-* SourceStableKey when safe.
-* Content checksum.
-* Character or block count.
-* Title only when approved and bounded.
+- KnowledgeItemId.
+- KnowledgeType.
+- SourceStableKey when safe.
+- Content checksum.
+- Character or block count.
+- Title only when approved and bounded.
 
 Titles may also be sensitive.
 
@@ -1165,9 +1165,9 @@ Version 1 should default to identifiers over content.
 
 Normal logs should prefer:
 
-* StorageReference.
-* Configured storage type.
-* Logical key.
+- StorageReference.
+- Configured storage type.
+- Logical key.
 
 Avoid exposing full local absolute paths in standard logs.
 
@@ -1208,11 +1208,11 @@ child context
 
 ## Rules
 
-* Context must not be global mutable state.
-* Parallel operations must not overwrite each other's context.
-* Async propagation must be safe.
-* Tests must be able to construct context explicitly.
-* Core remains unaware of it.
+- Context must not be global mutable state.
+- Parallel operations must not overwrite each other's context.
+- Async propagation must be safe.
+- Tests must be able to construct context explicitly.
+- Core remains unaware of it.
 
 The exact implementation may use explicit child loggers or an approved asynchronous context mechanism.
 
@@ -1239,11 +1239,11 @@ The exact TypeScript shape remains deferred.
 
 ## Rules
 
-* Context must use safe JSON-compatible metadata.
-* Error logging should support a normalized internal error field.
-* The Application contract must not depend on one logging vendor.
-* Child-context creation may be supported.
-* The contract must remain small.
+- Context must use safe JSON-compatible metadata.
+- Error logging should support a normalized internal error field.
+- The Application contract must not depend on one logging vendor.
+- Child-context creation may be supported.
+- The contract must remain small.
 
 ## Alternative
 
@@ -1289,26 +1289,26 @@ includeEnvironment
 
 Version 1 output formats:
 
-* JSON.
-* Pretty local output.
+- JSON.
+- Pretty local output.
 
 ## Defaults
 
 Development:
 
-* `info`.
-* Pretty output when interactive.
+- `info`.
+- Pretty output when interactive.
 
 Test:
 
-* Silent or error-only by default.
-* Capture logs for assertions where required.
+- Silent or error-only by default.
+- Capture logs for assertions where required.
 
 Production:
 
-* `info`.
-* Structured JSON.
-* No pretty output by default.
+- `info`.
+- Structured JSON.
+- No pretty output by default.
 
 Debug must be explicit.
 
@@ -1318,8 +1318,8 @@ Debug must be explicit.
 
 Version 1 may support:
 
-* Standard error.
-* Optional local file output.
+- Standard error.
+- Optional local file output.
 
 Standard output should remain reserved for command results, particularly in JSON mode.
 
@@ -1329,11 +1329,11 @@ Cloud destinations are deferred.
 
 If introduced:
 
-* Path comes from validated Config.
-* Writes must not expose secrets.
-* Rotation is required before production use.
-* Failure behavior must be defined.
-* The logger must not use SnapshotStorage for log files.
+- Path comes from validated Config.
+- Writes must not expose secrets.
+- Rotation is required before production use.
+- Failure behavior must be defined.
+- The logger must not use SnapshotStorage for log files.
 
 File logging is optional for the first implementation.
 
@@ -1343,17 +1343,17 @@ File logging is optional for the first implementation.
 
 The system must be able to answer operationally:
 
-* Which CLI command initiated the operation?
-* Which Workspace was used?
-* Which Playbook and source were involved?
-* Which Synchronization Run was created?
-* Which Snapshot was written?
-* Which Playbook Version was produced?
-* Which normalization and validation attempts ran?
-* Which stage failed?
-* Which error code occurred?
-* Was the error retryable?
-* How long did each stage take?
+- Which CLI command initiated the operation?
+- Which Workspace was used?
+- Which Playbook and source were involved?
+- Which Synchronization Run was created?
+- Which Snapshot was written?
+- Which Playbook Version was produced?
+- Which normalization and validation attempts ran?
+- Which stage failed?
+- Which error code occurred?
+- Was the error retryable?
+- How long did each stage take?
 
 Logs support these questions but do not replace persisted history.
 
@@ -1365,28 +1365,28 @@ Logs support these questions but do not replace persisted history.
 
 Must be stored authoritatively:
 
-* Run status.
-* Start and completion timestamps.
-* Snapshot identity.
-* Checksums.
-* Retrieval summaries.
-* Failure summary.
-* Version lifecycle.
-* Validation Summary.
-* Validation Findings.
-* Source configuration snapshot.
-* Parser and schema versions.
+- Run status.
+- Start and completion timestamps.
+- Snapshot identity.
+- Checksums.
+- Retrieval summaries.
+- Failure summary.
+- Version lifecycle.
+- Validation Summary.
+- Validation Findings.
+- Source configuration snapshot.
+- Parser and schema versions.
 
 ## Logs
 
 Provide additional operational context:
 
-* Internal durations.
-* Retry attempts.
-* Adapter request IDs.
-* Diagnostic stage progress.
-* Stack traces for unexpected failures.
-* Temporary cleanup details.
+- Internal durations.
+- Retry attempts.
+- Adapter request IDs.
+- Diagnostic stage progress.
+- Stack traces for unexpected failures.
+- Temporary cleanup details.
 
 A required historical fact must not exist only in logs.
 
@@ -1396,15 +1396,15 @@ A required historical fact must not exist only in logs.
 
 Version 1 should measure durations for:
 
-* CLI command.
-* Notion request.
-* Complete synchronization.
-* Snapshot serialization.
-* Snapshot write.
-* Snapshot verification.
-* Knowledge normalization.
-* Validation.
-* Database transaction.
+- CLI command.
+- Notion request.
+- Complete synchronization.
+- Snapshot serialization.
+- Snapshot write.
+- Snapshot verification.
+- Knowledge normalization.
+- Validation.
+- Database transaction.
 
 ## Slow Operation Warning
 
@@ -1422,19 +1422,19 @@ Logging must remain bounded.
 
 ## Prohibited High-Volume Patterns
 
-* One Info log per block.
-* One Info log per Knowledge Item.
-* Full payload logging.
-* Full validation finding logging.
-* Full SQL parameter logging.
-* Repeated logging of the same retry failure at Error level.
+- One Info log per block.
+- One Info log per Knowledge Item.
+- Full payload logging.
+- Full validation finding logging.
+- Full SQL parameter logging.
+- Repeated logging of the same retry failure at Error level.
 
 ## Preferred Pattern
 
-* Debug for item-level diagnostics.
-* Periodic progress summary.
-* Final operation summary.
-* Error only for terminal or unexpected failures.
+- Debug for item-level diagnostics.
+- Periodic progress summary.
+- Final operation summary.
+- Error only for terminal or unexpected failures.
 
 ---
 
@@ -1442,11 +1442,11 @@ Logging must remain bounded.
 
 An unsupported Notion block should produce:
 
-* A persisted or returned diagnostic.
-* A bounded Warn or Debug log.
-* Object type.
-* Source identifier.
-* Handling decision.
+- A persisted or returned diagnostic.
+- A bounded Warn or Debug log.
+- Object type.
+- Source identifier.
+- Handling decision.
 
 Example:
 
@@ -1469,11 +1469,11 @@ Tests should suppress normal logs by default.
 
 A test logger may:
 
-* Capture records in memory.
-* Assert event names.
-* Assert fields.
-* Assert redaction.
-* Assert no forbidden content.
+- Capture records in memory.
+- Assert event names.
+- Assert fields.
+- Assert redaction.
+- Assert no forbidden content.
 
 Tests should not depend on console output.
 
@@ -1485,68 +1485,68 @@ Tests should not depend on console output.
 
 Test:
 
-* Event and message recording.
-* Log-level filtering.
-* Context propagation.
-* Child context.
-* Error normalization.
-* JSON-safe metadata.
-* Timestamp behavior when controlled.
+- Event and message recording.
+- Log-level filtering.
+- Context propagation.
+- Child context.
+- Error normalization.
+- JSON-safe metadata.
+- Timestamp behavior when controlled.
 
 ## Redaction Tests
 
 Verify that logs never expose:
 
-* Notion token.
-* Database password.
-* Connection string password.
-* Authorization header.
-* Secret configuration values.
-* Raw credentials nested inside objects.
-* Secret values included in an Error message.
+- Notion token.
+- Database password.
+- Connection string password.
+- Authorization header.
+- Secret configuration values.
+- Raw credentials nested inside objects.
+- Secret values included in an Error message.
 
 ## Correlation Tests
 
 Verify:
 
-* CLI creates CorrelationId.
-* Application preserves it.
-* Notion and storage logs include it.
-* Parallel operations remain isolated.
-* Retry logs retain the same CorrelationId.
+- CLI creates CorrelationId.
+- Application preserves it.
+- Notion and storage logs include it.
+- Parallel operations remain isolated.
+- Retry logs retain the same CorrelationId.
 
 ## Synchronization Logging Tests
 
 Verify:
 
-* Start.
-* Progress summary.
-* Completion.
-* Failure.
-* Retrieval counts.
-* No raw content.
-* No token exposure.
-* Correct identifiers.
+- Start.
+- Progress summary.
+- Completion.
+- Failure.
+- Retrieval counts.
+- No raw content.
+- No token exposure.
+- Correct identifiers.
 
 ## CLI Tests
 
 Verify:
 
-* JSON standard output remains valid when logs are enabled.
-* Logs go to the correct stream.
-* Debug mode does not expose secrets.
-* User-facing errors include CorrelationId when configured.
-* Stack traces remain hidden normally.
+- JSON standard output remains valid when logs are enabled.
+- Logs go to the correct stream.
+- Debug mode does not expose secrets.
+- User-facing errors include CorrelationId when configured.
+- Stack traces remain hidden normally.
 
 ## Unexpected Error Tests
 
 Verify:
 
-* Unexpected error logged once at Error.
-* Stack trace captured internally.
-* Public output remains generic.
-* CorrelationId preserved.
-* Secrets in causes are redacted.
+- Unexpected error logged once at Error.
+- Stack trace captured internally.
+- Public output remains generic.
+- CorrelationId preserved.
+- Secrets in causes are redacted.
 
 ---
 
@@ -1554,19 +1554,19 @@ Verify:
 
 The following are prohibited:
 
-* Core importing a logging library.
-* Core receiving a logger.
-* Application importing a concrete logging framework.
-* Packages creating unrelated global logger instances.
-* Logging raw configuration.
-* Logging complete Snapshot payloads.
-* Logging Notion credentials.
-* Logging full database URLs.
-* Using logs as persistence.
-* Parsing log messages to drive behavior.
-* Printing logs to standard output in JSON CLI mode.
-* Logging the same terminal error at every layer.
-* Disabling redaction in Debug mode.
+- Core importing a logging library.
+- Core receiving a logger.
+- Application importing a concrete logging framework.
+- Packages creating unrelated global logger instances.
+- Logging raw configuration.
+- Logging complete Snapshot payloads.
+- Logging Notion credentials.
+- Logging full database URLs.
+- Using logs as persistence.
+- Parsing log messages to drive behavior.
+- Printing logs to standard output in JSON CLI mode.
+- Logging the same terminal error at every layer.
+- Disabling redaction in Debug mode.
 
 ---
 
@@ -1609,20 +1609,20 @@ Do not create the complete catalog speculatively in code.
 
 The following remain deferred:
 
-* Logging library.
-* Async context implementation.
-* File rotation.
-* Cloud log aggregation.
-* Metrics.
-* Distributed tracing.
-* OpenTelemetry.
-* Alerting.
-* Log retention.
-* Audit logs for user actions.
-* PII classification.
-* Per-Workspace log destinations.
-* Production sampling.
-* Performance dashboards.
+- Logging library.
+- Async context implementation.
+- File rotation.
+- Cloud log aggregation.
+- Metrics.
+- Distributed tracing.
+- OpenTelemetry.
+- Alerting.
+- Log retention.
+- Audit logs for user actions.
+- PII classification.
+- Per-Workspace log destinations.
+- Production sampling.
+- Performance dashboards.
 
 Future implementations must preserve the redaction and package-boundary rules defined here.
 
@@ -1632,21 +1632,21 @@ Future implementations must preserve the redaction and package-boundary rules de
 
 Version 1 will use:
 
-* Structured logging.
-* JSON logs for machine-readable environments.
-* Pretty logs for local development.
-* CorrelationId per CLI invocation.
-* Stable event names.
-* Explicit operation names.
-* Contextual domain identifiers.
-* Safe error normalization.
-* Mandatory secret redaction.
-* No raw Playbook payload logging.
-* Standard output reserved for command results.
-* Standard error or another destination for logs.
-* Bounded progress logging.
-* Persisted domain history separate from logs.
-* Application or Infrastructure logging through a vendor-neutral boundary.
+- Structured logging.
+- JSON logs for machine-readable environments.
+- Pretty logs for local development.
+- CorrelationId per CLI invocation.
+- Stable event names.
+- Explicit operation names.
+- Contextual domain identifiers.
+- Safe error normalization.
+- Mandatory secret redaction.
+- No raw Playbook payload logging.
+- Standard output reserved for command results.
+- Standard error or another destination for logs.
+- Bounded progress logging.
+- Persisted domain history separate from logs.
+- Application or Infrastructure logging through a vendor-neutral boundary.
 
 ---
 
@@ -1654,13 +1654,13 @@ Version 1 will use:
 
 Logging design is ready for implementation when:
 
-* Every package has a clear logging responsibility.
-* Core remains logging-independent.
-* Correlation context can cross all runtime layers.
-* Event names and common fields are consistent.
-* CLI output cannot be corrupted by logs.
-* Secret and content redaction rules are explicit.
-* Synchronization progress can be diagnosed without excessive volume.
-* Expected and unexpected failures use appropriate levels.
-* Required historical facts remain persisted outside logs.
-* Logging behavior can be tested without console dependence.
+- Every package has a clear logging responsibility.
+- Core remains logging-independent.
+- Correlation context can cross all runtime layers.
+- Event names and common fields are consistent.
+- CLI output cannot be corrupted by logs.
+- Secret and content redaction rules are explicit.
+- Synchronization progress can be diagnosed without excessive volume.
+- Expected and unexpected failures use appropriate levels.
+- Required historical facts remain persisted outside logs.
+- Logging behavior can be tested without console dependence.

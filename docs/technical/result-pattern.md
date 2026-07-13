@@ -4,31 +4,31 @@
 
 This document defines how AI Playbook Engine version 1 represents:
 
-* Successful operations.
-* Expected failures.
-* Domain validation failures.
-* Application errors.
-* Technical adapter failures.
-* Unexpected programming errors.
-* Exceptions crossing package boundaries.
+- Successful operations.
+- Expected failures.
+- Domain validation failures.
+- Application errors.
+- Technical adapter failures.
+- Unexpected programming errors.
+- Exceptions crossing package boundaries.
 
 The objective is to establish one consistent TypeScript error-handling model before domain and Application implementation begins.
 
 This document refines:
 
-* `docs/technical/error-model.md`
-* `docs/technical/application-contracts.md`
-* `docs/technical/repository-contracts.md`
-* `docs/technical/storage-contracts.md`
+- `docs/technical/error-model.md`
+- `docs/technical/application-contracts.md`
+- `docs/technical/repository-contracts.md`
+- `docs/technical/storage-contracts.md`
 
 This document does not define:
 
-* The final implementation of every error code.
-* CLI exit codes.
-* HTTP status codes.
-* Logging-library behavior.
-* Stack-trace formatting.
-* A third-party functional programming library.
+- The final implementation of every error code.
+- CLI exit codes.
+- HTTP status codes.
+- Logging-library behavior.
+- Stack-trace formatting.
+- A third-party functional programming library.
 
 ---
 
@@ -42,15 +42,15 @@ Expected success and failure paths use an explicit `Result` type.
 
 Examples:
 
-* Invalid domain input.
-* Rejected lifecycle transition.
-* Missing Aggregate.
-* Name conflict.
-* Disabled source.
-* Blocking validation findings.
-* Notion rate limit.
-* Snapshot storage failure.
-* Database concurrency conflict.
+- Invalid domain input.
+- Rejected lifecycle transition.
+- Missing Aggregate.
+- Name conflict.
+- Disabled source.
+- Blocking validation findings.
+- Notion rate limit.
+- Snapshot storage failure.
+- Database concurrency conflict.
 
 ## Unexpected Failures
 
@@ -58,11 +58,11 @@ Unexpected programming and impossible-state failures use exceptions.
 
 Examples:
 
-* A supposedly exhaustive branch receives an unsupported internal value.
-* Dependency wiring is invalid.
-* A persistence mapper encounters structurally corrupted data.
-* A programmer violates an internal invariant that public constructors prevent.
-* A third-party library throws an unknown exception that an adapter cannot classify.
+- A supposedly exhaustive branch receives an unsupported internal value.
+- Dependency wiring is invalid.
+- A persistence mapper encounters structurally corrupted data.
+- A programmer violates an internal invariant that public constructors prevent.
+- A third-party library throws an unknown exception that an adapter cannot classify.
 
 ## Boundary Rule
 
@@ -72,10 +72,10 @@ Adapters and handlers must translate known technical exceptions into explicit er
 
 Unexpected exceptions may propagate to the outer delivery boundary, where they are:
 
-* Logged safely.
-* Assigned a CorrelationId.
-* Converted into a generic public `INTERNAL_ERROR`.
-* Hidden from normal CLI output.
+- Logged safely.
+- Assigned a CorrelationId.
+- Converted into a generic public `INTERNAL_ERROR`.
+- Hidden from normal CLI output.
 
 ---
 
@@ -83,17 +83,17 @@ Unexpected exceptions may propagate to the outer delivery boundary, where they a
 
 A Result-only model for every internal function would create unnecessary ceremony for:
 
-* Pure internal helpers.
-* Impossible states.
-* Programming defects.
-* Exhaustive checks.
+- Pure internal helpers.
+- Impossible states.
+- Programming defects.
+- Exhaustive checks.
 
 An exception-only model would make expected failures:
 
-* Harder to understand from type signatures.
-* Easier to forget.
-* More difficult to test explicitly.
-* More likely to leak framework and vendor exceptions.
+- Harder to understand from type signatures.
+- Easier to forget.
+- More difficult to test explicitly.
+- More likely to leak framework and vendor exceptions.
 
 The approved hybrid preserves explicit business behavior while allowing unexpected defects to fail loudly.
 
@@ -119,16 +119,16 @@ The shared Result primitive should support only a small set of well-justified op
 
 Candidate operations:
 
-* Create success.
-* Create failure.
-* Check success.
-* Check failure.
-* Access success through narrowing.
-* Access failure through narrowing.
-* Map successful value.
-* Map error value.
-* Chain another Result-producing operation.
-* Recover or provide fallback only when explicitly requested.
+- Create success.
+- Create failure.
+- Check success.
+- Check failure.
+- Access success through narrowing.
+- Access failure through narrowing.
+- Map successful value.
+- Map error value.
+- Chain another Result-producing operation.
+- Recover or provide fallback only when explicitly requested.
 
 ## Avoid Framework Construction
 
@@ -136,12 +136,12 @@ The project must not build a large custom functional-programming framework.
 
 Do not add speculative operations such as:
 
-* Do notation.
-* Complex validation applicatives.
-* Lazy task monads.
-* Generic dependency effects.
-* Implicit exception capture.
-* Automatic asynchronous retry.
+- Do notation.
+- Complex validation applicatives.
+- Lazy task monads.
+- Generic dependency effects.
+- Implicit exception capture.
+- Automatic asynchronous retry.
 
 Introduce only behavior required by real use cases.
 
@@ -175,8 +175,8 @@ export function err<TError>(error: TError): Result<never, TError>;
 
 The exact names may be:
 
-* `ok` and `err`.
-* `success` and `failure`.
+- `ok` and `err`.
+- `success` and `failure`.
 
 One convention must be selected and applied consistently.
 
@@ -192,11 +192,11 @@ err
 
 Reasons:
 
-* Concise.
-* Familiar.
-* Clear in handler code.
-* Easy to narrow.
-* Does not imply exceptions.
+- Concise.
+- Familiar.
+- Clear in handler code.
+- Easy to narrow.
+- Does not imply exceptions.
 
 ---
 
@@ -208,18 +208,18 @@ Reasons:
 
 It may contain:
 
-* `Result<TValue, TError>`.
-* `ok`.
-* `err`.
-* Minimal generic mapping helpers.
-* Exhaustive assertion utility when genuinely generic.
+- `Result<TValue, TError>`.
+- `ok`.
+- `err`.
+- Minimal generic mapping helpers.
+- Exhaustive assertion utility when genuinely generic.
 
 Shared must not contain:
 
-* Domain error codes.
-* Application error categories.
-* Notion error mappings.
-* Repository conflict codes.
+- Domain error codes.
+- Application error categories.
+- Notion error mappings.
+- Repository conflict codes.
 
 ## Core
 
@@ -379,8 +379,8 @@ depending on the selected Aggregate mutability pattern.
 
 The Result pattern does not decide whether Aggregates are:
 
-* Internally mutable through controlled methods.
-* Immutable and returned as new instances.
+- Internally mutable through controlled methods.
+- Immutable and returned as new instances.
 
 That choice must remain consistent within Core.
 
@@ -388,11 +388,11 @@ That choice must remain consistent within Core.
 
 Use encapsulated mutable Aggregate instances with:
 
-* Private state.
-* Read-only public accessors.
-* Controlled methods.
-* Result-returning transitions.
-* Revision handled outside domain state where appropriate.
+- Private state.
+- Read-only public accessors.
+- Controlled methods.
+- Result-returning transitions.
+- Revision handled outside domain state where appropriate.
 
 This reduces excessive object copying while preserving invariants.
 
@@ -428,10 +428,10 @@ The project must balance type safety with maintainability.
 
 A dedicated class is justified when an error has:
 
-* Distinct behavior.
-* Specialized structured data.
-* Independent handling.
-* Meaning beyond a code and message.
+- Distinct behavior.
+- Specialized structured data.
+- Independent handling.
+- Meaning beyond a code and message.
 
 Otherwise, a typed immutable error record is sufficient.
 
@@ -439,9 +439,9 @@ Otherwise, a typed immutable error record is sufficient.
 
 Use immutable error objects with:
 
-* Stable literal code.
-* Safe message.
-* Typed details when necessary.
+- Stable literal code.
+- Safe message.
+- Typed details when necessary.
 
 Do not create a deep exception inheritance tree for expected domain errors.
 
@@ -474,10 +474,10 @@ interface CommandHandler<TCommand, TOutput> {
 
 Reasons:
 
-* Most handlers access persistence.
-* External ports are asynchronous.
-* A common interface simplifies delivery integration.
-* Synchronous Core behavior remains internal.
+- Most handlers access persistence.
+- External ports are asynchronous.
+- A common interface simplifies delivery integration.
+- Synchronous Core behavior remains internal.
 
 ## Naming
 
@@ -489,10 +489,10 @@ execute
 
 Avoid inconsistent combinations:
 
-* `handle`.
-* `run`.
-* `process`.
-* `invoke`.
+- `handle`.
+- `run`.
+- `process`.
+- `invoke`.
 
 Event handlers may use `handle` to distinguish them from use-case execution.
 
@@ -580,11 +580,11 @@ Use null only for explicit absence in narrow contracts.
 
 Do not use null for:
 
-* Failed persistence.
-* Invalid domain state.
-* Concurrency conflict.
-* External failure.
-* Unknown error.
+- Failed persistence.
+- Invalid domain state.
+- Concurrency conflict.
+- External failure.
+- Unknown error.
 
 Those require Result errors or translated exceptions.
 
@@ -604,10 +604,10 @@ Promise<Result<WriteOutcome, RepositoryError>>
 
 Candidate expected repository errors:
 
-* Conflict.
-* Concurrency conflict.
-* Record missing during update.
-* Known uniqueness violation.
+- Conflict.
+- Concurrency conflict.
+- Record missing during update.
+- Known uniqueness violation.
 
 Unexpected driver failures may be:
 
@@ -651,13 +651,13 @@ Result<ConnectionVerification, PlaybookSourceGatewayError>
 
 Known failures:
 
-* Authentication failed.
-* Access denied.
-* Root not found.
-* Rate limited.
-* Timeout.
-* Invalid response.
-* Service unavailable.
+- Authentication failed.
+- Access denied.
+- Root not found.
+- Rate limited.
+- Timeout.
+- Invalid response.
+- Service unavailable.
 
 Unknown SDK exceptions are caught by the adapter and translated to:
 
@@ -687,14 +687,14 @@ verifySnapshotPayload
 
 Known failures:
 
-* Invalid reference.
-* Write failed.
-* Read failed.
-* Missing payload.
-* Conflict.
-* Checksum mismatch.
-* Unsupported schema.
-* Payload too large.
+- Invalid reference.
+- Write failed.
+- Read failed.
+- Missing payload.
+- Conflict.
+- Checksum mismatch.
+- Unsupported schema.
+- Payload too large.
 
 The Application coordinates these errors explicitly.
 
@@ -747,9 +747,9 @@ Result<ValidationResult, ApplicationError>
 
 Where `ValidationResult` contains:
 
-* Findings.
-* Summary.
-* Publication eligibility.
+- Findings.
+- Summary.
+- Publication eligibility.
 
 ## Important Distinction
 
@@ -778,10 +778,10 @@ Use Result failure only when the validation operation itself cannot complete.
 
 Examples:
 
-* Knowledge records cannot be loaded.
-* Validator configuration is unsupported.
-* Database transaction fails.
-* Snapshot content is corrupted.
+- Knowledge records cannot be loaded.
+- Validator configuration is unsupported.
+- Database transaction fails.
+- Snapshot content is corrupted.
 
 ---
 
@@ -803,9 +803,9 @@ or a specific outcome value.
 
 Examples:
 
-* Activating the already active version.
-* Replaying an already completed equivalent CommandId.
-* Writing the same Snapshot payload again.
+- Activating the already active version.
+- Replaying an already completed equivalent CommandId.
+- Writing the same Snapshot payload again.
 
 Do not represent a valid no-change result as an error.
 
@@ -838,10 +838,10 @@ Synchronization and Snapshot succeed, but Draft version creation fails.
 
 The result must expose:
 
-* SynchronizationRunId.
-* SynchronizationSnapshotId.
-* Failed stage.
-* Error.
+- SynchronizationRunId.
+- SynchronizationSnapshotId.
+- Failed stage.
+- Error.
 
 It must not claim full success.
 
@@ -861,11 +861,11 @@ Adapters must catch them at the technical boundary.
 
 Examples:
 
-* PostgreSQL driver.
-* Notion SDK.
-* Node file system.
-* Configuration parser.
-* UUID library.
+- PostgreSQL driver.
+- Notion SDK.
+- Node file system.
+- Configuration parser.
+- UUID library.
 
 The adapter classifies and translates them.
 
@@ -875,10 +875,10 @@ Unexpected exceptions may propagate after context is added safely.
 
 Examples:
 
-* Unknown third-party failure.
-* Programmer defect.
-* Exhaustiveness violation.
-* Corrupted object that cannot be restored safely.
+- Unknown third-party failure.
+- Programmer defect.
+- Exhaustiveness violation.
+- Corrupted object that cannot be restored safely.
 
 The outer delivery boundary catches them.
 
@@ -888,21 +888,21 @@ Thrown values must extend or be instances of JavaScript `Error`.
 
 Do not throw:
 
-* Strings.
-* Numbers.
-* Plain object literals.
-* Result errors.
+- Strings.
+- Numbers.
+- Plain object literals.
+- Result errors.
 
 Incorrect:
 
 ```typescript
-throw "database failed";
+throw 'database failed';
 ```
 
 Correct:
 
 ```typescript
-throw new Error("Unexpected database adapter failure");
+throw new Error('Unexpected database adapter failure');
 ```
 
 Expected database failure should normally be returned as a translated Result error instead.
@@ -923,18 +923,18 @@ InvariantViolationError
 
 Use cases:
 
-* An exhaustive switch receives an unsupported internal discriminant.
-* A supposedly finalized Validation Summary has inconsistent counts after trusted reconstruction.
-* An Aggregate restoration path receives state that could never be created through public behavior.
+- An exhaustive switch receives an unsupported internal discriminant.
+- A supposedly finalized Validation Summary has inconsistent counts after trusted reconstruction.
+- An Aggregate restoration path receives state that could never be created through public behavior.
 
 ## Rules
 
-* This is not an expected domain Result failure.
-* It should not be used for normal invalid user input.
-* It reaches the unexpected-error boundary.
-* It is logged with diagnostics.
-* The user receives `INTERNAL_ERROR`.
-* It should trigger a regression test and correction.
+- This is not an expected domain Result failure.
+- It should not be used for normal invalid user input.
+- It reaches the unexpected-error boundary.
+- It is logged with diagnostics.
+- The user receives `INTERNAL_ERROR`.
+- It should trigger a regression test and correction.
 
 ---
 
@@ -1012,18 +1012,18 @@ The Infrastructure adapter should translate known driver cases before rejection.
 
 Use try-catch around:
 
-* Notion SDK calls.
-* Database driver calls.
-* File-system calls.
-* Serialization libraries.
-* Configuration file loading.
+- Notion SDK calls.
+- Database driver calls.
+- File-system calls.
+- Serialization libraries.
+- Configuration file loading.
 
 Purpose:
 
-* Recognize known technical failures.
-* Redact sensitive data.
-* Translate to typed errors.
-* Preserve unknown causes.
+- Recognize known technical failures.
+- Redact sensitive data.
+- Translate to typed errors.
+- Preserve unknown causes.
 
 ## Application Handlers
 
@@ -1033,10 +1033,10 @@ Unexpected failures should normally reach the delivery boundary.
 
 A handler may catch exceptions when:
 
-* Adding context.
-* Performing required compensation.
-* Translating a clearly owned boundary.
-* Ensuring transaction rollback through the transaction abstraction.
+- Adding context.
+- Performing required compensation.
+- Translating a clearly owned boundary.
+- Ensuring transaction rollback through the transaction abstraction.
 
 ## Core
 
@@ -1063,11 +1063,11 @@ cause
 
 ## Rules
 
-* Cause is excluded from normal serialization.
-* Cause may be logged after redaction.
-* Cause must not affect stable public behavior.
-* Cause chains should remain bounded.
-* Avoid wrapping the same error repeatedly without adding context.
+- Cause is excluded from normal serialization.
+- Cause may be logged after redaction.
+- Cause must not affect stable public behavior.
+- Cause chains should remain bounded.
+- Avoid wrapping the same error repeatedly without adding context.
 
 ---
 
@@ -1107,10 +1107,10 @@ produce Result<B, E1 | E2>
 
 ## Rules
 
-* Helpers must preserve type narrowing.
-* Helpers must not catch unexpected exceptions automatically.
-* Helpers must not hide asynchronous boundaries.
-* Deep functional pipelines should not reduce readability.
+- Helpers must preserve type narrowing.
+- Helpers must not catch unexpected exceptions automatically.
+- Helpers must not hide asynchronous boundaries.
+- Deep functional pipelines should not reduce readability.
 
 Simple explicit branching is acceptable and often preferred in orchestration code.
 
@@ -1133,10 +1133,7 @@ if (!renameResult.success) {
   return err(mapDomainError(renameResult.error));
 }
 
-const updateResult = await repository.update(
-  playbook,
-  playbook.revision,
-);
+const updateResult = await repository.update(playbook, playbook.revision);
 
 if (!updateResult.success) {
   return err(mapRepositoryError(updateResult.error));
@@ -1147,10 +1144,10 @@ return ok(toRenamePlaybookOutput(playbook));
 
 Avoid deeply nested abstractions that hide:
 
-* Repository reads.
-* Domain transitions.
-* Persistence.
-* Error translation.
+- Repository reads.
+- Domain transitions.
+- Persistence.
+- Error translation.
 
 The code should remain understandable to a normal TypeScript developer.
 
@@ -1238,11 +1235,11 @@ CreatePlaybookError
 
 A common ApplicationError shape may still provide:
 
-* Code.
-* Category.
-* Message.
-* Details.
-* Retryability.
+- Code.
+- Category.
+- Message.
+- Details.
+- Retryability.
 
 ## Approved Direction
 
@@ -1252,9 +1249,9 @@ Handlers may narrow their possible codes through type aliases when useful.
 
 This balances:
 
-* Delivery simplicity.
-* Type documentation.
-* Maintainability.
+- Delivery simplicity.
+- Type documentation.
+- Maintainability.
 
 ---
 
@@ -1272,11 +1269,11 @@ playbookVersionNotEligible(versionId, currentStatus)
 
 Benefits:
 
-* Stable message.
-* Stable category.
-* Safe details.
-* Centralized retryability.
-* Less duplicated object construction.
+- Stable message.
+- Stable category.
+- Safe details.
+- Centralized retryability.
+- Less duplicated object construction.
 
 ## Placement
 
@@ -1328,9 +1325,9 @@ A failed Result inside transactional work must cause rollback when it represents
 
 The TransactionManager contract must clearly distinguish:
 
-* Successful callback Result.
-* Failed callback Result.
-* Unexpected thrown exception.
+- Successful callback Result.
+- Failed callback Result.
+- Unexpected thrown exception.
 
 Conceptual behavior:
 
@@ -1397,68 +1394,68 @@ Avoid serializing large Application outputs into logs.
 
 Test:
 
-* `ok` creation.
-* `err` creation.
-* Narrowing.
-* Map success.
-* Map error.
-* Chain.
-* Helpers do not swallow thrown exceptions.
-* Immutability.
+- `ok` creation.
+- `err` creation.
+- Narrowing.
+- Map success.
+- Map error.
+- Chain.
+- Helpers do not swallow thrown exceptions.
+- Immutability.
 
 ## Core Tests
 
 Test:
 
-* Invalid Value Object creation returns err.
-* Valid creation returns ok.
-* Invalid lifecycle transition returns err.
-* Aggregate remains unchanged after rejected transition.
-* Valid transition returns ok.
-* No exception is thrown for expected domain rejection.
+- Invalid Value Object creation returns err.
+- Valid creation returns ok.
+- Invalid lifecycle transition returns err.
+- Aggregate remains unchanged after rejected transition.
+- Valid transition returns ok.
+- No exception is thrown for expected domain rejection.
 
 ## Application Tests
 
 Test:
 
-* Expected repository absence becomes Application err.
-* Domain err maps correctly.
-* Repository conflict maps correctly.
-* External failure maps correctly.
-* Success output returned through ok.
-* No-change is successful.
-* Unexpected dependency exception rejects and reaches outer boundary in integration tests.
+- Expected repository absence becomes Application err.
+- Domain err maps correctly.
+- Repository conflict maps correctly.
+- External failure maps correctly.
+- Success output returned through ok.
+- No-change is successful.
+- Unexpected dependency exception rejects and reaches outer boundary in integration tests.
 
 ## Adapter Tests
 
 Test:
 
-* Known library exception becomes expected typed error.
-* Unknown library exception preserves cause and remains unexpected or generic adapter error according to contract.
-* Secret values are removed.
-* Promise resolves to err for expected failure.
-* Promise rejects only for unexpected failure.
+- Known library exception becomes expected typed error.
+- Unknown library exception preserves cause and remains unexpected or generic adapter error according to contract.
+- Secret values are removed.
+- Promise resolves to err for expected failure.
+- Promise rejects only for unexpected failure.
 
 ## Transaction Tests
 
 Test:
 
-* `ok` commits.
-* `err` rolls back.
-* Thrown exception rolls back and rethrows.
-* Result failure remains unchanged after rollback.
-* Unexpected cause is preserved.
+- `ok` commits.
+- `err` rolls back.
+- Thrown exception rolls back and rethrows.
+- Result failure remains unchanged after rollback.
+- Unexpected cause is preserved.
 
 ## CLI Tests
 
 Test:
 
-* Application err becomes user-facing error.
-* Application ok becomes success output.
-* Unexpected exception becomes `INTERNAL_ERROR`.
-* Stack trace hidden normally.
-* CorrelationId preserved.
-* JSON output does not expose internal Result implementation.
+- Application err becomes user-facing error.
+- Application ok becomes success output.
+- Unexpected exception becomes `INTERNAL_ERROR`.
+- Stack trace hidden normally.
+- CorrelationId preserved.
+- JSON output does not expose internal Result implementation.
 
 ---
 
@@ -1466,11 +1463,11 @@ Test:
 
 Where practical, type tests should verify:
 
-* WorkspaceId cannot be passed as PlaybookId.
-* Result success requires handling before accessing error.
-* Result failure requires handling before accessing value.
-* Handler result exposes ApplicationError.
-* Repository null absence is explicit.
+- WorkspaceId cannot be passed as PlaybookId.
+- Result success requires handling before accessing error.
+- Result failure requires handling before accessing value.
+- Handler result exposes ApplicationError.
+- Repository null absence is explicit.
 
 Compile-time tests must not require complex tooling unless justified.
 
@@ -1482,18 +1479,18 @@ TypeScript test files with `@ts-expect-error` may be sufficient.
 
 When implementing this pattern, OpenCode must:
 
-* Create a minimal Result primitive.
-* Avoid adding a functional-programming dependency without approval.
-* Use Result for expected failures.
-* Use exceptions only for unexpected failures.
-* Not throw Domain error objects for normal control flow.
-* Not catch every exception globally inside Handlers.
-* Preserve error causes internally.
-* Add tests for success and failure.
-* Keep error translation explicit.
-* Avoid one universal generic error with no stable code.
-* Avoid returning null for technical failures.
-* Avoid mixing `undefined`, null, Result and exceptions for the same meaning.
+- Create a minimal Result primitive.
+- Avoid adding a functional-programming dependency without approval.
+- Use Result for expected failures.
+- Use exceptions only for unexpected failures.
+- Not throw Domain error objects for normal control flow.
+- Not catch every exception globally inside Handlers.
+- Preserve error causes internally.
+- Add tests for success and failure.
+- Keep error translation explicit.
+- Avoid one universal generic error with no stable code.
+- Avoid returning null for technical failures.
+- Avoid mixing `undefined`, null, Result and exceptions for the same meaning.
 
 ---
 
@@ -1501,22 +1498,22 @@ When implementing this pattern, OpenCode must:
 
 Version 1 must not:
 
-* Throw strings.
-* Throw expected domain errors as normal Application control flow.
-* Return raw Error objects in Application Results.
-* Use exceptions for repository not-found.
-* Return null for persistence failure.
-* Catch unknown exceptions and pretend they are validation errors.
-* Resolve a Promise with a thrown-error wrapper.
-* Swallow exceptions inside Result helpers.
-* Build a large custom monadic framework.
-* Add a third-party Result library without explicit approval.
-* Return success and error simultaneously.
-* Treat validation Findings as Handler failures when validation completed normally.
-* Expose Result implementation details through CLI JSON.
-* Use broad `catch (error) { return err(INTERNAL_ERROR); }` in every Handler.
-* Continue transaction commit after a failed Result.
-* Use `any` for error details.
+- Throw strings.
+- Throw expected domain errors as normal Application control flow.
+- Return raw Error objects in Application Results.
+- Use exceptions for repository not-found.
+- Return null for persistence failure.
+- Catch unknown exceptions and pretend they are validation errors.
+- Resolve a Promise with a thrown-error wrapper.
+- Swallow exceptions inside Result helpers.
+- Build a large custom monadic framework.
+- Add a third-party Result library without explicit approval.
+- Return success and error simultaneously.
+- Treat validation Findings as Handler failures when validation completed normally.
+- Expose Result implementation details through CLI JSON.
+- Use broad `catch (error) { return err(INTERNAL_ERROR); }` in every Handler.
+- Continue transaction commit after a failed Result.
+- Use `any` for error details.
 
 ---
 
@@ -1524,23 +1521,23 @@ Version 1 must not:
 
 The first code implementation should introduce only:
 
-* Generic Result type.
-* `ok`.
-* `err`.
-* Minimal safe helpers required by the first domain slice.
-* Initial typed identifier parsing Results.
-* Initial domain error records.
-* Tests.
+- Generic Result type.
+- `ok`.
+- `err`.
+- Minimal safe helpers required by the first domain slice.
+- Initial typed identifier parsing Results.
+- Initial domain error records.
+- Tests.
 
 Do not implement:
 
-* Async Result wrappers.
-* Task abstractions.
-* Validation accumulation framework.
-* Event Result framework.
-* Retry combinators.
-* Generic exception-to-Result conversion.
-* Full Application error catalog.
+- Async Result wrappers.
+- Task abstractions.
+- Validation accumulation framework.
+- Event Result framework.
+- Retry combinators.
+- Generic exception-to-Result conversion.
+- Full Application error catalog.
 
 ---
 
@@ -1548,15 +1545,15 @@ Do not implement:
 
 The following remain deferred:
 
-* Exact immutable Aggregate implementation style.
-* Whether some internal pure constructors can return values directly.
-* Advanced Result helper set.
-* Error localization.
-* Batch Result aggregation outside configuration.
-* Public API compatibility requirements.
-* Event-handler Result implementation.
-* Generic cancellation representation.
-* Result telemetry instrumentation.
+- Exact immutable Aggregate implementation style.
+- Whether some internal pure constructors can return values directly.
+- Advanced Result helper set.
+- Error localization.
+- Batch Result aggregation outside configuration.
+- Public API compatibility requirements.
+- Event-handler Result implementation.
+- Generic cancellation representation.
+- Result telemetry instrumentation.
 
 These decisions must preserve the expected-versus-unexpected failure boundary.
 
@@ -1566,19 +1563,19 @@ These decisions must preserve the expected-versus-unexpected failure boundary.
 
 Version 1 will use:
 
-* A minimal discriminated-union `Result`.
-* `ok` and `err` constructors.
-* Results for expected domain, Application and adapter failures.
-* `T | null` for repository lookup absence.
-* Promises that resolve to Result for expected asynchronous outcomes.
-* Exceptions for unexpected programming and unclassifiable internal failures.
-* Explicit adapter-level exception translation.
-* An outer CLI unexpected-error boundary.
-* Typed immutable expected errors.
-* Explicit error mapping between layers.
-* Transaction rollback on failed Result.
-* Successful validation Results even when content becomes Invalid.
-* No third-party Result framework initially.
+- A minimal discriminated-union `Result`.
+- `ok` and `err` constructors.
+- Results for expected domain, Application and adapter failures.
+- `T | null` for repository lookup absence.
+- Promises that resolve to Result for expected asynchronous outcomes.
+- Exceptions for unexpected programming and unclassifiable internal failures.
+- Explicit adapter-level exception translation.
+- An outer CLI unexpected-error boundary.
+- Typed immutable expected errors.
+- Explicit error mapping between layers.
+- Transaction rollback on failed Result.
+- Successful validation Results even when content becomes Invalid.
+- No third-party Result framework initially.
 
 ---
 
@@ -1586,13 +1583,13 @@ Version 1 will use:
 
 The Result pattern is ready for implementation when:
 
-* Expected and unexpected failures are clearly separated.
-* Domain factories and transitions have consistent behavior.
-* Handler signatures are predictable.
-* Repository absence has one representation.
-* Adapter exceptions cannot leak directly.
-* Transactions understand failed Results.
-* Validation Findings remain separate from operational failure.
-* CLI can distinguish Application errors from unexpected exceptions.
-* The initial Result implementation can remain small.
-* OpenCode can implement the pattern without inventing a new error architecture.
+- Expected and unexpected failures are clearly separated.
+- Domain factories and transitions have consistent behavior.
+- Handler signatures are predictable.
+- Repository absence has one representation.
+- Adapter exceptions cannot leak directly.
+- Transactions understand failed Results.
+- Validation Findings remain separate from operational failure.
+- CLI can distinguish Application errors from unexpected exceptions.
+- The initial Result implementation can remain small.
+- OpenCode can implement the pattern without inventing a new error architecture.

@@ -6,27 +6,27 @@ This document defines the persistence contracts required by the Application laye
 
 It establishes:
 
-* Repository ownership.
-* Repository responsibilities.
-* Aggregate loading and persistence rules.
-* Query boundaries.
-* Workspace isolation requirements.
-* Optimistic concurrency expectations.
-* Transaction participation.
-* Uniqueness and conflict detection.
-* Error behavior.
-* Testing requirements.
+- Repository ownership.
+- Repository responsibilities.
+- Aggregate loading and persistence rules.
+- Query boundaries.
+- Workspace isolation requirements.
+- Optimistic concurrency expectations.
+- Transaction participation.
+- Uniqueness and conflict detection.
+- Error behavior.
+- Testing requirements.
 
 This document does not define:
 
-* Database tables.
-* SQL queries.
-* ORM models.
-* Migration files.
-* PostgreSQL indexes.
-* Concrete repository classes.
-* Connection-pool configuration.
-* Snapshot payload storage.
+- Database tables.
+- SQL queries.
+- ORM models.
+- Migration files.
+- PostgreSQL indexes.
+- Concrete repository classes.
+- Connection-pool configuration.
+- Snapshot payload storage.
 
 Repository interfaces belong to the Application package.
 
@@ -60,11 +60,11 @@ Repositories load and persist Aggregate Roots.
 
 Examples:
 
-* WorkspaceRepository persists Workspace.
-* PlaybookRepository persists Playbook.
-* PlaybookSourceRepository persists PlaybookSource.
-* SynchronizationRunRepository persists SynchronizationRun.
-* PlaybookVersionRepository persists PlaybookVersion.
+- WorkspaceRepository persists Workspace.
+- PlaybookRepository persists Playbook.
+- PlaybookSourceRepository persists PlaybookSource.
+- SynchronizationRunRepository persists SynchronizationRun.
+- PlaybookVersionRepository persists PlaybookVersion.
 
 Repositories must not allow callers to mutate internal persistence records directly.
 
@@ -112,13 +112,13 @@ or an equivalent explicit Workspace scope.
 
 Repository contracts must not expose:
 
-* ORM entities.
-* Query-builder objects.
-* Database rows.
-* Transaction clients from a vendor library.
-* SQL fragments.
-* Lazy-loading proxies.
-* Database-specific pagination cursors.
+- ORM entities.
+- Query-builder objects.
+- Database rows.
+- Transaction clients from a vendor library.
+- SQL fragments.
+- Lazy-loading proxies.
+- Database-specific pagination cursors.
 
 ## Explicit Absence
 
@@ -161,11 +161,11 @@ Aggregate repositories persist authoritative mutable Aggregate Roots.
 
 Version 1 Aggregate repositories:
 
-* WorkspaceRepository.
-* PlaybookRepository.
-* PlaybookSourceRepository.
-* SynchronizationRunRepository.
-* PlaybookVersionRepository.
+- WorkspaceRepository.
+- PlaybookRepository.
+- PlaybookSourceRepository.
+- SynchronizationRunRepository.
+- PlaybookVersionRepository.
 
 These repositories enforce optimistic concurrency where required.
 
@@ -177,11 +177,11 @@ Immutable records are created once and not updated after finalization.
 
 Version 1 candidates:
 
-* SynchronizationSnapshotRepository.
-* NormalizationAttemptRepository.
-* ValidationFindingRepository.
-* KnowledgeItemRepository.
-* KnowledgeRelationshipRepository.
+- SynchronizationSnapshotRepository.
+- NormalizationAttemptRepository.
+- ValidationFindingRepository.
+- KnowledgeItemRepository.
+- KnowledgeRelationshipRepository.
 
 Some of these contracts may support staged construction while a Draft version is being normalized.
 
@@ -195,12 +195,12 @@ Queries that do not enforce Aggregate invariants may use dedicated read contract
 
 Examples:
 
-* List Playbooks.
-* List Synchronization Runs.
-* List Playbook Versions.
-* Search Knowledge.
-* Retrieve validation findings.
-* Retrieve version summaries.
+- List Playbooks.
+- List Synchronization Runs.
+- List Playbook Versions.
+- Search Knowledge.
+- Retrieve validation findings.
+- Retrieve version summaries.
 
 Query contracts may return read models rather than domain Aggregates.
 
@@ -214,11 +214,11 @@ Cross-repository application operations may require one transaction.
 
 Examples:
 
-* Create Playbook Version and allocate VersionSequence.
-* Complete normalization and persist Knowledge Items.
-* Complete validation and persist Validation Summary plus Findings.
-* Activate a version and persist the Playbook.
-* Complete Synchronization Run and persist Snapshot metadata.
+- Create Playbook Version and allocate VersionSequence.
+- Complete normalization and persist Knowledge Items.
+- Complete validation and persist Validation Summary plus Findings.
+- Activate a version and persist the Playbook.
+- Complete Synchronization Run and persist Snapshot metadata.
 
 The Application layer defines the transaction boundary.
 
@@ -249,9 +249,9 @@ List methods must define deterministic ordering.
 
 Examples:
 
-* Created timestamp descending.
-* VersionSequence descending.
-* Name ascending plus identifier tie-breaker.
+- Created timestamp descending.
+- VersionSequence descending.
+- Name ascending plus identifier tie-breaker.
 
 Database default ordering is prohibited.
 
@@ -263,10 +263,10 @@ Version 1 may use offset pagination for simple local queries.
 
 The contract must define:
 
-* Page size.
-* Maximum page size.
-* Stable ordering.
-* Total count only when required.
+- Page size.
+- Maximum page size.
+- Stable ordering.
+- Total count only when required.
 
 Repository contracts must not expose PostgreSQL-specific cursors.
 
@@ -284,20 +284,20 @@ A conflicting update produces a concurrency conflict.
 
 The revision:
 
-* Is not the domain identity.
-* Is not exposed as business state.
-* Must increase after successful persistence.
-* Must not be generated independently by Application.
+- Is not the domain identity.
+- Is not exposed as business state.
+- Must increase after successful persistence.
+- Must not be generated independently by Application.
 
 The exact representation may be:
 
-* Integer revision.
-* Database xmin-style mechanism.
-* Updated timestamp only if collision-safe.
+- Integer revision.
+- Database xmin-style mechanism.
+- Updated timestamp only if collision-safe.
 
 Preferred direction:
 
-* Explicit positive integer revision.
+- Explicit positive integer revision.
 
 ## Create Versus Save
 
@@ -318,9 +318,9 @@ Generic `save` is acceptable only when its creation and concurrency semantics ar
 
 Repositories must not convert:
 
-* Missing update into create.
-* Duplicate create into update.
-* Concurrency conflict into overwrite.
+- Missing update into create.
+- Duplicate create into update.
+- Concurrency conflict into overwrite.
 
 ## No Hard Delete in Version 1
 
@@ -350,8 +350,8 @@ findById(workspaceId)
 
 Returns:
 
-* Workspace when found.
-* Explicit absence when not found.
+- Workspace when found.
+- Explicit absence when not found.
 
 Workspace is its own tenant boundary, so the identifier is sufficient.
 
@@ -363,9 +363,9 @@ insert(workspace)
 
 Requirements:
 
-* Fail on duplicate WorkspaceId.
-* Preserve initial revision.
-* Persist canonical name and status.
+- Fail on duplicate WorkspaceId.
+- Preserve initial revision.
+- Persist canonical name and status.
 
 ### Update
 
@@ -375,9 +375,9 @@ update(workspace, expectedRevision)
 
 Requirements:
 
-* Fail on missing record.
-* Fail on revision conflict.
-* Persist only valid Aggregate state.
+- Fail on missing record.
+- Fail on revision conflict.
+- Persist only valid Aggregate state.
 
 ### Count or Detect Initialization
 
@@ -427,10 +427,10 @@ findByNormalizedName(workspaceId, normalizedName)
 
 Used for:
 
-* Creation conflict detection.
-* Rename conflict detection.
-* Name-based CLI resolution.
-* Restore conflict detection.
+- Creation conflict detection.
+- Rename conflict detection.
+- Name-based CLI resolution.
+- Restore conflict detection.
 
 Archived Playbooks may be included or excluded through an explicit query option.
 
@@ -444,9 +444,9 @@ insert(playbook)
 
 Requirements:
 
-* Enforce unique non-Archived normalized name per Workspace.
-* Fail on duplicate PlaybookId.
-* Return or expose the new revision.
+- Enforce unique non-Archived normalized name per Workspace.
+- Fail on duplicate PlaybookId.
+- Return or expose the new revision.
 
 ### Update
 
@@ -456,9 +456,9 @@ update(playbook, expectedRevision)
 
 Requirements:
 
-* Enforce name uniqueness.
-* Enforce optimistic concurrency.
-* Persist active-version reference changes atomically within the Playbook record.
+- Enforce name uniqueness.
+- Enforce optimistic concurrency.
+- Persist active-version reference changes atomically within the Playbook record.
 
 ### List
 
@@ -470,9 +470,9 @@ list(workspaceId, filter, pagination)
 
 Candidate filters:
 
-* Status.
-* Normalized name prefix.
-* Has active version.
+- Status.
+- Normalized name prefix.
+- Has active version.
 
 Ordering must be deterministic.
 
@@ -526,9 +526,9 @@ insert(playbookSource)
 
 Requirements:
 
-* Enforce Workspace and Playbook ownership consistency.
-* Enforce at most one Enabled source per Playbook.
-* Fail on duplicate source identifier.
+- Enforce Workspace and Playbook ownership consistency.
+- Enforce at most one Enabled source per Playbook.
+- Fail on duplicate source identifier.
 
 ### Update
 
@@ -538,10 +538,10 @@ update(playbookSource, expectedRevision)
 
 Requirements:
 
-* Enforce optimistic concurrency.
-* Enforce at most one Enabled source.
-* Preserve immutable ownership fields.
-* Preserve historical synchronization references.
+- Enforce optimistic concurrency.
+- Enforce at most one Enabled source.
+- Preserve immutable ownership fields.
+- Preserve historical synchronization references.
 
 ## Active Source Conflict
 
@@ -592,9 +592,9 @@ insert(run)
 
 Requirements:
 
-* Fail on duplicate run identifier.
-* Enforce one active run per source.
-* Persist CommandId or idempotency reference when approved.
+- Fail on duplicate run identifier.
+- Enforce one active run per source.
+- Persist CommandId or idempotency reference when approved.
 
 ### Update Lifecycle State
 
@@ -604,9 +604,9 @@ update(run, expectedRevision)
 
 Requirements:
 
-* Enforce optimistic concurrency.
-* Preserve terminal state.
-* Persist timestamps, progress and failure metadata safely.
+- Enforce optimistic concurrency.
+- Preserve terminal state.
+- Persist timestamps, progress and failure metadata safely.
 
 ### Find Active Run by Source
 
@@ -616,8 +616,8 @@ findActiveBySourceId(workspaceId, playbookSourceId)
 
 Active means:
 
-* Pending.
-* Running.
+- Pending.
+- Running.
 
 Returns at most one run.
 
@@ -629,9 +629,9 @@ listBySourceId(workspaceId, playbookSourceId, filter, pagination)
 
 Candidate filters:
 
-* Status.
-* Created date range.
-* Retry lineage.
+- Status.
+- Created date range.
+- Retry lineage.
 
 ### Find Previous Successful Run
 
@@ -641,9 +641,9 @@ findLatestCompletedBySourceId(workspaceId, playbookSourceId)
 
 Used for:
 
-* Snapshot checksum comparison.
-* Detecting unchanged content.
-* Source success metadata.
+- Snapshot checksum comparison.
+- Detecting unchanged content.
+- Source success metadata.
 
 ### Find Stale Running Runs
 
@@ -669,10 +669,10 @@ Application pre-checks improve error messages but do not replace the constraint.
 
 Repository updates must never:
 
-* Reset Failed to Pending.
-* Reset Completed to Running.
-* Replace a run during retry.
-* Remove failure history.
+- Reset Failed to Pending.
+- Reset Completed to Running.
+- Replace a run during retry.
+- Remove failure history.
 
 Retries create new SynchronizationRun records.
 
@@ -710,10 +710,10 @@ insert(snapshot)
 
 Requirements:
 
-* Fail on duplicate SnapshotId.
-* Fail when the run already has a Snapshot.
-* Preserve immutable metadata.
-* Store canonical checksum and StorageReference.
+- Fail on duplicate SnapshotId.
+- Fail when the run already has a Snapshot.
+- Preserve immutable metadata.
+- Store canonical checksum and StorageReference.
 
 ### Find Latest by Source
 
@@ -801,9 +801,9 @@ insert(version)
 
 Requirements:
 
-* Enforce unique PlaybookId plus VersionSequence.
-* Enforce duplicate-processing rules where approved.
-* Fail on duplicate PlaybookVersionId.
+- Enforce unique PlaybookId plus VersionSequence.
+- Enforce duplicate-processing rules where approved.
+- Fail on duplicate PlaybookVersionId.
 
 ### Update Lifecycle
 
@@ -813,11 +813,11 @@ update(version, expectedRevision)
 
 Requirements:
 
-* Enforce optimistic concurrency.
-* Persist only valid lifecycle transitions.
-* Preserve immutable ownership and source lineage.
-* Persist ValidationSummary atomically when validation completes.
-* Preserve publication and archive timestamps.
+- Enforce optimistic concurrency.
+- Persist only valid lifecycle transitions.
+- Preserve immutable ownership and source lineage.
+- Persist ValidationSummary atomically when validation completes.
+- Preserve publication and archive timestamps.
 
 ### List Versions
 
@@ -827,10 +827,10 @@ listByPlaybookId(workspaceId, playbookId, filter, pagination)
 
 Candidate filters:
 
-* Status.
-* Sequence range.
-* Published date range.
-* Snapshot identifier.
+- Status.
+- Sequence range.
+- Published date range.
+- Snapshot identifier.
 
 ## Execution Eligibility Query
 
@@ -860,19 +860,19 @@ allocateNext(workspaceId, playbookId)
 
 ## Rules
 
-* Monotonically increases.
-* Never reuses committed or reserved sequences.
-* May produce gaps.
-* Must be concurrency-safe.
-* Must participate in the same transaction as Draft version creation when possible.
+- Monotonically increases.
+- Never reuses committed or reserved sequences.
+- May produce gaps.
+- Must be concurrency-safe.
+- Must participate in the same transaction as Draft version creation when possible.
 
 ## Error
 
 Allocation conflict or failure must be distinguishable from:
 
-* Playbook not found.
-* Generic database failure.
-* Duplicate idempotent request.
+- Playbook not found.
+- Generic database failure.
+- Duplicate idempotent request.
 
 ---
 
@@ -920,8 +920,8 @@ update(attempt, expectedRevision)
 
 Allowed only while:
 
-* Pending.
-* Running.
+- Pending.
+- Running.
 
 Terminal attempts are immutable.
 
@@ -960,13 +960,13 @@ storeNormalizedItems(
 
 Requirements:
 
-* Version remains Draft.
-* Attempt is active.
-* All items belong to the same Workspace, Playbook and Version.
-* SourceStableKey is unique within the version.
-* KnowledgeItemId matches deterministic identity policy.
-* Type-specific attributes are valid.
-* Operation participates in a transaction.
+- Version remains Draft.
+- Attempt is active.
+- All items belong to the same Workspace, Playbook and Version.
+- SourceStableKey is unique within the version.
+- KnowledgeItemId matches deterministic identity policy.
+- Type-specific attributes are valid.
+- Operation participates in a transaction.
 
 ## Alternative Batch Operations
 
@@ -1005,10 +1005,10 @@ listByVersion(workspaceId, playbookVersionId, filter, pagination)
 
 Candidate filters:
 
-* KnowledgeType.
-* Parent KnowledgeItemId.
-* Title.
-* SourceStableKey.
+- KnowledgeType.
+- Parent KnowledgeItemId.
+- Title.
+- SourceStableKey.
 
 ### Count by Version
 
@@ -1024,10 +1024,10 @@ Search belongs to a read/query contract rather than the Aggregate-write reposito
 
 After the version leaves Validating and becomes:
 
-* Validated.
-* Invalid.
-* Published.
-* Archived.
+- Validated.
+- Invalid.
+- Published.
+- Archived.
 
 Knowledge Items cannot be updated.
 
@@ -1064,10 +1064,10 @@ storeRelationships(
 
 Requirements:
 
-* All items belong to the same version.
-* Relationship identities follow deterministic rules.
-* Invalid structural cycles are rejected before finalization.
-* Duplicate relationships are rejected or deterministically collapsed according to policy.
+- All items belong to the same version.
+- Relationship identities follow deterministic rules.
+- Invalid structural cycles are rejected before finalization.
+- Duplicate relationships are rejected or deterministically collapsed according to policy.
 
 ### List by Source Item
 
@@ -1126,11 +1126,11 @@ insertFindings(
 
 Requirements:
 
-* Every finding belongs to the same Workspace and version.
-* KnowledgeItem references belong to the same version.
-* Validation codes are present.
-* Findings are immutable after insertion.
-* The operation participates in the same transaction that updates PlaybookVersion ValidationSummary and lifecycle status.
+- Every finding belongs to the same Workspace and version.
+- KnowledgeItem references belong to the same version.
+- Validation codes are present.
+- Findings are immutable after insertion.
+- The operation participates in the same transaction that updates PlaybookVersion ValidationSummary and lifecycle status.
 
 ### List by Version
 
@@ -1145,11 +1145,11 @@ listByPlaybookVersionId(
 
 Candidate filters:
 
-* Severity.
-* Blocking.
-* ValidationStage.
-* ValidationCode.
-* KnowledgeItemId.
+- Severity.
+- Blocking.
+- ValidationStage.
+- ValidationCode.
+- KnowledgeItemId.
 
 ### List by Attempt
 
@@ -1169,10 +1169,10 @@ Repository implementations must not recalculate a different summary silently for
 
 ## Prohibited Operations
 
-* Update finding.
-* Delete finding.
-* Reassign finding to another version.
-* Change severity after finalization.
+- Update finding.
+- Delete finding.
+- Reassign finding to another version.
+- Change severity after finalization.
 
 ---
 
@@ -1220,10 +1220,10 @@ ValidationAttempt preserves process metadata.
 
 Validation completion must persist:
 
-* Attempt terminal state.
-* Findings.
-* ValidationSummary.
-* PlaybookVersion transition.
+- Attempt terminal state.
+- Findings.
+- ValidationSummary.
+- PlaybookVersion transition.
 
 in one transaction.
 
@@ -1251,18 +1251,18 @@ resolvePlaybookByName(workspaceId, normalizedName, includeArchived)
 
 Read model may include:
 
-* PlaybookId.
-* Name.
-* Status.
-* Active version summary.
-* Source summary.
-* Created and updated timestamps.
+- PlaybookId.
+- Name.
+- Status.
+- Active version summary.
+- Source summary.
+- Created and updated timestamps.
 
 It must not expose:
 
-* Persistence revision unless required for a state-changing command contract.
-* ORM internals.
-* Credentials.
+- Persistence revision unless required for a state-changing command contract.
+- ORM internals.
+- Credentials.
 
 ---
 
@@ -1278,14 +1278,14 @@ getSynchronizationHistorySummary(...)
 
 Read model may include:
 
-* Status.
-* Source.
-* Counts.
-* Checksum.
-* Unchanged indicator.
-* Previous run reference.
-* Failure summary.
-* Retry eligibility.
+- Status.
+- Source.
+- Counts.
+- Checksum.
+- Unchanged indicator.
+- Previous run reference.
+- Failure summary.
+- Retry eligibility.
 
 ---
 
@@ -1301,13 +1301,13 @@ getValidationSummary(...)
 
 Read model may include:
 
-* VersionSequence.
-* Status.
-* Normalization status.
-* Snapshot reference.
-* ValidationSummary.
-* Active indicator.
-* Publication and archive timestamps.
+- VersionSequence.
+- Status.
+- Normalization status.
+- Snapshot reference.
+- ValidationSummary.
+- Active indicator.
+- Publication and archive timestamps.
 
 ---
 
@@ -1351,12 +1351,12 @@ listKnowledgeRelationships(
 
 Candidate fields:
 
-* Text.
-* KnowledgeType.
-* Parent identifier.
-* Title-only flag.
-* SourceStableKey.
-* Tag when supported.
+- Text.
+- KnowledgeType.
+- Parent identifier.
+- Title-only flag.
+- SourceStableKey.
+- Tag when supported.
 
 ## Search Rules
 
@@ -1364,23 +1364,23 @@ Version 1 search is deterministic.
 
 The contract must not imply:
 
-* Embeddings.
-* Semantic vector search.
-* AI ranking.
-* Fuzzy behavior not explicitly defined.
+- Embeddings.
+- Semantic vector search.
+- AI ranking.
+- Fuzzy behavior not explicitly defined.
 
 ## Search Result
 
 Candidate fields:
 
-* KnowledgeItemId.
-* KnowledgeType.
-* Title.
-* Matched text excerpt.
-* SourceStableKey.
-* Parent summary.
-* Source traceability summary.
-* Stable relevance or ordering metadata.
+- KnowledgeItemId.
+- KnowledgeType.
+- Title.
+- Matched text excerpt.
+- SourceStableKey.
+- Parent summary.
+- Source traceability summary.
+- Stable relevance or ordering metadata.
 
 ---
 
@@ -1404,11 +1404,11 @@ getCurrentWorkspaceId()
 
 ## Rules
 
-* Does not return a hard-coded identifier from multiple locations.
-* Does not create a Workspace.
-* Does not bypass WorkspaceRepository existence checks.
-* Infrastructure or composition owns the concrete configuration-based implementation.
-* Future API and Worker implementations may resolve Workspace differently.
+- Does not return a hard-coded identifier from multiple locations.
+- Does not create a Workspace.
+- Does not bypass WorkspaceRepository existence checks.
+- Infrastructure or composition owns the concrete configuration-based implementation.
+- Future API and Worker implementations may resolve Workspace differently.
 
 ---
 
@@ -1428,13 +1428,13 @@ The exact TypeScript shape will be defined during implementation design.
 
 ## Rules
 
-* Application owns the abstraction.
-* Infrastructure owns the implementation.
-* Repositories used inside the transaction must share the same transaction context.
-* Application code must not receive a vendor-specific database client.
-* Nested transactions require explicit semantics.
-* External API calls must not normally execute inside a database transaction.
-* Long-running Notion retrieval must not keep a database transaction open.
+- Application owns the abstraction.
+- Infrastructure owns the implementation.
+- Repositories used inside the transaction must share the same transaction context.
+- Application code must not receive a vendor-specific database client.
+- Nested transactions require explicit semantics.
+- External API calls must not normally execute inside a database transaction.
+- Long-running Notion retrieval must not keep a database transaction open.
 
 ## Example: Successful Synchronization Completion
 
@@ -1471,9 +1471,9 @@ Version 1 will not expose a generic domain-wide UnitOfWork abstraction unless im
 
 Preferred direction:
 
-* Application-level TransactionManager.
-* Explicit repositories.
-* Transaction-scoped repository implementations or context.
+- Application-level TransactionManager.
+- Explicit repositories.
+- Transaction-scoped repository implementations or context.
 
 Avoid:
 
@@ -1492,13 +1492,13 @@ Repositories return or throw only persistence-neutral errors defined through App
 
 Expected repository outcomes include:
 
-* Record found.
-* Explicit absence.
-* Inserted.
-* Updated.
-* Concurrency conflict.
-* Known uniqueness conflict.
-* Infrastructure failure.
+- Record found.
+- Explicit absence.
+- Inserted.
+- Updated.
+- Concurrency conflict.
+- Known uniqueness conflict.
+- Infrastructure failure.
 
 ## Known Conflict Translation
 
@@ -1562,13 +1562,13 @@ Repository contracts must support bounded batch persistence.
 
 ## Requirements
 
-* Configurable batch size in Infrastructure.
-* Transactional finalization.
-* No partial set considered complete.
-* Duplicate detection.
-* Stable item ordering where needed.
-* Failure preserves attempt history.
-* Retrying must not create duplicate final records.
+- Configurable batch size in Infrastructure.
+- Transactional finalization.
+- No partial set considered complete.
+- Duplicate detection.
+- Stable item ordering where needed.
+- Failure preserves attempt history.
+- Retrying must not create duplicate final records.
 
 ## Large Payload Rule
 
@@ -1588,11 +1588,11 @@ They must not rely only on eventually consistent read models.
 
 Examples:
 
-* Publish version.
-* Activate version.
-* Enable source.
-* Rename Playbook.
-* Complete SynchronizationRun.
+- Publish version.
+- Activate version.
+- Enable source.
+- Rename Playbook.
+- Complete SynchronizationRun.
 
 ## Query Use Cases
 
@@ -1620,19 +1620,19 @@ When persisting relationships, Infrastructure must verify or constrain that refe
 
 Examples:
 
-* PlaybookSource → Playbook.
-* SynchronizationRun → PlaybookSource.
-* Snapshot → SynchronizationRun.
-* PlaybookVersion → Playbook.
-* KnowledgeItem → PlaybookVersion.
-* ValidationFinding → PlaybookVersion.
+- PlaybookSource → Playbook.
+- SynchronizationRun → PlaybookSource.
+- Snapshot → SynchronizationRun.
+- PlaybookVersion → Playbook.
+- KnowledgeItem → PlaybookVersion.
+- ValidationFinding → PlaybookVersion.
 
 ## Information Disclosure Rule
 
 A lookup with:
 
-* Correct resource ID.
-* Wrong WorkspaceId.
+- Correct resource ID.
+- Wrong WorkspaceId.
 
 must behave as not found.
 
@@ -1702,14 +1702,14 @@ Repository interfaces are public Application contracts.
 
 They must:
 
-* Use Core domain types.
-* Use Application-neutral pagination and result types.
-* Avoid Infrastructure implementation types.
-* Avoid Notion types.
-* Avoid CLI output models.
-* Use type-only imports where applicable.
-* Remain minimal.
-* Avoid generic catch-all methods.
+- Use Core domain types.
+- Use Application-neutral pagination and result types.
+- Avoid Infrastructure implementation types.
+- Avoid Notion types.
+- Avoid CLI output models.
+- Use type-only imports where applicable.
+- Remain minimal.
+- Avoid generic catch-all methods.
 
 Not every repository contract must be exported from the package root.
 
@@ -1721,9 +1721,9 @@ Module subpath exports may expose only approved ports.
 
 In-memory implementations may be used for:
 
-* Unit tests.
-* Application tests.
-* Early domain integration tests.
+- Unit tests.
+- Application tests.
+- Early domain integration tests.
 
 They belong in:
 
@@ -1737,12 +1737,12 @@ or test-only files inside Application.
 
 In-memory repositories must reproduce important contract behavior:
 
-* Workspace filtering.
-* Uniqueness conflicts.
-* Optimistic concurrency.
-* Stable ordering.
-* Explicit absence.
-* Immutability rules where applicable.
+- Workspace filtering.
+- Uniqueness conflicts.
+- Optimistic concurrency.
+- Stable ordering.
+- Explicit absence.
+- Immutability rules where applicable.
 
 A simplistic array implementation that ignores these behaviors is not a valid contract fake.
 
@@ -1756,20 +1756,20 @@ Each concrete implementation must pass the same behavioral tests.
 
 Candidate contract tests:
 
-* Insert and retrieve.
-* Missing record.
-* Workspace isolation.
-* Duplicate identifier.
-* Known uniqueness conflict.
-* Optimistic concurrency.
-* Stable list ordering.
-* Pagination.
-* Archive query behavior.
-* Active-source constraint.
-* Active-sync constraint.
-* Version sequence uniqueness.
-* Knowledge SourceStableKey uniqueness.
-* Terminal-record immutability.
+- Insert and retrieve.
+- Missing record.
+- Workspace isolation.
+- Duplicate identifier.
+- Known uniqueness conflict.
+- Optimistic concurrency.
+- Stable list ordering.
+- Pagination.
+- Archive query behavior.
+- Active-source constraint.
+- Active-sync constraint.
+- Version sequence uniqueness.
+- Knowledge SourceStableKey uniqueness.
+- Terminal-record immutability.
 
 Contract-test utilities belong in Testing.
 
@@ -1806,23 +1806,23 @@ Each contract should accompany the use case or Aggregate that needs it.
 
 Version 1 must not:
 
-* Put repository interfaces in Core.
-* Put repository interfaces only in Infrastructure.
-* Expose ORM entities.
-* Expose raw SQL.
-* Use one generic repository for all Aggregates.
-* Use automatic upsert by default.
-* Omit Workspace scope.
-* Infer Workspace from global mutable state.
-* Return records from another Workspace.
-* Hard-delete historical records.
-* Reset terminal lifecycle records.
-* Recalculate domain state silently during persistence.
-* Accept partial Knowledge sets as completed normalization.
-* Load unbounded child collections into Aggregates.
-* Use read models to bypass Aggregate validation.
-* Translate every database error into a conflict.
-* Hide concurrency conflicts through last-write-wins behavior.
+- Put repository interfaces in Core.
+- Put repository interfaces only in Infrastructure.
+- Expose ORM entities.
+- Expose raw SQL.
+- Use one generic repository for all Aggregates.
+- Use automatic upsert by default.
+- Omit Workspace scope.
+- Infer Workspace from global mutable state.
+- Return records from another Workspace.
+- Hard-delete historical records.
+- Reset terminal lifecycle records.
+- Recalculate domain state silently during persistence.
+- Accept partial Knowledge sets as completed normalization.
+- Load unbounded child collections into Aggregates.
+- Use read models to bypass Aggregate validation.
+- Translate every database error into a conflict.
+- Hide concurrency conflicts through last-write-wins behavior.
 
 ---
 
@@ -1830,20 +1830,20 @@ Version 1 must not:
 
 Version 1 will use:
 
-* Application-owned repository interfaces.
-* Infrastructure-owned implementations.
-* Explicit Workspace scoping.
-* Aggregate-specific repositories.
-* Separate query contracts where useful.
-* Explicit insert and update semantics.
-* Optimistic concurrency for mutable Aggregates.
-* Immutable repositories for finalized records.
-* TransactionManager for atomic cross-repository operations.
-* Concurrency-safe VersionSequence allocation.
-* Persistence-level uniqueness protection.
-* Contract tests shared across implementations.
-* No hard deletion of authoritative records.
-* No ORM or SQL leakage across package boundaries.
+- Application-owned repository interfaces.
+- Infrastructure-owned implementations.
+- Explicit Workspace scoping.
+- Aggregate-specific repositories.
+- Separate query contracts where useful.
+- Explicit insert and update semantics.
+- Optimistic concurrency for mutable Aggregates.
+- Immutable repositories for finalized records.
+- TransactionManager for atomic cross-repository operations.
+- Concurrency-safe VersionSequence allocation.
+- Persistence-level uniqueness protection.
+- Contract tests shared across implementations.
+- No hard deletion of authoritative records.
+- No ORM or SQL leakage across package boundaries.
 
 ---
 
@@ -1851,13 +1851,13 @@ Version 1 will use:
 
 Repository contracts are ready for implementation when:
 
-* Every version 1 Aggregate has a clear persistence owner.
-* Immutable records are distinguished from mutable Aggregates.
-* Workspace scope is explicit.
-* Known uniqueness constraints have stable outcomes.
-* Optimistic concurrency behavior is defined.
-* Transaction boundaries can be expressed without vendor types.
-* Query contracts do not become authoritative state.
-* Knowledge batch persistence preserves normalization integrity.
-* Validation Summary and Findings can be persisted atomically.
-* In-memory and PostgreSQL implementations can share contract tests.
+- Every version 1 Aggregate has a clear persistence owner.
+- Immutable records are distinguished from mutable Aggregates.
+- Workspace scope is explicit.
+- Known uniqueness constraints have stable outcomes.
+- Optimistic concurrency behavior is defined.
+- Transaction boundaries can be expressed without vendor types.
+- Query contracts do not become authoritative state.
+- Knowledge batch persistence preserves normalization integrity.
+- Validation Summary and Findings can be persisted atomically.
+- In-memory and PostgreSQL implementations can share contract tests.

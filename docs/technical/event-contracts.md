@@ -6,19 +6,19 @@ This document defines the internal event model for AI Playbook Engine version 1.
 
 It establishes:
 
-* The distinction between Domain Events, Application Events and Integration Events.
-* Event ownership.
-* Event structure.
-* Event naming.
-* Event metadata.
-* Workspace and correlation context.
-* Publication timing.
-* Transactional consistency.
-* Idempotent event handling.
-* Failure and retry behavior.
-* Versioning rules.
-* Testing requirements.
-* Situations where events must not be used.
+- The distinction between Domain Events, Application Events and Integration Events.
+- Event ownership.
+- Event structure.
+- Event naming.
+- Event metadata.
+- Workspace and correlation context.
+- Publication timing.
+- Transactional consistency.
+- Idempotent event handling.
+- Failure and retry behavior.
+- Versioning rules.
+- Testing requirements.
+- Situations where events must not be used.
 
 The objective is to support traceable and decoupled internal workflows without introducing premature event-driven architecture, message brokers or distributed systems.
 
@@ -26,14 +26,14 @@ Version 1 remains a modular monolith.
 
 This document does not define:
 
-* A message broker.
-* Kafka, RabbitMQ or cloud queues.
-* Distributed event streaming.
-* Public webhook contracts.
-* Event sourcing.
-* Cross-service delivery guarantees.
-* Long-running background workers.
-* External customer-facing events.
+- A message broker.
+- Kafka, RabbitMQ or cloud queues.
+- Distributed event streaming.
+- Public webhook contracts.
+- Event sourcing.
+- Cross-service delivery guarantees.
+- Long-running background workers.
+- External customer-facing events.
 
 ---
 
@@ -101,19 +101,19 @@ It does not perform the transition indirectly.
 
 Use a direct Application call when:
 
-* The caller requires an immediate result.
-* The operation is part of the same use-case transaction.
-* Failure must prevent the initiating operation from completing.
-* The dependency is explicit and stable.
-* Eventual consistency provides no real benefit.
+- The caller requires an immediate result.
+- The operation is part of the same use-case transaction.
+- Failure must prevent the initiating operation from completing.
+- The dependency is explicit and stable.
+- Eventual consistency provides no real benefit.
 
 Use an event when:
 
-* The fact may have zero or more independent consumers.
-* The initiating operation must not depend on every downstream reaction.
-* The reaction may occur after the originating transaction.
-* Historical traceability benefits from a stable fact.
-* A future asynchronous implementation is plausible.
+- The fact may have zero or more independent consumers.
+- The initiating operation must not depend on every downstream reaction.
+- The reaction may occur after the originating transaction.
+- Historical traceability benefits from a stable fact.
+- A future asynchronous implementation is plausible.
 
 ## Version 1 Must Remain Simple
 
@@ -151,33 +151,33 @@ packages/core
 
 Examples:
 
-* WorkspaceCreated.
-* WorkspaceArchived.
-* PlaybookRegistered.
-* PlaybookArchived.
-* PlaybookVersionActivated.
-* SynchronizationRunStarted.
-* SynchronizationRunCompleted.
-* SynchronizationRunFailed.
-* PlaybookVersionValidationStarted.
-* PlaybookVersionValidated.
-* PlaybookVersionMarkedInvalid.
-* PlaybookVersionPublished.
-* PlaybookVersionArchived.
+- WorkspaceCreated.
+- WorkspaceArchived.
+- PlaybookRegistered.
+- PlaybookArchived.
+- PlaybookVersionActivated.
+- SynchronizationRunStarted.
+- SynchronizationRunCompleted.
+- SynchronizationRunFailed.
+- PlaybookVersionValidationStarted.
+- PlaybookVersionValidated.
+- PlaybookVersionMarkedInvalid.
+- PlaybookVersionPublished.
+- PlaybookVersionArchived.
 
 ## Characteristics
 
 A Domain Event:
 
-* Uses ubiquitous language.
-* Refers to one Aggregate transition.
-* Contains domain-safe data.
-* Does not reference infrastructure.
-* Does not reference CLI or HTTP.
-* Does not contain Notion SDK types.
-* Does not contain database records.
-* Does not contain secrets.
-* Is immutable.
+- Uses ubiquitous language.
+- Refers to one Aggregate transition.
+- Contains domain-safe data.
+- Does not reference infrastructure.
+- Does not reference CLI or HTTP.
+- Does not contain Notion SDK types.
+- Does not contain database records.
+- Does not contain secrets.
+- Is immutable.
 
 ## Aggregate Ownership
 
@@ -236,21 +236,21 @@ packages/application
 
 Examples:
 
-* SynchronizationSnapshotStored.
-* KnowledgeNormalizationCompleted.
-* KnowledgeValidationCompleted.
-* PlaybookIngestionStageCompleted.
-* PlaybookIngestionFailed.
-* StaleSynchronizationRecovered.
+- SynchronizationSnapshotStored.
+- KnowledgeNormalizationCompleted.
+- KnowledgeValidationCompleted.
+- PlaybookIngestionStageCompleted.
+- PlaybookIngestionFailed.
+- StaleSynchronizationRecovered.
 
 ## When Application Events Are Appropriate
 
 Use an Application Event when:
 
-* The fact spans several repositories or ports.
-* No single Aggregate owns the complete meaning.
-* A downstream action should react after the Application operation commits.
-* The event must reference Application-level output.
+- The fact spans several repositories or ports.
+- No single Aggregate owns the complete meaning.
+- A downstream action should react after the Application operation commits.
+- The event must reference Application-level output.
 
 ## Example
 
@@ -268,20 +268,20 @@ SynchronizationSnapshotStored
 
 only after:
 
-* Payload was written.
-* Snapshot metadata was persisted.
-* Synchronization Run was completed.
-* Database transaction committed.
+- Payload was written.
+- Snapshot metadata was persisted.
+- Synchronization Run was completed.
+- Database transaction committed.
 
 ## Restrictions
 
 Application Events must not:
 
-* Recreate Domain Events with different names unnecessarily.
-* Contain raw external responses.
-* Contain repository implementations.
-* Become a substitute for clear use-case outputs.
-* Be emitted before the operation is authoritative.
+- Recreate Domain Events with different names unnecessarily.
+- Contain raw external responses.
+- Contain repository implementations.
+- Become a substitute for clear use-case outputs.
+- Be emitted before the operation is authoritative.
 
 ---
 
@@ -293,10 +293,10 @@ An Integration Event is a stable event intended to cross an application or deplo
 
 Examples in future versions:
 
-* PlaybookVersionPublished externally.
-* AuditCompleted.
-* ExecutionCompleted.
-* WorkspaceUsageThresholdReached.
+- PlaybookVersionPublished externally.
+- AuditCompleted.
+- ExecutionCompleted.
+- WorkspaceUsageThresholdReached.
 
 ## Version 1 Status
 
@@ -304,11 +304,11 @@ No external Integration Event transport is implemented in version 1.
 
 The system must not add:
 
-* Message broker dependencies.
-* Public event schemas.
-* Webhook delivery.
-* Distributed consumers.
-* External retry infrastructure.
+- Message broker dependencies.
+- Public event schemas.
+- Webhook delivery.
+- Distributed consumers.
+- External retry infrastructure.
 
 ## Future Rule
 
@@ -318,11 +318,11 @@ A translation step is required.
 
 This allows the external contract to:
 
-* Hide internal details.
-* Use independent versioning.
-* Preserve compatibility.
-* Apply security rules.
-* Reduce payload size.
+- Hide internal details.
+- Use independent versioning.
+- Preserve compatibility.
+- Apply security rules.
+- Reduce payload size.
 
 ---
 
@@ -352,12 +352,12 @@ The exact serialized naming style must remain consistent.
 
 Event names must:
 
-* Use past tense.
-* Express one meaningful fact.
-* Avoid transport terminology.
-* Avoid implementation class names.
-* Avoid ambiguous words such as `Updated` when a more precise transition exists.
-* Remain stable after consumers depend on them.
+- Use past tense.
+- Express one meaningful fact.
+- Avoid transport terminology.
+- Avoid implementation class names.
+- Avoid ambiguous words such as `Updated` when a more precise transition exists.
+- Remain stable after consumers depend on them.
 
 Preferred:
 
@@ -411,16 +411,16 @@ Use a random opaque identifier.
 
 Recommended direction:
 
-* UUIDv7 when practical.
-* UUIDv4 fallback.
+- UUIDv7 when practical.
+- UUIDv4 fallback.
 
 ## Rules
 
-* EventId is globally unique.
-* It is not Aggregate identity.
-* Retrying delivery of the same event preserves EventId.
-* Recreating a logically new event uses a new EventId.
-* Event consumers use EventId for deduplication when necessary.
+- EventId is globally unique.
+- It is not Aggregate identity.
+- Retrying delivery of the same event preserves EventId.
+- Recreating a logically new event uses a new EventId.
+- Event consumers use EventId for deduplication when necessary.
 
 ---
 
@@ -439,10 +439,10 @@ playbook_version.validated
 
 Rules:
 
-* Must not be dynamically generated from class names.
-* Must be documented.
-* Must remain stable within one event version.
-* Consumers must not parse human-readable messages.
+- Must not be dynamically generated from class names.
+- Must be documented.
+- Must remain stable within one event version.
+- Consumers must not parse human-readable messages.
 
 ---
 
@@ -470,17 +470,17 @@ The implementation must select one consistent representation.
 
 Increase the event version when:
 
-* Removing a field.
-* Renaming a field.
-* Changing field meaning.
-* Changing identifier representation.
-* Changing requiredness incompatibly.
+- Removing a field.
+- Renaming a field.
+- Changing field meaning.
+- Changing identifier representation.
+- Changing requiredness incompatibly.
 
 A new version may not be required when:
 
-* Adding an optional field with safe default meaning.
-* Changing internal implementation.
-* Changing logging text.
+- Adding an optional field with safe default meaning.
+- Changing internal implementation.
+- Changing logging text.
 
 ## Internal Version 1 Scope
 
@@ -494,11 +494,11 @@ Represents when the fact became true.
 
 Rules:
 
-* Uses UTC.
-* Comes from the injected Clock.
-* Is immutable.
-* Must not be replaced with dispatch time.
-* Must satisfy relevant Aggregate lifecycle ordering.
+- Uses UTC.
+- Comes from the injected Clock.
+- Is immutable.
+- Must not be replaced with dispatch time.
+- Must satisfy relevant Aggregate lifecycle ordering.
 
 Example:
 
@@ -512,11 +512,11 @@ All tenant-owned events must include WorkspaceId.
 
 Rules:
 
-* Must match the Aggregate or Application operation.
-* Must not be inferred by the consumer from global state.
-* Must be preserved across dispatch and retries.
-* Enables future tenant-aware processing.
-* Must not be omitted because version 1 has one personal Workspace.
+- Must match the Aggregate or Application operation.
+- Must not be inferred by the consumer from global state.
+- Must be preserved across dispatch and retries.
+- Enables future tenant-aware processing.
+- Must not be omitted because version 1 has one personal Workspace.
 
 Global system events may omit WorkspaceId only when explicitly classified as global.
 
@@ -526,9 +526,9 @@ Global system events may omit WorkspaceId only when explicitly classified as glo
 
 Domain Events should include:
 
-* Aggregate type.
-* Aggregate identifier.
-* Aggregate revision when available.
+- Aggregate type.
+- Aggregate identifier.
+- Aggregate revision when available.
 
 Example:
 
@@ -542,11 +542,11 @@ aggregateRevision: 4
 
 Supports:
 
-* Traceability.
-* Ordering diagnostics.
-* Idempotency.
-* Consumer validation.
-* Future outbox processing.
+- Traceability.
+- Ordering diagnostics.
+- Idempotency.
+- Consumer validation.
+- Future outbox processing.
 
 ## Rules
 
@@ -576,9 +576,9 @@ These may share one CorrelationId.
 
 Rules:
 
-* Preserve the originating CorrelationId.
-* Do not generate a new one for each internal event.
-* A consumer starting a completely independent later workflow may create a new CorrelationId while retaining causation metadata.
+- Preserve the originating CorrelationId.
+- Do not generate a new one for each internal event.
+- A consumer starting a completely independent later workflow may create a new CorrelationId while retaining causation metadata.
 
 ---
 
@@ -590,9 +590,9 @@ Identifies the immediate event or command that caused the current event.
 
 Candidate values:
 
-* CommandId.
-* EventId.
-* Application operation identifier.
+- CommandId.
+- EventId.
+- Application operation identifier.
 
 Example:
 
@@ -649,17 +649,17 @@ PlaybookVersionPublishedPayload
 
 Payloads must:
 
-* Use canonical identifiers.
-* Use stable enum values.
-* Use UTC timestamps.
-* Be immutable.
-* Be JSON-compatible when persistence is required.
-* Avoid private content.
-* Avoid large collections.
-* Reference large records by identifier.
-* Avoid vendor types.
-* Avoid raw Error objects.
-* Avoid credentials.
+- Use canonical identifiers.
+- Use stable enum values.
+- Use UTC timestamps.
+- Be immutable.
+- Be JSON-compatible when persistence is required.
+- Avoid private content.
+- Avoid large collections.
+- Reference large records by identifier.
+- Avoid vendor types.
+- Avoid raw Error objects.
+- Avoid credentials.
 
 ---
 
@@ -669,21 +669,21 @@ Optional metadata may contain safe operational information.
 
 Candidate fields:
 
-* Invocation origin.
-* CommandId.
-* Parser version.
-* Normalization schema version.
-* Publication origin.
-* Retry sequence.
-* Application version.
+- Invocation origin.
+- CommandId.
+- Parser version.
+- Normalization schema version.
+- Publication origin.
+- Retry sequence.
+- Application version.
 
 Metadata must not contain:
 
-* Secrets.
-* Full configuration.
-* Raw source payload.
-* Database records.
-* Arbitrary unbounded objects.
+- Secrets.
+- Full configuration.
+- Raw source payload.
+- Database records.
+- Arbitrary unbounded objects.
 
 Business facts belong in the payload, not hidden inside metadata.
 
@@ -715,10 +715,10 @@ The external dispatch occurs after commit.
 
 For initial synchronous internal handling:
 
-* Persist state.
-* Commit.
-* Invoke in-process event handlers.
-* Report downstream failure separately.
+- Persist state.
+- Commit.
+- Invoke in-process event handlers.
+- Report downstream failure separately.
 
 The completed originating transition must not be rolled back after commit merely because a non-critical event handler failed.
 
@@ -744,28 +744,28 @@ Do not implement a full outbox until an asynchronous or required post-commit con
 
 Initial events may remain:
 
-* Aggregate-produced internal records consumed by the initiating Application handler.
-* Synchronously dispatched after commit for non-critical reactions.
-* Logged and tested without durable delivery.
+- Aggregate-produced internal records consumed by the initiating Application handler.
+- Synchronously dispatched after commit for non-critical reactions.
+- Logged and tested without durable delivery.
 
 ## Trigger for Introducing Outbox
 
 Implement an outbox when at least one of these becomes true:
 
-* Worker processes events asynchronously.
-* Delivery must survive process termination.
-* More than one module requires reliable post-commit reactions.
-* External Integration Events are introduced.
-* Event retry and deduplication become operational requirements.
+- Worker processes events asynchronously.
+- Delivery must survive process termination.
+- More than one module requires reliable post-commit reactions.
+- External Integration Events are introduced.
+- Event retry and deduplication become operational requirements.
 
 Introducing the outbox will require:
 
-* Persistence design.
-* Event status lifecycle.
-* Dispatcher.
-* Retry policy.
-* Cleanup policy.
-* Monitoring.
+- Persistence design.
+- Event status lifecycle.
+- Dispatcher.
+- Retry policy.
+- Cleanup policy.
+- Monitoring.
 
 ---
 
@@ -790,13 +790,13 @@ publishAll(eventEnvelopes)
 
 ## Rules
 
-* Handlers register explicitly.
-* Dispatch order must not be assumed unless documented.
-* One handler must not mutate the original event.
-* Handlers receive immutable event data.
-* Handler failures are reported.
-* No global hidden event bus.
-* Core does not import the dispatcher.
+- Handlers register explicitly.
+- Dispatch order must not be assumed unless documented.
+- One handler must not mutate the original event.
+- Handlers receive immutable event data.
+- Handler failures are reported.
+- No global hidden event bus.
+- Core does not import the dispatcher.
 
 ## Sequential Versus Parallel
 
@@ -804,10 +804,10 @@ Version 1 should dispatch handlers sequentially unless measured need justifies p
 
 Advantages:
 
-* Simpler failure semantics.
-* Deterministic tests.
-* Easier logging.
-* Avoids concurrency surprises.
+- Simpler failure semantics.
+- Deterministic tests.
+- Easier logging.
+- Avoids concurrency surprises.
 
 ---
 
@@ -828,23 +828,23 @@ EventHandler<TEvent>
 
 An event handler may:
 
-* Invoke an Application use case.
-* Update a read model.
-* Write an operational record.
-* Trigger non-critical follow-up behavior.
-* Produce another event after completing its own authoritative work.
+- Invoke an Application use case.
+- Update a read model.
+- Write an operational record.
+- Trigger non-critical follow-up behavior.
+- Produce another event after completing its own authoritative work.
 
 ## Restrictions
 
 An event handler must not:
 
-* Bypass use cases to mutate unrelated Aggregates.
-* Import concrete repositories when an Application use case exists.
-* Assume exactly-once delivery.
-* Modify the incoming event.
-* Depend on handler execution order unless explicitly designed.
-* Perform unbounded work synchronously.
-* Hide failures.
+- Bypass use cases to mutate unrelated Aggregates.
+- Import concrete repositories when an Application use case exists.
+- Assume exactly-once delivery.
+- Modify the incoming event.
+- Depend on handler execution order unless explicitly designed.
+- Perform unbounded work synchronously.
+- Hide failures.
 
 ---
 
@@ -869,11 +869,11 @@ or another explicit equivalent.
 
 ## Rules
 
-* Reprocessing the same EventId must not duplicate authoritative effects.
-* Deduplication records belong to the consumer boundary.
-* EventId remains stable during retry.
-* Consumers must not derive deduplication only from timestamp.
-* Consumers must not use event-name plus AggregateId when several valid events of the same type may occur.
+- Reprocessing the same EventId must not duplicate authoritative effects.
+- Deduplication records belong to the consumer boundary.
+- EventId remains stable during retry.
+- Consumers must not derive deduplication only from timestamp.
+- Consumers must not use event-name plus AggregateId when several valid events of the same type may occur.
 
 ## Naturally Idempotent Handler
 
@@ -881,17 +881,17 @@ A handler may already be idempotent.
 
 Example:
 
-* Rebuild a read model row from authoritative state.
+- Rebuild a read model row from authoritative state.
 
 ## Explicit Idempotency Store
 
 Required when a duplicate could:
 
-* Create duplicate records.
-* Trigger repeated external calls.
-* Increment counts.
-* Re-run costly processing.
-* Produce duplicate downstream events.
+- Create duplicate records.
+- Trigger repeated external calls.
+- Increment counts.
+- Re-run costly processing.
+- Produce duplicate downstream events.
 
 ---
 
@@ -909,9 +909,9 @@ Example:
 
 Completing validation requires:
 
-* Persisting Validation Findings.
-* Updating Validation Summary.
-* Transitioning version state.
+- Persisting Validation Findings.
+- Updating Validation Summary.
+- Transitioning version state.
 
 These remain one transaction, not separate event handlers.
 
@@ -921,10 +921,10 @@ A reaction is non-critical when failure does not invalidate the originating fact
 
 Examples:
 
-* Update a derived read model.
-* Emit an operational notification.
-* Generate a non-authoritative report.
-* Record analytics.
+- Update a derived read model.
+- Emit an operational notification.
+- Generate a non-authoritative report.
+- Record analytics.
 
 These may use post-commit events.
 
@@ -932,11 +932,11 @@ These may use post-commit events.
 
 When a synchronous post-commit handler fails:
 
-* The originating state remains committed.
-* The failure is logged.
-* The event is marked or reported as not fully handled when tracking exists.
-* The caller receives partial-progress information only when the downstream reaction is part of the requested orchestration.
-* Retrying must be explicit.
+- The originating state remains committed.
+- The failure is logged.
+- The event is marked or reported as not fully handled when tracking exists.
+- The caller receives partial-progress information only when the downstream reaction is part of the requested orchestration.
+- Retrying must be explicit.
 
 ## No Silent Failure
 
@@ -952,21 +952,21 @@ No generic event retry engine is required.
 
 A failed in-process handler may be:
 
-* Returned as an Application orchestration failure.
-* Logged and surfaced for manual retry.
-* Re-invoked through a specific use case.
+- Returned as an Application orchestration failure.
+- Logged and surfaced for manual retry.
+- Re-invoked through a specific use case.
 
 ## Future Durable Retry
 
 When an outbox and Worker exist, retry policy must define:
 
-* Maximum attempts.
-* Backoff.
-* Retryable errors.
-* Dead-letter behavior.
-* Idempotency.
-* Event age limits.
-* Monitoring.
+- Maximum attempts.
+- Backoff.
+- Retryable errors.
+- Dead-letter behavior.
+- Idempotency.
+- Event age limits.
+- Monitoring.
 
 Do not add a retry counter to every event before a durable dispatcher exists.
 
@@ -996,9 +996,9 @@ Consumers must not assume that events from unrelated Aggregates arrive in timest
 
 Aggregate revision may help detect:
 
-* Duplicate events.
-* Missing prior events.
-* Out-of-order delivery.
+- Duplicate events.
+- Missing prior events.
+- Out-of-order delivery.
 
 Version 1 does not implement event-stream reconstruction.
 
@@ -1016,10 +1016,10 @@ The authoritative state is stored in relational records and immutable historical
 
 Events may be:
 
-* Collected transiently.
-* Logged.
-* Dispatched in-process.
-* Persisted later through an outbox.
+- Collected transiently.
+- Logged.
+- Dispatched in-process.
+- Persisted later through an outbox.
 
 ## Prohibited Assumption
 
@@ -1033,11 +1033,11 @@ Event sourcing is explicitly excluded from version 1.
 
 The system will not:
 
-* Store every Aggregate change only as events.
-* Rehydrate Aggregates from event streams.
-* Use event streams as the primary database.
-* Introduce snapshots of event streams.
-* Require event replay for normal startup.
+- Store every Aggregate change only as events.
+- Rehydrate Aggregates from event streams.
+- Use event streams as the primary database.
+- Introduce snapshots of event streams.
+- Require event replay for normal startup.
 
 Future adoption would require a major ADR and migration strategy.
 
@@ -1101,10 +1101,10 @@ The existence of this candidate list does not require implementing every event i
 
 Add an event alongside:
 
-* The behavior that produces it.
-* A clear consumer or traceability need.
-* Tests.
-* Serialization rules when dispatched or persisted.
+- The behavior that produces it.
+- A clear consumer or traceability need.
+- Tests.
+- Serialization rules when dispatched or persisted.
 
 ---
 
@@ -1227,26 +1227,26 @@ activatedAt
 
 Events must not contain:
 
-* Complete prompts.
-* Full methodology content.
-* Raw Notion blocks.
-* Snapshot payload.
-* Database URLs.
-* Tokens.
-* Credentials.
-* Full Validation Finding collections.
-* Full Knowledge Item collections.
+- Complete prompts.
+- Full methodology content.
+- Raw Notion blocks.
+- Snapshot payload.
+- Database URLs.
+- Tokens.
+- Credentials.
+- Full Validation Finding collections.
+- Full Knowledge Item collections.
 
 ## Safe References
 
 Prefer:
 
-* Identifiers.
-* Counts.
-* Checksums.
-* Schema versions.
-* Status.
-* Safe summaries.
+- Identifiers.
+- Counts.
+- Checksums.
+- Schema versions.
+- Status.
+- Safe summaries.
 
 ## Titles
 
@@ -1266,26 +1266,26 @@ Events that cross package boundaries or are persisted must be serializable.
 
 Use:
 
-* Canonical lowercase identifier strings.
-* ISO 8601 UTC timestamps.
-* Stable lowercase machine enum values.
-* JSON-safe objects.
-* Explicit schema version.
+- Canonical lowercase identifier strings.
+- ISO 8601 UTC timestamps.
+- Stable lowercase machine enum values.
+- JSON-safe objects.
+- Explicit schema version.
 
 ## Unsupported Values
 
 Do not serialize:
 
-* Class instances with hidden state.
-* `Map`.
-* `Set`.
-* Functions.
-* Symbols.
-* Raw Error objects.
-* BigInt without explicit conversion.
-* Circular structures.
-* ORM objects.
-* SDK objects.
+- Class instances with hidden state.
+- `Map`.
+- `Set`.
+- Functions.
+- Symbols.
+- Raw Error objects.
+- BigInt without explicit conversion.
+- Circular structures.
+- ORM objects.
+- SDK objects.
 
 ## Undefined and Null
 
@@ -1293,8 +1293,8 @@ The project must choose a consistent rule.
 
 Recommended:
 
-* Omit optional undefined fields.
-* Use null only when null has explicit domain meaning.
+- Omit optional undefined fields.
+- Use null only when null has explicit domain meaning.
 
 ---
 
@@ -1304,14 +1304,14 @@ When persisted or received, an event must be validated before handling.
 
 Validation includes:
 
-* Event name.
-* Event version.
-* EventId.
-* WorkspaceId.
-* Required payload fields.
-* Identifier formats.
-* Timestamp formats.
-* Supported enum values.
+- Event name.
+- Event version.
+- EventId.
+- WorkspaceId.
+- Required payload fields.
+- Identifier formats.
+- Timestamp formats.
+- Supported enum values.
 
 Invalid serialized events must not reach handlers as trusted data.
 
@@ -1361,10 +1361,10 @@ dispatcher.register(
 
 Avoid hidden runtime discovery based on:
 
-* Folder scanning.
-* Decorators.
-* Global mutable registries.
-* Class-name reflection.
+- Folder scanning.
+- Decorators.
+- Global mutable registries.
+- Class-name reflection.
 
 Explicit registration is easier to review and test.
 
@@ -1414,11 +1414,11 @@ Read-model projection is a suitable future event consumer.
 
 Rules:
 
-* Read model is derived.
-* Projection handler is idempotent.
-* Failure does not rewrite authoritative state.
-* Projection can be rebuilt from authoritative records if needed.
-* Version 1 may query normalized tables directly before projections are justified.
+- Read model is derived.
+- Projection handler is idempotent.
+- Failure does not rewrite authoritative state.
+- Projection can be rebuilt from authoritative records if needed.
+- Version 1 may query normalized tables directly before projections are justified.
 
 ---
 
@@ -1454,69 +1454,69 @@ Do not use the logger as an event bus.
 
 Test:
 
-* Correct event produced after valid transition.
-* No event produced after rejected transition.
-* Event uses correct Aggregate identity.
-* WorkspaceId is present.
-* OccurredAt uses injected time.
-* Payload contains no secret or technical type.
-* Events preserve transition order.
+- Correct event produced after valid transition.
+- No event produced after rejected transition.
+- Event uses correct Aggregate identity.
+- WorkspaceId is present.
+- OccurredAt uses injected time.
+- Payload contains no secret or technical type.
+- Events preserve transition order.
 
 ## Application Event Tests
 
 Test:
 
-* Event emitted only after successful operation.
-* No event emitted after transaction rollback.
-* Correct correlation context.
-* Correct stage information.
-* Partial failures produce the appropriate event or explicit absence.
+- Event emitted only after successful operation.
+- No event emitted after transaction rollback.
+- Correct correlation context.
+- Correct stage information.
+- Partial failures produce the appropriate event or explicit absence.
 
 ## Dispatcher Tests
 
 Test:
 
-* Registered handler receives event.
-* Multiple handlers execute deterministically.
-* Unregistered event behavior.
-* Handler failure reporting.
-* Event immutability.
-* Context propagation.
-* Duplicate handling when idempotency is enabled.
+- Registered handler receives event.
+- Multiple handlers execute deterministically.
+- Unregistered event behavior.
+- Handler failure reporting.
+- Event immutability.
+- Context propagation.
+- Duplicate handling when idempotency is enabled.
 
 ## Serialization Tests
 
 Test:
 
-* Round-trip.
-* Stable event name.
-* Supported version.
-* Invalid payload rejection.
-* Canonical identifiers.
-* UTC timestamp.
-* Optional-field behavior.
-* No raw class instances.
+- Round-trip.
+- Stable event name.
+- Supported version.
+- Invalid payload rejection.
+- Canonical identifiers.
+- UTC timestamp.
+- Optional-field behavior.
+- No raw class instances.
 
 ## Idempotency Tests
 
 Test:
 
-* Same EventId handled twice does not duplicate effects.
-* Different EventIds with similar payload are distinct.
-* Consumer-specific idempotency scope.
-* Failed first attempt may retry safely.
-* Conflicting deduplication state is reported.
+- Same EventId handled twice does not duplicate effects.
+- Different EventIds with similar payload are distinct.
+- Consumer-specific idempotency scope.
+- Failed first attempt may retry safely.
+- Conflicting deduplication state is reported.
 
 ## Privacy Tests
 
 Verify that events do not contain:
 
-* Notion token.
-* Database password.
-* Raw Snapshot payload.
-* Full Knowledge content.
-* Raw SDK objects.
-* ORM objects.
+- Notion token.
+- Database password.
+- Raw Snapshot payload.
+- Full Knowledge content.
+- Raw SDK objects.
+- ORM objects.
 
 ---
 
@@ -1524,14 +1524,14 @@ Verify that events do not contain:
 
 Architecture checks should eventually verify:
 
-* Core events do not import Application.
-* Core events do not import Infrastructure.
-* Application events do not import Notion SDK.
-* Event payloads do not expose ORM types.
-* Event dispatcher is not imported by Core.
-* Delivery applications do not become event contract owners.
-* Production event code does not import Testing.
-* No external broker SDK is added in version 1.
+- Core events do not import Application.
+- Core events do not import Infrastructure.
+- Application events do not import Notion SDK.
+- Event payloads do not expose ORM types.
+- Event dispatcher is not imported by Core.
+- Delivery applications do not become event contract owners.
+- Production event code does not import Testing.
+- No external broker SDK is added in version 1.
 
 ---
 
@@ -1539,17 +1539,17 @@ Architecture checks should eventually verify:
 
 When implementing event-related code, OpenCode must:
 
-* Implement only approved events required by the current task.
-* Use past-tense names.
-* Keep payloads minimal.
-* Include WorkspaceId for tenant-owned events.
-* Preserve CorrelationId at dispatch.
-* Add tests.
-* Avoid adding broker dependencies.
-* Avoid implementing an outbox without explicit instruction.
-* Avoid implementing event sourcing.
-* Avoid global hidden event registries.
-* Report any unclear event consumer before inventing one.
+- Implement only approved events required by the current task.
+- Use past-tense names.
+- Keep payloads minimal.
+- Include WorkspaceId for tenant-owned events.
+- Preserve CorrelationId at dispatch.
+- Add tests.
+- Avoid adding broker dependencies.
+- Avoid implementing an outbox without explicit instruction.
+- Avoid implementing event sourcing.
+- Avoid global hidden event registries.
+- Report any unclear event consumer before inventing one.
 
 OpenCode must not generate the entire candidate event catalog speculatively.
 
@@ -1559,16 +1559,16 @@ OpenCode must not generate the entire candidate event catalog speculatively.
 
 Do not use an event when:
 
-* A direct call is clearer.
-* The caller requires the immediate result.
-* The operation must be atomic.
-* Failure must roll back the initiating transaction.
-* There is exactly one required consumer.
-* The event would only hide a circular dependency.
-* The payload would need the complete Aggregate.
-* No consumer exists.
-* The only purpose is logging.
-* The agent suggests events as a general best practice without a concrete need.
+- A direct call is clearer.
+- The caller requires the immediate result.
+- The operation must be atomic.
+- Failure must roll back the initiating transaction.
+- There is exactly one required consumer.
+- The event would only hide a circular dependency.
+- The payload would need the complete Aggregate.
+- No consumer exists.
+- The only purpose is logging.
+- The agent suggests events as a general best practice without a concrete need.
 
 ---
 
@@ -1576,18 +1576,18 @@ Do not use an event when:
 
 The first implementation may use Domain Events for:
 
-* Workspace creation and lifecycle.
-* Playbook lifecycle.
-* Synchronization Run lifecycle.
-* Playbook Version lifecycle.
+- Workspace creation and lifecycle.
+- Playbook lifecycle.
+- Synchronization Run lifecycle.
+- Playbook Version lifecycle.
 
 However, event dispatch infrastructure should be introduced only when a real Application consumer exists.
 
 Until then, Aggregates may expose produced events for:
 
-* Unit testing.
-* Future dispatch.
-* Operational mapping.
+- Unit testing.
+- Future dispatch.
+- Operational mapping.
 
 Do not add an event bus merely because events exist conceptually.
 
@@ -1597,21 +1597,21 @@ Do not add an event bus merely because events exist conceptually.
 
 The following remain deferred:
 
-* Exact EventEnvelope TypeScript implementation.
-* Domain Event collection pattern.
-* In-process dispatcher library or custom implementation.
-* Transactional outbox schema.
-* Worker-based dispatch.
-* Retry scheduler.
-* Dead-letter handling.
-* Integration Event contracts.
-* Public webhooks.
-* Event retention.
-* Event replay.
-* Projection rebuild system.
-* Cross-process ordering.
-* Event encryption.
-* External schema registry.
+- Exact EventEnvelope TypeScript implementation.
+- Domain Event collection pattern.
+- In-process dispatcher library or custom implementation.
+- Transactional outbox schema.
+- Worker-based dispatch.
+- Retry scheduler.
+- Dead-letter handling.
+- Integration Event contracts.
+- Public webhooks.
+- Event retention.
+- Event replay.
+- Projection rebuild system.
+- Cross-process ordering.
+- Event encryption.
+- External schema registry.
 
 ---
 
@@ -1619,21 +1619,21 @@ The following remain deferred:
 
 Version 1 will use:
 
-* Past-tense immutable event concepts.
-* Domain Events for meaningful Aggregate transitions.
-* Application Events only for genuine cross-Aggregate facts.
-* Minimal event payloads.
-* Explicit Workspace and correlation context.
-* Post-commit dispatch.
-* Direct calls for critical atomic workflows.
-* No event sourcing.
-* No broker.
-* No required outbox until durable asynchronous delivery is needed.
-* Explicit handler registration.
-* Idempotent consumer design.
-* Stable event names and versions.
-* Strict privacy and serialization rules.
-* Incremental implementation only when a consumer exists.
+- Past-tense immutable event concepts.
+- Domain Events for meaningful Aggregate transitions.
+- Application Events only for genuine cross-Aggregate facts.
+- Minimal event payloads.
+- Explicit Workspace and correlation context.
+- Post-commit dispatch.
+- Direct calls for critical atomic workflows.
+- No event sourcing.
+- No broker.
+- No required outbox until durable asynchronous delivery is needed.
+- Explicit handler registration.
+- Idempotent consumer design.
+- Stable event names and versions.
+- Strict privacy and serialization rules.
+- Incremental implementation only when a consumer exists.
 
 ---
 
@@ -1641,13 +1641,13 @@ Version 1 will use:
 
 Event contracts are ready for implementation when:
 
-* Commands and events remain distinct.
-* Domain and Application event ownership is clear.
-* Critical work remains direct and transactional.
-* Event envelopes preserve identity and traceability.
-* Payloads are minimal and safe.
-* Dispatch occurs only after authoritative commit.
-* Consumers can be idempotent.
-* Duplicate and failed handling behavior is understood.
-* Version 1 remains free from brokers and event sourcing.
-* OpenCode can implement events without inventing asynchronous architecture.
+- Commands and events remain distinct.
+- Domain and Application event ownership is clear.
+- Critical work remains direct and transactional.
+- Event envelopes preserve identity and traceability.
+- Payloads are minimal and safe.
+- Dispatch occurs only after authoritative commit.
+- Consumers can be idempotent.
+- Duplicate and failed handling behavior is understood.
+- Version 1 remains free from brokers and event sourcing.
+- OpenCode can implement events without inventing asynchronous architecture.

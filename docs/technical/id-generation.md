@@ -6,22 +6,22 @@ This document defines the identifier strategy for AI Playbook Engine version 1.
 
 It establishes:
 
-* Which concepts require domain identifiers.
-* Which identifiers are randomly generated.
-* Which identifiers are deterministically generated.
-* How identifiers are serialized.
-* How identifiers differ from database keys and external references.
-* How idempotency and cross-version correlation use identifiers.
-* Which package owns identifier contracts and implementations.
+- Which concepts require domain identifiers.
+- Which identifiers are randomly generated.
+- Which identifiers are deterministically generated.
+- How identifiers are serialized.
+- How identifiers differ from database keys and external references.
+- How idempotency and cross-version correlation use identifiers.
+- Which package owns identifier contracts and implementations.
 
 This document does not define:
 
-* Database column types.
-* ORM decorators.
-* API URL formats.
-* CLI argument syntax.
-* Final cryptographic libraries.
-* Persistence indexes.
+- Database column types.
+- ORM decorators.
+- API URL formats.
+- CLI argument syntax.
+- Final cryptographic libraries.
+- Persistence indexes.
 
 Those decisions must remain compatible with this strategy.
 
@@ -35,12 +35,12 @@ A domain identifier represents identity only.
 
 Consumers must not infer business information from:
 
-* Prefixes.
-* Length.
-* Ordering.
-* Creation time.
-* Internal encoding.
-* Database position.
+- Prefixes.
+- Length.
+- Ordering.
+- Creation time.
+- Internal encoding.
+- Database position.
 
 An identifier may use a readable prefix for diagnostics, but the prefix must not become a substitute for type safety.
 
@@ -48,19 +48,19 @@ An identifier may use a readable prefix for diagnostics, but the prefix must not
 
 The following identifiers must not be interchangeable:
 
-* WorkspaceId.
-* PlaybookId.
-* PlaybookSourceId.
-* SynchronizationRunId.
-* SynchronizationSnapshotId.
-* PlaybookVersionId.
-* KnowledgeItemId.
-* KnowledgeRelationshipId.
-* NormalizationAttemptId.
-* ValidationAttemptId.
-* ValidationFindingId.
-* CommandId.
-* CorrelationId.
+- WorkspaceId.
+- PlaybookId.
+- PlaybookSourceId.
+- SynchronizationRunId.
+- SynchronizationSnapshotId.
+- PlaybookVersionId.
+- KnowledgeItemId.
+- KnowledgeRelationshipId.
+- NormalizationAttemptId.
+- ValidationAttemptId.
+- ValidationFindingId.
+- CommandId.
+- CorrelationId.
 
 A function expecting a `PlaybookId` must not accept a `WorkspaceId`, even if both serialize to strings.
 
@@ -68,12 +68,12 @@ A function expecting a `PlaybookId` must not accept a `WorkspaceId`, even if bot
 
 A domain identifier is not automatically:
 
-* A database-generated numeric key.
-* An ORM entity identifier.
-* A file path.
-* A Notion object identifier.
-* A checksum.
-* A sequence number.
+- A database-generated numeric key.
+- An ORM entity identifier.
+- A file path.
+- A Notion object identifier.
+- A checksum.
+- A sequence number.
 
 Persistence may use the domain identifier directly as its primary key, but that is a persistence decision.
 
@@ -85,10 +85,10 @@ External source identifiers must use separate concepts.
 
 Examples:
 
-* Notion page identifier.
-* Notion database identifier.
-* Notion block identifier.
-* Notion user identifier.
+- Notion page identifier.
+- Notion database identifier.
+- Notion block identifier.
+- Notion user identifier.
 
 They must not be stored in fields such as `PlaybookId` or `KnowledgeItemId`.
 
@@ -117,28 +117,28 @@ Random identifiers are used for Aggregate Roots and independent records whose id
 
 ## Approved Randomly Generated Identifiers
 
-* WorkspaceId.
-* PlaybookId.
-* PlaybookSourceId.
-* SynchronizationRunId.
-* SynchronizationSnapshotId.
-* PlaybookVersionId.
-* NormalizationAttemptId.
-* ValidationAttemptId.
-* ValidationFindingId.
-* KnowledgeRelationshipId when deterministic generation is not required.
+- WorkspaceId.
+- PlaybookId.
+- PlaybookSourceId.
+- SynchronizationRunId.
+- SynchronizationSnapshotId.
+- PlaybookVersionId.
+- NormalizationAttemptId.
+- ValidationAttemptId.
+- ValidationFindingId.
+- KnowledgeRelationshipId when deterministic generation is not required.
 
 ## Required Characteristics
 
 Random identifiers must:
 
-* Have sufficiently low collision probability.
-* Be generated without a central sequence service.
-* Work across local, test and future distributed environments.
-* Be serializable as stable strings.
-* Avoid exposing database implementation details.
-* Be suitable for logs, CLI output and persistence.
-* Be generated before persistence when domain creation requires identity.
+- Have sufficiently low collision probability.
+- Be generated without a central sequence service.
+- Work across local, test and future distributed environments.
+- Be serializable as stable strings.
+- Avoid exposing database implementation details.
+- Be suitable for logs, CLI output and persistence.
+- Be generated before persistence when domain creation requires identity.
 
 ## Recommended Representation
 
@@ -146,18 +146,18 @@ Version 1 should use UUID-compatible opaque identifiers.
 
 Preferred implementation direction:
 
-* UUID version 7 for newly generated domain records when the selected runtime support and library are stable.
-* UUID version 4 as an acceptable fallback.
+- UUID version 7 for newly generated domain records when the selected runtime support and library are stable.
+- UUID version 4 as an acceptable fallback.
 
 ## Why UUIDv7 Is Preferred
 
 UUIDv7 provides:
 
-* High collision resistance.
-* Time-oriented ordering.
-* Better database index locality than fully random UUIDv4.
-* Client-side generation.
-* Standard UUID string representation.
+- High collision resistance.
+- Time-oriented ordering.
+- Better database index locality than fully random UUIDv4.
+- Client-side generation.
+- Standard UUID string representation.
 
 The domain must not depend on the timestamp encoded by UUIDv7.
 
@@ -205,18 +205,18 @@ The same inputs must always produce the same `KnowledgeItemId`.
 
 Different values of any of the following must produce different identifiers:
 
-* PlaybookVersionId.
-* SourceStableKey.
-* Identity strategy version.
+- PlaybookVersionId.
+- SourceStableKey.
+- Identity strategy version.
 
 The identifier must:
 
-* Be opaque.
-* Be UUID-compatible or use another approved stable string format.
-* Be safe to persist and serialize.
-* Not expose the raw SourceStableKey.
-* Not reveal source content.
-* Work identically across supported operating systems.
+- Be opaque.
+- Be UUID-compatible or use another approved stable string format.
+- Be safe to persist and serialize.
+- Not expose the raw SourceStableKey.
+- Not reveal source content.
+- Work identically across supported operating systems.
 
 ## Recommended Algorithm
 
@@ -224,7 +224,7 @@ Use a standard name-based UUID algorithm.
 
 Preferred direction:
 
-* UUID version 5 using SHA-1 as defined by the UUID standard.
+- UUID version 5 using SHA-1 as defined by the UUID standard.
 
 Although SHA-1 is unsuitable for modern cryptographic security, UUIDv5 uses it for deterministic namespacing rather than password or signature security.
 
@@ -232,11 +232,11 @@ The identifier is not used as a cryptographic integrity guarantee.
 
 If a different standards-based deterministic algorithm is selected, it must preserve:
 
-* Stable output.
-* Explicit namespace.
-* Cross-platform consistency.
-* Strategy versioning.
-* Fixture-based tests.
+- Stable output.
+- Explicit namespace.
+- Cross-platform consistency.
+- Strategy versioning.
+- Fixture-based tests.
 
 A custom ad hoc hash truncation strategy is prohibited.
 
@@ -258,10 +258,10 @@ Version 2 + workflow:model-selection
 
 Cross-version correlation uses:
 
-* SourceStableKey.
-* Playbook lineage.
-* Source lineage.
-* Optional content checksum.
+- SourceStableKey.
+- Playbook lineage.
+- Source lineage.
+- Optional content checksum.
 
 It does not use equality of `KnowledgeItemId`.
 
@@ -301,24 +301,24 @@ KnowledgeRelationshipId =
 
 Deterministic relationship identity supports:
 
-* Idempotent normalization retries.
-* Duplicate relationship prevention.
-* Stable fixture tests.
-* Predictable persistence.
+- Idempotent normalization retries.
+- Duplicate relationship prevention.
+- Stable fixture tests.
+- Predictable persistence.
 
 ## Discriminator
 
 A discriminator is required only when multiple valid relationships can exist with the same:
 
-* Source.
-* Target.
-* Relationship type.
+- Source.
+- Target.
+- Relationship type.
 
 Examples may include:
 
-* Different source locations.
-* Different labels.
-* Different semantic roles.
+- Different source locations.
+- Different labels.
+- Different semantic roles.
 
 If duplicates have no valid distinct meaning, they should collapse into one relationship.
 
@@ -348,15 +348,15 @@ Playbook B
 
 ## Rules
 
-* Starts at a positive integer.
-* Monotonically increases within one Playbook.
-* Is never reused.
-* May contain gaps.
-* Must be unique within the Playbook.
-* Must not replace PlaybookVersionId.
-* Must not be globally unique.
-* Must not imply semantic-version compatibility.
-* Must be assigned safely under concurrency.
+- Starts at a positive integer.
+- Monotonically increases within one Playbook.
+- Is never reused.
+- May contain gaps.
+- Must be unique within the Playbook.
+- Must not replace PlaybookVersionId.
+- Must not be globally unique.
+- Must not imply semantic-version compatibility.
+- Must be assigned safely under concurrency.
 
 ## Allocation
 
@@ -366,10 +366,10 @@ The Infrastructure implementation must enforce uniqueness transactionally.
 
 Possible technical implementations include:
 
-* Database locking.
-* Atomic counter record.
-* Query plus unique constraint and retry.
-* Database sequence scoped through an allocation table.
+- Database locking.
+- Atomic counter record.
+- Query plus unique constraint and retry.
+- Database sequence scoped through an allocation table.
 
 The exact strategy will be defined during persistence design.
 
@@ -399,10 +399,10 @@ Connect logs and operations that belong to one invocation or pipeline.
 
 Examples:
 
-* One CLI command.
-* One ingestion workflow.
-* One synchronization process.
-* One validation process.
+- One CLI command.
+- One ingestion workflow.
+- One synchronization process.
+- One validation process.
 
 ### Generation
 
@@ -412,12 +412,12 @@ A caller may supply one in future API or automation contexts when safely validat
 
 ### Rules
 
-* Must be safe for logs.
-* Must not contain secrets.
-* Must not be used as Aggregate identity.
-* May be propagated through Application and adapters.
-* Must remain unchanged during the same logical operation.
-* Child operations may add separate causation information if needed.
+- Must be safe for logs.
+- Must not contain secrets.
+- Must not be used as Aggregate identity.
+- May be propagated through Application and adapters.
+- Must remain unchanged during the same logical operation.
+- Child operations may add separate causation information if needed.
 
 ---
 
@@ -429,20 +429,20 @@ Identify one state-changing application request for idempotency.
 
 Candidate use cases:
 
-* Initialize Workspace.
-* Register Playbook.
-* Start Synchronization.
-* Create Draft Playbook Version.
-* Publish Playbook Version.
-* Activate Playbook Version.
+- Initialize Workspace.
+- Register Playbook.
+- Start Synchronization.
+- Create Draft Playbook Version.
+- Publish Playbook Version.
+- Activate Playbook Version.
 
 ### Rules
 
-* Supplied or created at the application boundary.
-* Scoped by operation and Workspace.
-* Repeating the same CommandId with equivalent input must return the prior accepted outcome or a safe idempotent result.
-* Repeating the same CommandId with conflicting input must fail.
-* Must not be used as the created Aggregate identity unless the use case explicitly defines that behavior.
+- Supplied or created at the application boundary.
+- Scoped by operation and Workspace.
+- Repeating the same CommandId with equivalent input must return the prior accepted outcome or a safe idempotent result.
+- Repeating the same CommandId with conflicting input must fail.
+- Must not be used as the created Aggregate identity unless the use case explicitly defines that behavior.
 
 ### Initial Scope
 
@@ -468,8 +468,8 @@ CreateDraftPlaybookVersion
 
 If introduced:
 
-* CorrelationId groups the overall workflow.
-* CausationId identifies the immediate parent operation or event.
+- CorrelationId groups the overall workflow.
+- CausationId identifies the immediate parent operation or event.
 
 Do not implement it speculatively unless a real event workflow requires it.
 
@@ -485,12 +485,12 @@ A generic raw string is insufficient when the object kind matters.
 
 For Notion, candidate object kinds include:
 
-* Page.
-* Database.
-* Data source.
-* Block.
-* Database record or page.
-* User when source metadata requires it.
+- Page.
+- Database.
+- Data source.
+- Block.
+- Database record or page.
+- User when source metadata requires it.
 
 ## Conceptual Structure
 
@@ -503,21 +503,21 @@ ExternalObjectId
 
 ## Rules
 
-* Raw values must be validated according to the source type.
-* Source type is required.
-* Object type is required when different object categories may share the same format.
-* External identifiers must not be regenerated by the Engine.
-* External identifiers must not be treated as secrets.
-* External identifiers may appear in traceability output when safe.
-* External identifiers must not replace internal identities.
+- Raw values must be validated according to the source type.
+- Source type is required.
+- Object type is required when different object categories may share the same format.
+- External identifiers must not be regenerated by the Engine.
+- External identifiers must not be treated as secrets.
+- External identifiers may appear in traceability output when safe.
+- External identifiers must not replace internal identities.
 
 ## Notion Identifier Normalization
 
 Notion identifiers may appear:
 
-* With hyphens.
-* Without hyphens.
-* Inside URLs.
+- With hyphens.
+- Without hyphens.
+- Inside URLs.
 
 The Notion adapter may normalize valid identifiers into one canonical representation.
 
@@ -541,10 +541,10 @@ Use a reliable explicit source identity when available.
 
 Examples:
 
-* Notion page ID.
-* Notion database-record page ID.
-* Explicit metadata key defined in the Playbook.
-* Stable block ID for content that maps one-to-one to a Knowledge Item.
+- Notion page ID.
+- Notion database-record page ID.
+- Explicit metadata key defined in the Playbook.
+- Stable block ID for content that maps one-to-one to a Knowledge Item.
 
 ## Generated Structural Key
 
@@ -552,21 +552,21 @@ When no reliable external object maps cleanly to one Knowledge Item, the parser 
 
 A generated structural key must include enough stable context, such as:
 
-* Parent source identity.
-* Knowledge type.
-* Explicit local key.
-* Structural path based on stable source objects.
+- Parent source identity.
+- Knowledge type.
+- Explicit local key.
+- Structural path based on stable source objects.
 
 ## Prohibited Inputs
 
 A SourceStableKey must not rely solely on:
 
-* Title.
-* Heading text.
-* Display order.
-* Current array index.
-* File or block traversal order.
-* Content checksum.
+- Title.
+- Heading text.
+- Display order.
+- Current array index.
+- File or block traversal order.
+- Content checksum.
 
 Titles and order may change while the underlying concept remains the same.
 
@@ -576,10 +576,10 @@ Content checksum represents content equality, not identity.
 
 SourceStableKey must have:
 
-* A canonical string form.
-* Stable casing rules.
-* Stable separator rules.
-* An explicit strategy version where generated.
+- A canonical string form.
+- Stable casing rules.
+- Stable separator rules.
+- An explicit strategy version where generated.
 
 ## Uniqueness
 
@@ -587,8 +587,8 @@ SourceStableKey must be unique inside one Playbook Version.
 
 Duplicate keys must cause:
 
-* A normalization failure, or
-* A blocking validation finding when normalization can safely complete.
+- A normalization failure, or
+- A blocking validation finding when normalization can safely complete.
 
 The preferred behavior is to fail normalization when identity is ambiguous.
 
@@ -612,20 +612,20 @@ Strategy versioning allows the system to identify which algorithm produced an id
 
 It supports:
 
-* Reprocessing.
-* Migrations.
-* Fixture stability.
-* Diagnostics.
-* Controlled algorithm evolution.
+- Reprocessing.
+- Migrations.
+- Fixture stability.
+- Diagnostics.
+- Controlled algorithm evolution.
 
 ## Rules
 
-* Strategy version is immutable for generated records.
-* A new algorithm requires a new strategy version.
-* Changing strategy version may produce different identifiers.
-* Existing Published and Invalid versions must not be rewritten.
-* Reprocessing with a new identity strategy must create a new Playbook Version or a controlled migration when explicitly approved.
-* Strategy versions must be persisted with normalization metadata when required for reproduction.
+- Strategy version is immutable for generated records.
+- A new algorithm requires a new strategy version.
+- Changing strategy version may produce different identifiers.
+- Existing Published and Invalid versions must not be rewritten.
+- Reprocessing with a new identity strategy must create a new Playbook Version or a controlled migration when explicitly approved.
+- Strategy versions must be persisted with normalization metadata when required for reproduction.
 
 ---
 
@@ -645,12 +645,12 @@ xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 Parsing must:
 
-* Reject malformed values.
-* Normalize accepted UUID casing to lowercase.
-* Reject empty strings.
-* Reject surrounding whitespace unless the delivery layer trims input before parsing.
-* Return a typed validation result or domain-safe error.
-* Avoid throwing raw library exceptions across package boundaries.
+- Reject malformed values.
+- Normalize accepted UUID casing to lowercase.
+- Reject empty strings.
+- Reject surrounding whitespace unless the delivery layer trims input before parsing.
+- Return a typed validation result or domain-safe error.
+- Avoid throwing raw library exceptions across package boundaries.
 
 ## Display Prefixes
 
@@ -667,10 +667,10 @@ This is not approved as the persisted domain representation in version 1.
 
 If prefixes are later adopted:
 
-* They must be documented.
-* Parsing must validate the correct type.
-* They must not encode mutable business data.
-* They must not duplicate type systems inconsistently.
+- They must be documented.
+- Parsing must validate the correct type.
+- They must not encode mutable business data.
+- They must not duplicate type systems inconsistently.
 
 The initial recommendation is to use canonical UUID strings without custom prefixes.
 
@@ -694,42 +694,42 @@ packages/core
 
 Examples:
 
-* Generic branded-string utility: Shared.
-* WorkspaceId: Core.
-* PlaybookId: Core.
-* SynchronizationRunId: Core.
+- Generic branded-string utility: Shared.
+- WorkspaceId: Core.
+- PlaybookId: Core.
+- SynchronizationRunId: Core.
 
 ## Desired Characteristics
 
 A domain identifier type should support:
 
-* Construction from a valid canonical string.
-* Creation through an injected generator where random.
-* Equality.
-* String serialization.
-* Safe inspection.
-* Validation.
-* Immutability.
+- Construction from a valid canonical string.
+- Creation through an injected generator where random.
+- Equality.
+- String serialization.
+- Safe inspection.
+- Validation.
+- Immutability.
 
 ## Prohibited Behavior
 
 Identifier types must not:
 
-* Access environment variables.
-* Generate themselves implicitly during arbitrary deserialization.
-* Query persistence.
-* Contain business state.
-* Expose mutable fields.
-* Accept any string without validation.
-* Share one universal `EntityId` type throughout the domain.
+- Access environment variables.
+- Generate themselves implicitly during arbitrary deserialization.
+- Query persistence.
+- Contain business state.
+- Expose mutable fields.
+- Accept any string without validation.
+- Share one universal `EntityId` type throughout the domain.
 
 ## TypeScript Direction
 
 The implementation may use:
 
-* Branded string types.
-* Small immutable Value Object classes.
-* A controlled hybrid approach.
+- Branded string types.
+- Small immutable Value Object classes.
+- A controlled hybrid approach.
 
 The exact pattern will be selected before the first implementation task.
 
@@ -767,9 +767,9 @@ when compile-time types can provide stronger safety.
 
 A deterministic identity service must accept:
 
-* Explicit namespace.
-* Canonical input.
-* Strategy version.
+- Explicit namespace.
+- Canonical input.
+- Strategy version.
 
 It returns a stable opaque identifier.
 
@@ -816,19 +816,19 @@ This document does not select database types, but persistence must preserve cano
 
 Recommended direction:
 
-* PostgreSQL UUID type for UUID-based domain identifiers.
-* Integer or bigint for VersionSequence.
-* Text for SourceStableKey.
-* Text plus explicit metadata for external identifiers when needed.
+- PostgreSQL UUID type for UUID-based domain identifiers.
+- Integer or bigint for VersionSequence.
+- Text for SourceStableKey.
+- Text plus explicit metadata for external identifiers when needed.
 
 ## Rules
 
-* Database-generated sequential integer primary keys must not replace domain identifiers.
-* If internal surrogate keys are introduced for performance, they remain private to Infrastructure.
-* Foreign-key relations must use authoritative identifiers or safe internal mappings.
-* Workspace isolation may require composite uniqueness including WorkspaceId.
-* Deterministic identifiers must be persisted exactly as generated.
-* Database triggers must not independently generate domain identifiers without Application awareness.
+- Database-generated sequential integer primary keys must not replace domain identifiers.
+- If internal surrogate keys are introduced for performance, they remain private to Infrastructure.
+- Foreign-key relations must use authoritative identifiers or safe internal mappings.
+- Workspace isolation may require composite uniqueness including WorkspaceId.
+- Deterministic identifiers must be persisted exactly as generated.
+- Database triggers must not independently generate domain identifiers without Application awareness.
 
 ---
 
@@ -838,10 +838,10 @@ Snapshot payloads use a `StorageReference`.
 
 A storage key may include:
 
-* WorkspaceId.
-* PlaybookSourceId.
-* SynchronizationSnapshotId.
-* ContentChecksum.
+- WorkspaceId.
+- PlaybookSourceId.
+- SynchronizationSnapshotId.
+- ContentChecksum.
 
 Example conceptual organization:
 
@@ -853,11 +853,11 @@ This is an infrastructure detail.
 
 Rules:
 
-* StorageReference is not SynchronizationSnapshotId.
-* Moving a payload must not change Snapshot identity.
-* A storage path must not be accepted directly from untrusted CLI input.
-* Path traversal must be prevented.
-* The domain must not construct operating-system paths.
+- StorageReference is not SynchronizationSnapshotId.
+- Moving a payload must not change Snapshot identity.
+- A storage path must not be accepted directly from untrusted CLI input.
+- Path traversal must be prevented.
+- The domain must not construct operating-system paths.
 
 ---
 
@@ -880,11 +880,11 @@ commandId
 
 ## Rules
 
-* Identifiers are not considered secrets by default.
-* External URLs may contain sensitive query information and require sanitization.
-* CredentialReference may be logged only in a redacted or approved safe form.
-* Raw secrets must never appear.
-* Large arrays of identifiers should not be logged without diagnostic need.
+- Identifiers are not considered secrets by default.
+- External URLs may contain sensitive query information and require sanitization.
+- CredentialReference may be logged only in a redacted or approved safe form.
+- Raw secrets must never appear.
+- Large arrays of identifiers should not be logged without diagnostic need.
 
 ---
 
@@ -892,12 +892,12 @@ commandId
 
 The CLI must:
 
-* Accept canonical identifiers.
-* Validate identifier type and format.
-* Produce clear errors for malformed identifiers.
-* Support identifier output in JSON.
-* Avoid requiring users to infer identity from names.
-* Permit selection by name only in commands where uniqueness is guaranteed and ambiguity is handled.
+- Accept canonical identifiers.
+- Validate identifier type and format.
+- Produce clear errors for malformed identifiers.
+- Support identifier output in JSON.
+- Avoid requiring users to infer identity from names.
+- Permit selection by name only in commands where uniqueness is guaranteed and ambiguity is handled.
 
 ## Name Resolution
 
@@ -917,26 +917,26 @@ Names do not replace identifiers.
 
 For use cases using CommandId, the idempotency record must bind:
 
-* WorkspaceId.
-* Operation name.
-* CommandId.
-* Canonical input checksum.
-* Outcome reference.
-* Creation timestamp.
+- WorkspaceId.
+- Operation name.
+- CommandId.
+- Canonical input checksum.
+- Outcome reference.
+- Creation timestamp.
 
 ## Repeated Equivalent Command
 
 Same Workspace, operation, CommandId and equivalent input:
 
-* Return previous outcome or safe no-change result.
-* Do not create a duplicate Aggregate.
+- Return previous outcome or safe no-change result.
+- Do not create a duplicate Aggregate.
 
 ## Repeated Conflicting Command
 
 Same Workspace, operation and CommandId with different canonical input:
 
-* Return an idempotency conflict.
-* Do not execute the second command.
+- Return an idempotency conflict.
+- Do not execute the second command.
 
 ## Aggregate Identity
 
@@ -970,9 +970,9 @@ Invalid comparison at the type level.
 
 External identifiers are equal only when all required context matches:
 
-* Source system.
-* Object type.
-* Canonical external value.
+- Source system.
+- Object type.
+- Canonical external value.
 
 The same raw string under different source systems is not the same identity.
 
@@ -998,9 +998,9 @@ VERSION_SEQUENCE_CONFLICT
 
 Delivery layers map these errors to:
 
-* CLI messages.
-* Exit codes.
-* Future HTTP responses.
+- CLI messages.
+- Exit codes.
+- Future HTTP responses.
 
 Raw UUID-library errors must not escape as expected application errors.
 
@@ -1012,12 +1012,12 @@ Raw UUID-library errors must not escape as expected application errors.
 
 Test:
 
-* Generated values are valid.
-* Consecutive generation produces distinct values.
-* Canonical serialization is lowercase.
-* Parsing round-trips.
-* Invalid values are rejected.
-* Identifier types cannot be mixed in compile-time type tests where feasible.
+- Generated values are valid.
+- Consecutive generation produces distinct values.
+- Canonical serialization is lowercase.
+- Parsing round-trips.
+- Invalid values are rejected.
+- Identifier types cannot be mixed in compile-time type tests where feasible.
 
 Tests must not attempt to prove mathematical collision impossibility.
 
@@ -1025,44 +1025,44 @@ Tests must not attempt to prove mathematical collision impossibility.
 
 Use fixed fixtures to verify:
 
-* Same namespace and input produce the same identifier.
-* Different PlaybookVersionId produces a different identifier.
-* Different SourceStableKey produces a different identifier.
-* Different strategy version produces a different identifier.
-* Cross-platform canonicalization remains stable.
-* Unicode normalization behavior is defined and stable.
-* Whitespace rules are explicit.
+- Same namespace and input produce the same identifier.
+- Different PlaybookVersionId produces a different identifier.
+- Different SourceStableKey produces a different identifier.
+- Different strategy version produces a different identifier.
+- Cross-platform canonicalization remains stable.
+- Unicode normalization behavior is defined and stable.
+- Whitespace rules are explicit.
 
 ## SourceStableKey Tests
 
 Test:
 
-* Reliable external IDs map consistently.
-* Generated structural keys are stable.
-* Duplicate keys are detected.
-* Title changes do not change identity when an external stable ID exists.
-* Display-order changes do not change identity.
-* Strategy version is recorded.
+- Reliable external IDs map consistently.
+- Generated structural keys are stable.
+- Duplicate keys are detected.
+- Title changes do not change identity when an external stable ID exists.
+- Display-order changes do not change identity.
+- Strategy version is recorded.
 
 ## VersionSequence Tests
 
 Test:
 
-* First sequence is positive.
-* Sequence increases.
-* Sequence is scoped by Playbook.
-* Gaps are accepted.
-* Concurrent allocation cannot produce duplicate committed values.
-* Sequence is never reused after committed creation.
+- First sequence is positive.
+- Sequence increases.
+- Sequence is scoped by Playbook.
+- Gaps are accepted.
+- Concurrent allocation cannot produce duplicate committed values.
+- Sequence is never reused after committed creation.
 
 ## Idempotency Tests
 
 Test:
 
-* Equivalent repeated command returns the prior outcome.
-* Conflicting repeated command fails.
-* Different Workspace may use the same CommandId without collision when scope permits.
-* Different operation may use the same CommandId when operation forms part of the key.
+- Equivalent repeated command returns the prior outcome.
+- Conflicting repeated command fails.
+- Different Workspace may use the same CommandId without collision when scope permits.
+- Different operation may use the same CommandId when operation forms part of the key.
 
 ---
 
@@ -1072,13 +1072,13 @@ Identifier strategy changes are high-impact.
 
 Changing any of the following requires explicit migration design:
 
-* UUID version for existing records.
-* Deterministic algorithm.
-* Knowledge identity namespace composition.
-* SourceStableKey strategy.
-* Relationship identity strategy.
-* Identifier string format.
-* VersionSequence allocation semantics.
+- UUID version for existing records.
+- Deterministic algorithm.
+- Knowledge identity namespace composition.
+- SourceStableKey strategy.
+- Relationship identity strategy.
+- Identifier string format.
+- VersionSequence allocation semantics.
 
 ## Historical Rule
 
@@ -1098,20 +1098,20 @@ This preserves reproducibility and avoids hidden identity replacement.
 
 Version 1 must not use:
 
-* Auto-incrementing integers as public domain identity.
-* Database row position.
-* Array index.
-* Display order.
-* Title alone.
-* Timestamp alone.
-* Content checksum alone.
-* File path.
-* Notion URL.
-* Random IDs for KnowledgeItem when deterministic normalization is required.
-* Stable cross-version KnowledgeItemId.
-* Custom short-ID algorithms without documented collision analysis.
-* Secret values as identifier input.
-* Mutable business values embedded into primary identity.
+- Auto-incrementing integers as public domain identity.
+- Database row position.
+- Array index.
+- Display order.
+- Title alone.
+- Timestamp alone.
+- Content checksum alone.
+- File path.
+- Notion URL.
+- Random IDs for KnowledgeItem when deterministic normalization is required.
+- Stable cross-version KnowledgeItemId.
+- Custom short-ID algorithms without documented collision analysis.
+- Secret values as identifier input.
+- Mutable business values embedded into primary identity.
 
 ---
 
@@ -1121,54 +1121,54 @@ Version 1 must not use:
 
 May contain:
 
-* Generic branded identifier utility.
-* Generic UUID string validation primitives.
-* Generic equality helpers.
+- Generic branded identifier utility.
+- Generic UUID string validation primitives.
+- Generic equality helpers.
 
 Must not contain:
 
-* WorkspaceId.
-* PlaybookId.
-* KnowledgeItemId.
-* SourceStableKey domain policy.
+- WorkspaceId.
+- PlaybookId.
+- KnowledgeItemId.
+- SourceStableKey domain policy.
 
 ## Core
 
 Owns:
 
-* Domain-specific identifier types.
-* SourceStableKey.
-* VersionSequence.
-* Identity-related domain errors.
-* Deterministic Knowledge identity input policy.
+- Domain-specific identifier types.
+- SourceStableKey.
+- VersionSequence.
+- Identity-related domain errors.
+- Deterministic Knowledge identity input policy.
 
 ## Application
 
 Owns:
 
-* CommandId usage contracts.
-* Idempotency ports.
-* Sequence allocation port where persistence is required.
-* Identifier generation orchestration for use cases.
+- CommandId usage contracts.
+- Idempotency ports.
+- Sequence allocation port where persistence is required.
+- Identifier generation orchestration for use cases.
 
 ## Infrastructure
 
 Implements:
 
-* Random UUID generator.
-* Deterministic UUID generator.
-* Sequence allocation.
-* Idempotency persistence.
-* Storage-key generation.
-* Technical parsing adapters where needed.
+- Random UUID generator.
+- Deterministic UUID generator.
+- Sequence allocation.
+- Idempotency persistence.
+- Storage-key generation.
+- Technical parsing adapters where needed.
 
 ## Notion
 
 Owns:
 
-* Notion external identifier parsing and canonicalization.
-* Mapping Notion IDs to ExternalObjectId.
-* Source-specific SourceStableKey candidate generation.
+- Notion external identifier parsing and canonicalization.
+- Mapping Notion IDs to ExternalObjectId.
+- Source-specific SourceStableKey candidate generation.
 
 It must not generate domain Aggregate identifiers independently unless injected through an approved generator.
 
@@ -1176,10 +1176,10 @@ It must not generate domain Aggregate identifiers independently unless injected 
 
 Owns:
 
-* Identifier argument parsing.
-* User-facing validation messages.
-* JSON serialization.
-* Name-to-ID resolution invocation.
+- Identifier argument parsing.
+- User-facing validation messages.
+- JSON serialization.
+- Name-to-ID resolution invocation.
 
 It must not implement identity algorithms.
 
@@ -1189,19 +1189,19 @@ It must not implement identity algorithms.
 
 Version 1 will use:
 
-* Typed, opaque domain identifiers.
-* UUID-compatible random identifiers for Aggregate Roots and independent records.
-* UUIDv7 when practical, UUIDv4 as fallback.
-* Deterministic UUIDv5-style identity for Knowledge Items.
-* Deterministic relationship identity where normalization benefits from it.
-* Version-specific KnowledgeItemId.
-* SourceStableKey for cross-version correlation.
-* Positive monotonic VersionSequence per Playbook.
-* Explicit CommandId and CorrelationId concepts.
-* External identifiers separated from domain identity.
-* Strategy versioning for deterministic algorithms.
-* Canonical lowercase UUID serialization.
-* Infrastructure implementations behind approved contracts.
+- Typed, opaque domain identifiers.
+- UUID-compatible random identifiers for Aggregate Roots and independent records.
+- UUIDv7 when practical, UUIDv4 as fallback.
+- Deterministic UUIDv5-style identity for Knowledge Items.
+- Deterministic relationship identity where normalization benefits from it.
+- Version-specific KnowledgeItemId.
+- SourceStableKey for cross-version correlation.
+- Positive monotonic VersionSequence per Playbook.
+- Explicit CommandId and CorrelationId concepts.
+- External identifiers separated from domain identity.
+- Strategy versioning for deterministic algorithms.
+- Canonical lowercase UUID serialization.
+- Infrastructure implementations behind approved contracts.
 
 ---
 
@@ -1209,13 +1209,13 @@ Version 1 will use:
 
 The identifier strategy is ready for implementation when:
 
-* Every version 1 domain concept has an approved identity category.
-* Random and deterministic identifiers are clearly separated.
-* Knowledge identity inputs are explicit.
-* Cross-version correlation does not depend on KnowledgeItemId equality.
-* VersionSequence is distinct from PlaybookVersionId.
-* External identifiers remain isolated.
-* Package ownership is clear.
-* Parsing and serialization rules are defined.
-* Idempotency identity is separated from Aggregate identity.
-* Testing requirements are explicit.
+- Every version 1 domain concept has an approved identity category.
+- Random and deterministic identifiers are clearly separated.
+- Knowledge identity inputs are explicit.
+- Cross-version correlation does not depend on KnowledgeItemId equality.
+- VersionSequence is distinct from PlaybookVersionId.
+- External identifiers remain isolated.
+- Package ownership is clear.
+- Parsing and serialization rules are defined.
+- Idempotency identity is separated from Aggregate identity.
+- Testing requirements are explicit.

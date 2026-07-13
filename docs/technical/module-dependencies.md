@@ -6,20 +6,20 @@ This document defines the approved dependency graph for AI Playbook Engine.
 
 It governs:
 
-* Package dependencies.
-* TypeScript project references.
-* Source-code imports.
-* Public package exports.
-* Runtime composition.
-* Test dependencies.
-* Future architecture tests.
+- Package dependencies.
+- TypeScript project references.
+- Source-code imports.
+- Public package exports.
+- Runtime composition.
+- Test dependencies.
+- Future architecture tests.
 
 The objective is to preserve a directed architecture in which business rules remain independent from delivery mechanisms, persistence and external providers.
 
 This document refines:
 
-* `docs/adr/ADR-002-package-dependency-rules.md`
-* `docs/technical/package-design.md`
+- `docs/adr/ADR-002-package-dependency-rules.md`
+- `docs/technical/package-design.md`
 
 If an implementation requires a dependency prohibited by this document, the implementation must be redesigned or the architecture must be changed explicitly before proceeding.
 
@@ -85,9 +85,9 @@ At runtime, Core behavior may cause an Application use case to invoke an Infrast
 
 Every internal dependency must appear in:
 
-* The consuming package's `package.json`.
-* The consuming package's TypeScript project references when required.
-* The approved dependency matrix in this document.
+- The consuming package's `package.json`.
+- The consuming package's TypeScript project references when required.
+- The approved dependency matrix in this document.
 
 A package must not rely on transitive dependencies.
 
@@ -108,9 +108,9 @@ notion → application → notion
 
 Implementation through dependency inversion does not create a cycle when:
 
-* Application defines a port.
-* Notion or Infrastructure implements the port.
-* The composition root injects the implementation.
+- Application defines a port.
+- Notion or Infrastructure implements the port.
+- The composition root injects the implementation.
 
 The source dependency remains:
 
@@ -198,11 +198,11 @@ A dependency being permitted does not mean it should be added preemptively.
 
 Legend:
 
-* `✓`: allowed when required.
-* `—`: same package.
-* `✗`: prohibited.
-* `R`: reserved for future approved use.
-* `T`: allowed only in test code.
+- `✓`: allowed when required.
+- `—`: same package.
+- `✗`: prohibited.
+- `R`: reserved for future approved use.
+- `T`: allowed only in test code.
 
 | Consumer       | shared | core | application | config | infrastructure | notion | ai-providers | testing |
 | -------------- | -----: | ---: | ----------: | -----: | -------------: | -----: | -----------: | ------: |
@@ -230,11 +230,11 @@ Core must not depend on Shared for domain meaning that belongs inside Core.
 
 Required for:
 
-* Aggregate interaction.
-* Domain identifiers.
-* Domain outputs.
-* Domain errors.
-* Domain services.
+- Aggregate interaction.
+- Domain identifiers.
+- Domain outputs.
+- Domain errors.
+- Domain services.
 
 ### `application → config`
 
@@ -246,11 +246,11 @@ Application contracts should receive validated values or abstractions, not runti
 
 Required to implement:
 
-* Repositories.
-* Transactions.
-* Storage ports.
-* Workspace resolution.
-* Logging or operational ports when Application owns the abstraction.
+- Repositories.
+- Transactions.
+- Storage ports.
+- Workspace resolution.
+- Logging or operational ports when Application owns the abstraction.
 
 ### `notion → application`
 
@@ -272,10 +272,10 @@ CLI commands must not invoke them directly.
 
 The CLI composition root may instantiate:
 
-* Repository implementations.
-* Storage adapters.
-* Notion gateway.
-* Application handlers.
+- Repository implementations.
+- Storage adapters.
+- Notion gateway.
+- Application handlers.
 
 ### `testing → production packages`
 
@@ -291,17 +291,17 @@ Production code must never import Testing.
 
 ### Allowed Imports
 
-* JavaScript and TypeScript standard libraries.
-* Approved generic dependencies with no business or framework coupling.
+- JavaScript and TypeScript standard libraries.
+- Approved generic dependencies with no business or framework coupling.
 
 ### Prohibited Imports
 
-* Any internal package.
-* Notion SDK.
-* Database or ORM libraries.
-* CLI or HTTP frameworks.
-* Environment configuration libraries.
-* Logging implementations.
+- Any internal package.
+- Notion SDK.
+- Database or ORM libraries.
+- CLI or HTTP frameworks.
+- Environment configuration libraries.
+- Logging implementations.
 
 ### Rule
 
@@ -315,26 +315,26 @@ If Shared needs to import another internal package, the concept does not belong 
 
 ### Allowed Imports
 
-* `@ai-playbook-engine/shared`.
-* Standard language features.
-* Explicitly approved domain-safe dependencies.
+- `@ai-playbook-engine/shared`.
+- Standard language features.
+- Explicitly approved domain-safe dependencies.
 
 ### Prohibited Imports
 
-* `@ai-playbook-engine/application`.
-* `@ai-playbook-engine/config`.
-* `@ai-playbook-engine/infrastructure`.
-* `@ai-playbook-engine/notion`.
-* `@ai-playbook-engine/ai-providers`.
-* `@ai-playbook-engine/testing`.
-* Any application under `apps`.
-* Notion SDK.
-* PostgreSQL, ORM or migration libraries.
-* CLI frameworks.
-* HTTP frameworks.
-* Logging frameworks.
-* Environment-variable libraries.
-* File-system APIs for domain behavior.
+- `@ai-playbook-engine/application`.
+- `@ai-playbook-engine/config`.
+- `@ai-playbook-engine/infrastructure`.
+- `@ai-playbook-engine/notion`.
+- `@ai-playbook-engine/ai-providers`.
+- `@ai-playbook-engine/testing`.
+- Any application under `apps`.
+- Notion SDK.
+- PostgreSQL, ORM or migration libraries.
+- CLI frameworks.
+- HTTP frameworks.
+- Logging frameworks.
+- Environment-variable libraries.
+- File-system APIs for domain behavior.
 
 ### Internal Module Rule
 
@@ -357,23 +357,23 @@ A module must not deep-import another module's private files.
 
 ### Allowed Imports
 
-* `@ai-playbook-engine/core`.
-* `@ai-playbook-engine/shared`.
+- `@ai-playbook-engine/core`.
+- `@ai-playbook-engine/shared`.
 
 ### Prohibited Imports
 
-* Config.
-* Infrastructure.
-* Notion.
-* AI Providers.
-* Testing in production code.
-* Applications.
-* ORM libraries.
-* Database drivers.
-* Notion SDK.
-* CLI or HTTP frameworks.
-* File-system implementation APIs.
-* Concrete logging libraries.
+- Config.
+- Infrastructure.
+- Notion.
+- AI Providers.
+- Testing in production code.
+- Applications.
+- ORM libraries.
+- Database drivers.
+- Notion SDK.
+- CLI or HTTP frameworks.
+- File-system implementation APIs.
+- Concrete logging libraries.
 
 ### Port Ownership Rule
 
@@ -381,16 +381,16 @@ Application owns contracts for capabilities it needs.
 
 Examples:
 
-* `WorkspaceRepository`.
-* `PlaybookRepository`.
-* `PlaybookSourceRepository`.
-* `SynchronizationRunRepository`.
-* `SnapshotStorage`.
-* `PlaybookSourceGateway`.
-* `TransactionManager`.
-* `CurrentWorkspaceProvider`.
-* `Clock`.
-* `IdempotencyStore`.
+- `WorkspaceRepository`.
+- `PlaybookRepository`.
+- `PlaybookSourceRepository`.
+- `SynchronizationRunRepository`.
+- `SnapshotStorage`.
+- `PlaybookSourceGateway`.
+- `TransactionManager`.
+- `CurrentWorkspaceProvider`.
+- `Clock`.
+- `IdempotencyStore`.
 
 Infrastructure and integration packages implement these contracts.
 
@@ -418,20 +418,20 @@ The composition root injects the concrete implementation.
 
 ### Allowed Imports
 
-* Shared.
-* Approved configuration validation library.
-* Node runtime environment APIs.
+- Shared.
+- Approved configuration validation library.
+- Node runtime environment APIs.
 
 ### Prohibited Imports
 
-* Core.
-* Application.
-* Infrastructure.
-* Notion.
-* Applications.
-* Database clients.
-* Notion client creation.
-* Domain identifiers unless represented as validated raw configuration values.
+- Core.
+- Application.
+- Infrastructure.
+- Notion.
+- Applications.
+- Database clients.
+- Notion client creation.
+- Domain identifiers unless represented as validated raw configuration values.
 
 ### Rule
 
@@ -447,20 +447,20 @@ For example, Config may provide a configured personal Workspace identifier as a 
 
 ### Allowed Imports
 
-* Application.
-* Core.
-* Shared.
-* Config.
-* Approved persistence, logging, storage and system libraries.
+- Application.
+- Core.
+- Shared.
+- Config.
+- Approved persistence, logging, storage and system libraries.
 
 ### Prohibited Imports
 
-* Notion.
-* AI Providers.
-* CLI, API or Worker.
-* Application-specific rendering types.
-* Notion SDK.
-* Future provider SDKs.
+- Notion.
+- AI Providers.
+- CLI, API or Worker.
+- Application-specific rendering types.
+- Notion SDK.
+- Future provider SDKs.
 
 ### Repository Rule
 
@@ -494,22 +494,22 @@ Infrastructure controls the technical transaction mechanism.
 
 ### Allowed Imports
 
-* Application.
-* Core public types when necessary.
-* Shared.
-* Config.
-* Official Notion SDK.
-* Approved technical dependencies specific to Notion communication.
+- Application.
+- Core public types when necessary.
+- Shared.
+- Config.
+- Official Notion SDK.
+- Approved technical dependencies specific to Notion communication.
 
 ### Prohibited Imports
 
-* Infrastructure.
-* AI Providers.
-* Applications.
-* ORM or database libraries.
-* CLI rendering.
-* Domain repository implementations.
-* Snapshot storage implementations.
+- Infrastructure.
+- AI Providers.
+- Applications.
+- ORM or database libraries.
+- CLI rendering.
+- Domain repository implementations.
+- Snapshot storage implementations.
 
 ### Core Dependency Restriction
 
@@ -517,9 +517,9 @@ Notion should prefer Application integration contracts and intermediate source s
 
 Direct Core imports are allowed only for stable public concepts such as:
 
-* Source reference types.
-* Approved source identifiers.
-* Domain-safe normalized primitive contracts.
+- Source reference types.
+- Approved source identifiers.
+- Domain-safe normalized primitive contracts.
 
 Notion must not construct or mutate Aggregate Roots unless the application contract explicitly requires a domain factory and the dependency remains justified.
 
@@ -529,11 +529,11 @@ Notion SDK types must remain within the Notion package.
 
 They must not appear in:
 
-* Application port method signatures.
-* Core models.
-* CLI outputs.
-* Persistence models.
-* Public cross-package events.
+- Application port method signatures.
+- Core models.
+- CLI outputs.
+- Persistence models.
+- Public cross-package events.
 
 ---
 
@@ -563,9 +563,9 @@ It may also provide contract-test suites consumed by adapter tests.
 
 No production package may list Testing under:
 
-* `dependencies`.
-* `peerDependencies`.
-* `optionalDependencies`.
+- `dependencies`.
+- `peerDependencies`.
+- `optionalDependencies`.
 
 Testing may appear only under `devDependencies`.
 
@@ -587,27 +587,27 @@ A narrowly scoped internal unit test may be colocated inside the owning package 
 
 The CLI composition root may import:
 
-* Config loader.
-* Infrastructure adapter factories.
-* Notion adapter factory.
-* Application use cases.
-* Shared and Core public types needed for output mapping.
+- Config loader.
+- Infrastructure adapter factories.
+- Notion adapter factory.
+- Application use cases.
+- Shared and Core public types needed for output mapping.
 
 CLI commands should import:
 
-* Application use-case contracts.
-* CLI-local rendering and exit-code utilities.
+- Application use-case contracts.
+- CLI-local rendering and exit-code utilities.
 
 ### Direct Imports Prohibited in Commands
 
 CLI command handlers must not import:
 
-* PostgreSQL repositories.
-* Database clients.
-* Notion SDK.
-* Snapshot file-system implementation.
-* Domain Aggregate constructors for state-changing behavior.
-* Environment variables.
+- PostgreSQL repositories.
+- Database clients.
+- Notion SDK.
+- Snapshot file-system implementation.
+- Domain Aggregate constructors for state-changing behavior.
+- Environment variables.
 
 ### Flow
 
@@ -661,10 +661,7 @@ Examples:
 
 ```json
 {
-  "references": [
-    { "path": "../shared" },
-    { "path": "../core" }
-  ]
+  "references": [{ "path": "../shared" }, { "path": "../core" }]
 }
 ```
 
@@ -674,9 +671,7 @@ The following would be invalid for Core:
 
 ```json
 {
-  "references": [
-    { "path": "../infrastructure" }
-  ]
+  "references": [{ "path": "../infrastructure" }]
 }
 ```
 
@@ -735,10 +730,10 @@ when only test code imports Testing.
 
 The workspace root should contain only:
 
-* Shared development tooling.
-* Monorepo-wide build tooling.
-* Formatting, linting and testing tools.
-* Tools intentionally executed from the root.
+- Shared development tooling.
+- Monorepo-wide build tooling.
+- Formatting, linting and testing tools.
+- Tools intentionally executed from the root.
 
 Runtime dependencies must live in the package that uses them.
 
@@ -806,10 +801,10 @@ Example:
 
 Subpath exports must be:
 
-* Intentional.
-* Documented.
-* Stable enough for consumers.
-* Free from private implementation leakage.
+- Intentional.
+- Documented.
+- Stable enough for consumers.
+- Free from private implementation leakage.
 
 ---
 
@@ -825,10 +820,10 @@ import type { PlaybookRepository } from './ports/playbook-repository.js';
 
 Benefits:
 
-* Clarifies dependency intent.
-* Reduces accidental runtime coupling.
-* Works with `verbatimModuleSyntax`.
-* Makes architecture analysis easier.
+- Clarifies dependency intent.
+- Reduces accidental runtime coupling.
+- Works with `verbatimModuleSyntax`.
+- Makes architecture analysis easier.
 
 Type-only syntax does not make a prohibited package dependency valid.
 
@@ -1029,10 +1024,10 @@ Core domain objects may cross into Application.
 
 They should not cross directly into:
 
-* CLI output.
-* HTTP output.
-* Database records.
-* Notion transport contracts.
+- CLI output.
+- HTTP output.
+- Database records.
+- Notion transport contracts.
 
 Delivery and infrastructure layers should map them.
 
@@ -1042,10 +1037,10 @@ Application input and output types may cross into delivery applications.
 
 They must remain:
 
-* Transport-independent.
-* ORM-independent.
-* Notion-independent.
-* Safe for intended consumers.
+- Transport-independent.
+- ORM-independent.
+- Notion-independent.
+- Safe for intended consumers.
 
 ## External DTOs
 
@@ -1103,26 +1098,26 @@ They interact only because the composition root injects both into Application us
 
 A package's unit tests may import:
 
-* The package under test.
-* Shared test support.
-* Testing package as a development dependency.
-* Approved assertion and test libraries.
+- The package under test.
+- Shared test support.
+- Testing package as a development dependency.
+- Approved assertion and test libraries.
 
 ## Integration Tests
 
 Infrastructure integration tests may import:
 
-* Infrastructure.
-* Application contracts.
-* Core public types.
-* Testing helpers.
-* Test database utilities.
+- Infrastructure.
+- Application contracts.
+- Core public types.
+- Testing helpers.
+- Test database utilities.
 
 Notion integration tests may import:
 
-* Notion package.
-* Application port contracts.
-* Testing fixtures and fake HTTP boundaries.
+- Notion package.
+- Application port contracts.
+- Testing fixtures and fake HTTP boundaries.
 
 ## End-to-End Tests
 
@@ -1198,31 +1193,31 @@ The dependency rules will be enforced progressively.
 
 ## Stage 1 — Package Metadata
 
-* Explicit `package.json` dependencies.
-* pnpm workspace resolution.
-* TypeScript project references.
-* Controlled package exports.
+- Explicit `package.json` dependencies.
+- pnpm workspace resolution.
+- TypeScript project references.
+- Controlled package exports.
 
 ## Stage 2 — ESLint Restrictions
 
 Add restrictions for:
 
-* Forbidden internal package imports.
-* Application-layer framework imports.
-* Core-layer technical imports.
-* Production imports from Testing.
-* Deep imports into internal package paths.
+- Forbidden internal package imports.
+- Application-layer framework imports.
+- Core-layer technical imports.
+- Production imports from Testing.
+- Deep imports into internal package paths.
 
 ## Stage 3 — Architecture Tests
 
 Add automated tests that inspect:
 
-* Import graphs.
-* Package dependency direction.
-* Forbidden libraries by package.
-* Public export boundaries.
-* Core independence.
-* Application independence from adapters.
+- Import graphs.
+- Package dependency direction.
+- Forbidden libraries by package.
+- Public export boundaries.
+- Core independence.
+- Application independence from adapters.
 
 ## Stage 4 — CI
 
@@ -1248,20 +1243,20 @@ Temporary architecture exceptions are discouraged.
 
 When unavoidable, they require:
 
-* Exact package and import involved.
-* Reason.
-* Risk.
-* Expiration condition.
-* Tracking issue.
-* Explicit approval.
+- Exact package and import involved.
+- Reason.
+- Risk.
+- Expiration condition.
+- Tracking issue.
+- Explicit approval.
 
 An exception must not be hidden through:
 
-* ESLint disable comments.
-* TypeScript path aliases.
-* Dynamic imports.
-* Re-exporting forbidden dependencies through another package.
-* Moving a type to Shared without domain justification.
+- ESLint disable comments.
+- TypeScript path aliases.
+- Dynamic imports.
+- Re-exporting forbidden dependencies through another package.
+- Moving a type to Shared without domain justification.
 
 ---
 
@@ -1286,16 +1281,16 @@ Before adding an internal dependency, verify:
 
 During version 1:
 
-* CLI is the only active delivery application.
-* API and Worker must not create new runtime dependencies.
-* AI Providers remains unused by production code.
-* Core contains only the ingestion-domain modules.
-* Application defines all repository and external source ports.
-* Infrastructure implements persistence and local storage ports.
-* Notion implements the external Playbook Source port.
-* CLI composes the system.
-* Testing remains development-only.
-* No package may depend on future modules to anticipate later work.
+- CLI is the only active delivery application.
+- API and Worker must not create new runtime dependencies.
+- AI Providers remains unused by production code.
+- Core contains only the ingestion-domain modules.
+- Application defines all repository and external source ports.
+- Infrastructure implements persistence and local storage ports.
+- Notion implements the external Playbook Source port.
+- CLI composes the system.
+- Testing remains development-only.
+- No package may depend on future modules to anticipate later work.
 
 ---
 

@@ -6,14 +6,14 @@ This document defines the initial ubiquitous language of AI Playbook Engine.
 
 Its purpose is to establish consistent terminology before designing:
 
-* Entities.
-* Value objects.
-* Aggregates.
-* Application use cases.
-* Persistence models.
-* API contracts.
-* CLI commands.
-* Automation workflows.
+- Entities.
+- Value objects.
+- Aggregates.
+- Application use cases.
+- Persistence models.
+- API contracts.
+- CLI commands.
+- Automation workflows.
 
 The terms defined here describe the Engine domain.
 
@@ -23,13 +23,13 @@ They do not describe the internal structure of Notion, a specific database schem
 
 The same term must represent the same concept across:
 
-* Architecture documentation.
-* Domain code.
-* Application use cases.
-* API contracts.
-* CLI commands.
-* Tests.
-* Reports.
+- Architecture documentation.
+- Domain code.
+- Application use cases.
+- API contracts.
+- CLI commands.
+- Tests.
+- Reports.
 
 Different concepts must not share the same name merely because they are technically similar.
 
@@ -37,10 +37,10 @@ External terminology must be translated into the internal language before enteri
 
 For example:
 
-* A Notion page is not automatically a Playbook.
-* A Notion database row is not automatically a Knowledge Item.
-* An AI provider response is not automatically an Execution Result.
-* A repository directory is not automatically a Project Snapshot.
+- A Notion page is not automatically a Playbook.
+- A Notion database row is not automatically a Knowledge Item.
+- An AI provider response is not automatically an Execution Result.
+- A repository directory is not automatically a Project Snapshot.
 
 ## Core Concepts
 
@@ -52,11 +52,11 @@ In the initial personal version, the Workspace represents the owner's operating 
 
 A Workspace does not currently represent:
 
-* A user account.
-* An organization membership.
-* A role.
-* A subscription.
-* An authentication session.
+- A user account.
+- An organization membership.
+- A role.
+- A subscription.
+- An authentication session.
 
 Future SaaS capabilities may associate users and organizations with a Workspace.
 
@@ -66,14 +66,14 @@ A Playbook is the logical representation of an AI engineering methodology manage
 
 It identifies a body of knowledge that may contain:
 
-* Methodologies.
-* Workflows.
-* Decision criteria.
-* Prompt definitions.
-* Audit definitions.
-* Experiments.
-* Case studies.
-* Model guidance.
+- Methodologies.
+- Workflows.
+- Decision criteria.
+- Prompt definitions.
+- Audit definitions.
+- Experiments.
+- Case studies.
+- Model guidance.
 
 The Playbook stored in Notion is the editorial source.
 
@@ -89,11 +89,11 @@ The initial source type is Notion.
 
 A Playbook Source may contain:
 
-* Source type.
-* External identifiers.
-* Connection configuration references.
-* Root page or database identifiers.
-* Synchronization settings.
+- Source type.
+- External identifiers.
+- Connection configuration references.
+- Root page or database identifiers.
+- Synchronization settings.
 
 A Playbook Source does not contain normalized domain knowledge.
 
@@ -103,12 +103,12 @@ A Playbook Version is an immutable, identifiable representation of a Playbook at
 
 It exists to support:
 
-* Reproducibility.
-* Historical comparison.
-* Validation.
-* Publication.
-* Auditing.
-* Execution traceability.
+- Reproducibility.
+- Historical comparison.
+- Validation.
+- Publication.
+- Auditing.
+- Execution traceability.
 
 An Execution must reference the Playbook Version used to produce its result.
 
@@ -130,10 +130,10 @@ A Draft Playbook Version is a version that has been created but is not yet appro
 
 It may still require:
 
-* Structural validation.
-* Semantic validation.
-* Reference resolution.
-* Human review.
+- Structural validation.
+- Semantic validation.
+- Reference resolution.
+- Human review.
 
 A Draft Playbook Version must not be used by production executions unless explicitly allowed by a future development mode.
 
@@ -161,10 +161,10 @@ Synchronization does not directly publish a Playbook Version.
 
 The synchronization process must preserve the distinction between:
 
-* External source content.
-* Raw retrieved content.
-* Normalized knowledge.
-* Executable Playbook versions.
+- External source content.
+- Raw retrieved content.
+- Normalized knowledge.
+- Executable Playbook versions.
 
 ### Synchronization Run
 
@@ -172,14 +172,14 @@ A Synchronization Run represents one attempt to synchronize a Playbook Source.
 
 It records operational information such as:
 
-* Start time.
-* Completion time.
-* Status.
-* Source.
-* Retrieved items.
-* Detected changes.
-* Errors.
-* Retry information.
+- Start time.
+- Completion time.
+- Status.
+- Source.
+- Retrieved items.
+- Detected changes.
+- Errors.
+- Retry information.
 
 A Synchronization Run is an operational process record.
 
@@ -191,10 +191,10 @@ A Synchronization Snapshot is the immutable raw or source-aligned representation
 
 It preserves enough source information to:
 
-* Reprocess content.
-* Compare source states.
-* Trace normalized knowledge back to the source.
-* Diagnose synchronization issues.
+- Reprocess content.
+- Compare source states.
+- Trace normalized knowledge back to the source.
+- Diagnose synchronization issues.
 
 A Synchronization Snapshot may contain Notion-specific structures because it belongs to the synchronization boundary.
 
@@ -206,12 +206,12 @@ A Source Reference identifies the external origin of synchronized content.
 
 It may include:
 
-* Source system.
-* External object identifier.
-* Parent identifier.
-* Last edited timestamp.
-* Source URL metadata.
-* Block or record position.
+- Source system.
+- External object identifier.
+- Parent identifier.
+- Last edited timestamp.
+- Source URL metadata.
+- Block or record position.
 
 A Source Reference supports traceability but does not define business meaning.
 
@@ -221,11 +221,11 @@ A Change Set describes the differences detected between synchronization states.
 
 Possible changes include:
 
-* Added source items.
-* Updated source items.
-* Removed source items.
-* Moved source items.
-* Relationship changes.
+- Added source items.
+- Updated source items.
+- Removed source items.
+- Moved source items.
+- Relationship changes.
 
 A Change Set is not automatically accepted as a new published version.
 
@@ -239,12 +239,12 @@ A Knowledge Item belongs to a specific Playbook Version.
 
 It has:
 
-* A stable internal identity.
-* A knowledge type.
-* Normalized content.
-* Source references.
-* Validation state.
-* Relationships to other Knowledge Items.
+- A stable internal identity.
+- A knowledge type.
+- Normalized content.
+- Source references.
+- Validation state.
+- Relationships to other Knowledge Items.
 
 A Knowledge Item must not expose Notion SDK types.
 
@@ -254,15 +254,15 @@ A Knowledge Type identifies the semantic role of a Knowledge Item.
 
 Initial candidate types include:
 
-* Methodology.
-* Workflow.
-* Prompt Definition.
-* Audit Definition.
-* Decision Matrix.
-* Criterion.
-* Experiment.
-* Case Study.
-* Model Guidance.
+- Methodology.
+- Workflow.
+- Prompt Definition.
+- Audit Definition.
+- Decision Matrix.
+- Criterion.
+- Experiment.
+- Case Study.
+- Model Guidance.
 
 This list is provisional until each category is modeled in detail.
 
@@ -272,14 +272,14 @@ A Methodology is a structured engineering approach defined by the Playbook.
 
 It may describe:
 
-* Objectives.
-* Scope.
-* Principles.
-* Activities.
-* Inputs.
-* Outputs.
-* Quality criteria.
-* Applicable contexts.
+- Objectives.
+- Scope.
+- Principles.
+- Activities.
+- Inputs.
+- Outputs.
+- Quality criteria.
+- Applicable contexts.
 
 A Methodology may reference one or more Workflows.
 
@@ -289,11 +289,11 @@ A Workflow is an ordered or conditionally connected set of Steps designed to ach
 
 A Workflow may include:
 
-* Deterministic steps.
-* Human review steps.
-* AI-assisted steps.
-* Validation steps.
-* Decision steps.
+- Deterministic steps.
+- Human review steps.
+- AI-assisted steps.
+- Validation steps.
+- Decision steps.
 
 A Workflow Definition belongs to the Playbook.
 
@@ -307,13 +307,13 @@ It defines what should happen, but it is not an executed action.
 
 A Step Definition may specify:
 
-* Required inputs.
-* Expected outputs.
-* Execution type.
-* Preconditions.
-* Completion criteria.
-* Failure behavior.
-* References to Prompt Definitions or Decision Criteria.
+- Required inputs.
+- Expected outputs.
+- Execution type.
+- Preconditions.
+- Completion criteria.
+- Failure behavior.
+- References to Prompt Definitions or Decision Criteria.
 
 ### Prompt Definition
 
@@ -321,13 +321,13 @@ A Prompt Definition is a versioned Playbook instruction intended for an AI-assis
 
 It may contain:
 
-* Purpose.
-* Instruction template.
-* Required variables.
-* Expected output structure.
-* Constraints.
-* Evaluation criteria.
-* Compatible capabilities.
+- Purpose.
+- Instruction template.
+- Required variables.
+- Expected output structure.
+- Constraints.
+- Evaluation criteria.
+- Compatible capabilities.
 
 A Prompt Definition is not a provider request.
 
@@ -339,11 +339,11 @@ A Criterion is a rule or condition used to evaluate, classify, accept, reject or
 
 A Criterion may be:
 
-* Deterministic.
-* Evidence-based.
-* AI-assisted.
-* Quantitative.
-* Qualitative.
+- Deterministic.
+- Evidence-based.
+- AI-assisted.
+- Quantitative.
+- Qualitative.
 
 A Criterion must specify what is being evaluated and how its result is interpreted.
 
@@ -353,13 +353,13 @@ A Decision Matrix is a structured set of criteria and alternatives used to suppo
 
 It may define:
 
-* Alternatives.
-* Criteria.
-* Weights.
-* Constraints.
-* Eligibility rules.
-* Scoring rules.
-* Tie-breaking rules.
+- Alternatives.
+- Criteria.
+- Weights.
+- Constraints.
+- Eligibility rules.
+- Scoring rules.
+- Tie-breaking rules.
 
 A Decision Matrix is Playbook knowledge.
 
@@ -371,13 +371,13 @@ An Audit Definition describes how a target should be evaluated.
 
 It may specify:
 
-* Audit purpose.
-* Applicable target types.
-* Required evidence.
-* Criteria.
-* Severity rules.
-* Finding categories.
-* Completion conditions.
+- Audit purpose.
+- Applicable target types.
+- Required evidence.
+- Criteria.
+- Severity rules.
+- Finding categories.
+- Completion conditions.
 
 An Audit Definition belongs to a Playbook Version.
 
@@ -389,13 +389,13 @@ An Experiment is a documented evaluation of a hypothesis, technique, workflow, m
 
 It may include:
 
-* Hypothesis.
-* Setup.
-* Inputs.
-* Observations.
-* Results.
-* Limitations.
-* Conclusions.
+- Hypothesis.
+- Setup.
+- Inputs.
+- Observations.
+- Results.
+- Limitations.
+- Conclusions.
 
 Experiments provide evidence but do not automatically become binding rules.
 
@@ -405,12 +405,12 @@ A Case Study is a documented application of Playbook knowledge to a real or repr
 
 It may provide:
 
-* Context.
-* Problem.
-* Approach.
-* Decisions.
-* Results.
-* Lessons.
+- Context.
+- Problem.
+- Approach.
+- Decisions.
+- Results.
+- Lessons.
 
 A Case Study supports understanding and guidance but is not necessarily executable.
 
@@ -420,13 +420,13 @@ Model Guidance describes known suitability, limitations or recommendations for A
 
 It may refer to:
 
-* Task types.
-* Required capabilities.
-* Quality observations.
-* Cost considerations.
-* Latency considerations.
-* Context limitations.
-* Tool-use requirements.
+- Task types.
+- Required capabilities.
+- Quality observations.
+- Cost considerations.
+- Latency considerations.
+- Context limitations.
+- Tool-use requirements.
 
 Model Guidance is distinct from live provider metadata.
 
@@ -438,12 +438,12 @@ A Project is a target registered in the Engine for analysis, execution or auditi
 
 A Project may represent:
 
-* A software repository.
-* A local source-code directory.
-* A product initiative.
-* A document set.
-* An architecture.
-* A requirements package.
+- A software repository.
+- A local source-code directory.
+- A product initiative.
+- A document set.
+- An architecture.
+- A requirements package.
 
 A Project is a logical identity.
 
@@ -455,10 +455,10 @@ A Project Source describes where project artifacts are obtained.
 
 Examples may include:
 
-* Local directory.
-* Git repository.
-* Uploaded archive.
-* Remote repository integration.
+- Local directory.
+- Git repository.
+- Uploaded archive.
+- Remote repository integration.
 
 A Project Source belongs to infrastructure and integration boundaries.
 
@@ -470,13 +470,13 @@ It exists to make executions reproducible.
 
 A Project Snapshot may include:
 
-* Commit reference.
-* File inventory.
-* Selected file contents.
-* Metadata.
-* Configuration.
-* Documentation.
-* Generated inspection results.
+- Commit reference.
+- File inventory.
+- Selected file contents.
+- Metadata.
+- Configuration.
+- Documentation.
+- Generated inspection results.
 
 An Execution should reference a Project Snapshot rather than an undefined moving project state when reproducibility is required.
 
@@ -486,13 +486,13 @@ An Artifact is a discrete item included in a Project Snapshot or supplied as exe
 
 Examples:
 
-* Source file.
-* Configuration file.
-* Architecture document.
-* Test report.
-* Requirements document.
-* Diff.
-* Build result.
+- Source file.
+- Configuration file.
+- Architecture document.
+- Test report.
+- Requirements document.
+- Diff.
+- Build result.
 
 An Artifact must have an identifiable type and origin.
 
@@ -502,12 +502,12 @@ Evidence is information used to support an Audit Finding, Criterion Evaluation o
 
 Evidence may originate from:
 
-* Project Artifacts.
-* Execution outputs.
-* Deterministic analysis.
-* AI-assisted analysis.
-* Human input.
-* External metadata.
+- Project Artifacts.
+- Execution outputs.
+- Deterministic analysis.
+- AI-assisted analysis.
+- Human input.
+- External metadata.
 
 Evidence must remain traceable to its origin.
 
@@ -519,18 +519,18 @@ An Execution is a runtime attempt to perform a defined Workflow or Engine operat
 
 An Execution records:
 
-* Workspace.
-* Playbook Version.
-* Workflow or operation.
-* Input references.
-* Project Snapshot when applicable.
-* Configuration.
-* Status.
-* Steps.
-* Outputs.
-* Errors.
-* Timing.
-* AI provider usage.
+- Workspace.
+- Playbook Version.
+- Workflow or operation.
+- Input references.
+- Project Snapshot when applicable.
+- Configuration.
+- Status.
+- Steps.
+- Outputs.
+- Errors.
+- Timing.
+- AI provider usage.
 
 An Execution is not the same as a Workflow Definition.
 
@@ -540,11 +540,11 @@ An Execution Request represents the validated intention to start an Execution.
 
 It specifies:
 
-* Requested operation.
-* Playbook Version or version-selection policy.
-* Input.
-* Target context.
-* Runtime options.
+- Requested operation.
+- Playbook Version or version-selection policy.
+- Input.
+- Target context.
+- Runtime options.
 
 An Execution Request is not yet an Execution result.
 
@@ -554,11 +554,11 @@ An Execution Plan is the runtime-resolved sequence of work derived from a Workfl
 
 It may resolve:
 
-* Conditional steps.
-* Required capabilities.
-* Input bindings.
-* Dependencies.
-* Execution order.
+- Conditional steps.
+- Required capabilities.
+- Input bindings.
+- Dependencies.
+- Execution order.
 
 An Execution Plan belongs to one Execution.
 
@@ -568,14 +568,14 @@ A Step Execution is the runtime instance of a Step Definition.
 
 It records:
 
-* Step identity.
-* Status.
-* Input.
-* Output.
-* Attempts.
-* Errors.
-* Timing.
-* Provider invocation references when applicable.
+- Step identity.
+- Status.
+- Input.
+- Output.
+- Attempts.
+- Errors.
+- Timing.
+- Provider invocation references when applicable.
 
 ### Execution Status
 
@@ -583,11 +583,11 @@ Execution Status represents the lifecycle state of an Execution.
 
 Initial candidate states include:
 
-* Pending.
-* Running.
-* Completed.
-* Failed.
-* Cancelled.
+- Pending.
+- Running.
+- Completed.
+- Failed.
+- Cancelled.
 
 Additional states such as Paused or Partially Completed must only be added when supported by real behavior.
 
@@ -597,12 +597,12 @@ An Execution Result is the final domain outcome of an Execution.
 
 It may contain:
 
-* Structured outputs.
-* Recommendations.
-* Findings.
-* Generated artifacts.
-* Summary.
-* Completion metadata.
+- Structured outputs.
+- Recommendations.
+- Findings.
+- Generated artifacts.
+- Summary.
+- Completion metadata.
 
 An Execution Result must be distinguishable from raw provider output.
 
@@ -612,11 +612,11 @@ A Deterministic Step produces its result from defined rules or software logic wi
 
 Examples:
 
-* Schema validation.
-* File matching.
-* Rule evaluation.
-* Score calculation.
-* Reference resolution.
+- Schema validation.
+- File matching.
+- Rule evaluation.
+- Score calculation.
+- Reference resolution.
 
 ### AI-Assisted Step
 
@@ -624,11 +624,11 @@ An AI-Assisted Step delegates a bounded task to an AI provider through the AI Ga
 
 The Engine remains responsible for:
 
-* Building the request.
-* Selecting required capabilities.
-* Validating the response.
-* Recording usage.
-* Applying domain rules to the normalized result.
+- Building the request.
+- Selecting required capabilities.
+- Validating the response.
+- Recording usage.
+- Applying domain rules to the normalized result.
 
 An AI provider does not control the Execution lifecycle.
 
@@ -648,14 +648,14 @@ An Audit is a runtime evaluation of a target using an Audit Definition from a sp
 
 An Audit references:
 
-* Target.
-* Project Snapshot or input snapshot.
-* Audit Definition.
-* Playbook Version.
-* Execution information.
-* Findings.
-* Evidence.
-* Status.
+- Target.
+- Project Snapshot or input snapshot.
+- Audit Definition.
+- Playbook Version.
+- Execution information.
+- Findings.
+- Evidence.
+- Status.
 
 ### Audit Finding
 
@@ -663,14 +663,14 @@ An Audit Finding is a specific result indicating a detected condition, risk, def
 
 A Finding may contain:
 
-* Title.
-* Description.
-* Category.
-* Severity.
-* Evidence.
-* Criterion reference.
-* Recommendation.
-* Status.
+- Title.
+- Description.
+- Category.
+- Severity.
+- Evidence.
+- Criterion reference.
+- Recommendation.
+- Status.
 
 A Finding must be traceable to the Audit Definition and evidence that produced it.
 
@@ -688,10 +688,10 @@ Finding Status represents the lifecycle of a Finding after detection.
 
 Candidate states may include:
 
-* Open.
-* Accepted.
-* Resolved.
-* Dismissed.
+- Open.
+- Accepted.
+- Resolved.
+- Dismissed.
 
 The final lifecycle will be defined during Audit domain modeling.
 
@@ -709,12 +709,12 @@ A Decision is a recorded runtime outcome produced by evaluating alternatives aga
 
 A Decision may select:
 
-* A model.
-* A provider.
-* A workflow.
-* A methodology.
-* A strategy.
-* An implementation approach.
+- A model.
+- A provider.
+- A workflow.
+- A methodology.
+- A strategy.
+- An implementation approach.
 
 A Decision must preserve the criteria and Playbook Version used.
 
@@ -734,12 +734,12 @@ A Criterion Evaluation is the result of applying a Criterion to an Alternative o
 
 It may contain:
 
-* Result.
-* Score.
-* Evidence.
-* Explanation.
-* Confidence.
-* Evaluation method.
+- Result.
+- Score.
+- Evidence.
+- Explanation.
+- Confidence.
+- Evaluation method.
 
 ### Recommendation
 
@@ -749,10 +749,10 @@ A Recommendation is not automatically a binding Decision.
 
 The system must preserve whether the outcome was:
 
-* Deterministically selected.
-* AI-recommended.
-* Human-approved.
-* Automatically applied.
+- Deterministically selected.
+- AI-recommended.
+- Human-approved.
+- Automatically applied.
 
 ### Decision Outcome
 
@@ -784,14 +784,14 @@ A Model Capability describes a function or constraint relevant to model selectio
 
 Examples:
 
-* Text generation.
-* Structured output.
-* Tool use.
-* Vision.
-* Large context.
-* Code generation.
-* Reasoning.
-* Embeddings.
+- Text generation.
+- Structured output.
+- Tool use.
+- Vision.
+- Large context.
+- Code generation.
+- Reasoning.
+- Embeddings.
 
 Capabilities describe suitability, not guaranteed quality.
 
@@ -801,11 +801,11 @@ Provider Configuration defines workspace-specific or runtime configuration requi
 
 It may reference:
 
-* Credential identifiers.
-* Enabled models.
-* Default timeouts.
-* Usage restrictions.
-* Provider-specific options.
+- Credential identifiers.
+- Enabled models.
+- Default timeouts.
+- Usage restrictions.
+- Provider-specific options.
 
 Secrets must not be stored directly inside domain entities.
 
@@ -815,12 +815,12 @@ An AI Request is a provider-neutral runtime request produced by the Engine.
 
 It may contain:
 
-* Instructions.
-* Input content.
-* Required capabilities.
-* Structured output expectations.
-* Runtime constraints.
-* Traceability metadata.
+- Instructions.
+- Input content.
+- Required capabilities.
+- Structured output expectations.
+- Runtime constraints.
+- Traceability metadata.
 
 ### AI Response
 
@@ -828,12 +828,12 @@ An AI Response is the normalized provider-neutral response returned by the AI Ga
 
 It may contain:
 
-* Generated content.
-* Structured data.
-* Usage metadata.
-* Completion status.
-* Provider references.
-* Validation information.
+- Generated content.
+- Structured data.
+- Usage metadata.
+- Completion status.
+- Provider references.
+- Validation information.
 
 Raw vendor responses remain inside the adapter boundary.
 
@@ -843,14 +843,14 @@ A Provider Invocation is the operational record of one attempt to execute an AI 
 
 It records:
 
-* Provider.
-* Model.
-* Request reference.
-* Attempt.
-* Status.
-* Usage.
-* Latency.
-* Errors.
+- Provider.
+- Model.
+- Request reference.
+- Attempt.
+- Status.
+- Usage.
+- Latency.
+- Errors.
 
 A Provider Invocation is not an Execution.
 
@@ -864,10 +864,10 @@ An Automation is a configured rule that invokes an application use case on a sch
 
 Examples:
 
-* Synchronize a Playbook.
-* Validate the latest version.
-* Execute an audit.
-* Generate a report.
+- Synchronize a Playbook.
+- Validate the latest version.
+- Execute an audit.
+- Generate a report.
 
 Automation must not contain business logic already owned by another module.
 
@@ -883,9 +883,9 @@ A Trigger defines when an Automation should run.
 
 Initial trigger types may include:
 
-* Schedule.
-* Manual invocation.
-* External event.
+- Schedule.
+- Manual invocation.
+- External event.
 
 The final trigger model will be defined during Automation domain modeling.
 
@@ -897,12 +897,12 @@ A Report is a presentation or export of authoritative domain results.
 
 A Report may summarize:
 
-* Executions.
-* Audits.
-* Findings.
-* Decisions.
-* Synchronization history.
-* Provider usage.
+- Executions.
+- Audits.
+- Findings.
+- Decisions.
+- Synchronization history.
+- Provider usage.
 
 A Report does not own the underlying business result.
 
@@ -912,13 +912,13 @@ A Trace is the connected record of inputs, decisions, steps, provider invocation
 
 Traceability must allow the system to answer:
 
-* Which Playbook Version was used?
-* Which target state was analyzed?
-* Which steps ran?
-* Which model and provider were invoked?
-* Which evidence supported the outcome?
-* Which errors occurred?
-* Can the result be reproduced?
+- Which Playbook Version was used?
+- Which target state was analyzed?
+- Which steps ran?
+- Which model and provider were invoked?
+- Which evidence supported the outcome?
+- Which errors occurred?
+- Can the result be reproduced?
 
 ### Usage Record
 
@@ -926,13 +926,13 @@ A Usage Record captures measurable consumption associated with an operation.
 
 Examples:
 
-* Input tokens.
-* Output tokens.
-* Requests.
-* Duration.
-* Estimated cost.
-* Storage.
-* Execution count.
+- Input tokens.
+- Output tokens.
+- Requests.
+- Duration.
+- Estimated cost.
+- Storage.
+- Execution count.
 
 Usage measurement does not imply billing.
 
@@ -1014,77 +1014,76 @@ The following terms should not be used without qualification:
 
 Use a more precise term:
 
-* Automation Run.
-* Synchronization Run.
-* Execution.
-* Worker task.
+- Automation Run.
+- Synchronization Run.
+- Execution.
+- Worker task.
 
 ### Process
 
 Use:
 
-* Workflow.
-* Execution.
-* Synchronization.
-* Automation.
+- Workflow.
+- Execution.
+- Synchronization.
+- Automation.
 
 ### Result
 
 Use:
 
-* Execution Result.
-* Audit Finding.
-* Decision Outcome.
-* AI Response.
-* Validation Result.
+- Execution Result.
+- Audit Finding.
+- Decision Outcome.
+- AI Response.
+- Validation Result.
 
 ### Configuration
 
 Use:
 
-* Provider Configuration.
-* Playbook Source Configuration.
-* Runtime Configuration.
-* Automation Configuration.
+- Provider Configuration.
+- Playbook Source Configuration.
+- Runtime Configuration.
+- Automation Configuration.
 
 ### Version
 
 Use:
 
-* Playbook Version.
-* Schema Version.
-* Model Version.
-* Application Version.
+- Playbook Version.
+- Schema Version.
+- Model Version.
+- Application Version.
 
 ### Item
 
 Use:
 
-* Knowledge Item.
-* Source Item.
-* Artifact.
-* Finding.
-* Alternative.
+- Knowledge Item.
+- Source Item.
+- Artifact.
+- Finding.
+- Alternative.
 
 ## Open Domain Questions
 
 The following questions remain intentionally unresolved:
 
-* What exact Knowledge Types are supported in version 1?
-* Is a Workflow an aggregate or part of a Playbook Version aggregate?
-* How are Playbook Versions identified and numbered?
-* What publication states are required?
-* Which validation failures block publication?
-* How are internal references represented?
-* What is the final Execution state machine?
-* Which Step types are supported in version 1?
-* What is the final Audit severity model?
-* Can Findings be manually created?
-* Are Decisions always associated with Executions?
-* Which Project source types are included initially?
-* Which AI capabilities are modeled directly?
-* How are provider credentials referenced securely?
-* Which records are authoritative versus derived read models?
+- What exact Knowledge Types are supported in version 1?
+- Is a Workflow an aggregate or part of a Playbook Version aggregate?
+- How are Playbook Versions identified and numbered?
+- What publication states are required?
+- Which validation failures block publication?
+- How are internal references represented?
+- What is the final Execution state machine?
+- Which Step types are supported in version 1?
+- What is the final Audit severity model?
+- Can Findings be manually created?
+- Are Decisions always associated with Executions?
+- Which Project source types are included initially?
+- Which AI capabilities are modeled directly?
+- How are provider credentials referenced securely?
+- Which records are authoritative versus derived read models?
 
 These questions will be resolved during aggregate and use-case modeling.
-

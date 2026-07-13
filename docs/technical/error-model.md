@@ -6,26 +6,26 @@ This document defines the error model for AI Playbook Engine version 1.
 
 It establishes:
 
-* Error categories.
-* Stable machine-readable error codes.
-* Error ownership by package and layer.
-* Translation rules between layers.
-* Retryability classification.
-* Safe diagnostic metadata.
-* CLI presentation rules.
-* Logging behavior.
-* Testing requirements.
+- Error categories.
+- Stable machine-readable error codes.
+- Error ownership by package and layer.
+- Translation rules between layers.
+- Retryability classification.
+- Safe diagnostic metadata.
+- CLI presentation rules.
+- Logging behavior.
+- Testing requirements.
 
 The error model must allow the system to distinguish expected business and operational failures from unexpected programming or infrastructure faults.
 
 This document does not define:
 
-* Final CLI numeric exit codes.
-* HTTP status-code mappings.
-* Complete logging implementation.
-* Notion-specific error codes.
-* Database-library exception classes.
-* User authentication or authorization errors.
+- Final CLI numeric exit codes.
+- HTTP status-code mappings.
+- Complete logging implementation.
+- Notion-specific error codes.
+- Database-library exception classes.
+- User authentication or authorization errors.
 
 Those mappings will be defined in their corresponding technical designs.
 
@@ -39,10 +39,10 @@ An error must communicate what failed in terms understood by the layer that rece
 
 Examples:
 
-* Core understands an invalid lifecycle transition.
-* Application understands that a requested Playbook was not found.
-* Notion understands an external rate-limit response.
-* CLI understands that a command failed because the source connection was unavailable.
+- Core understands an invalid lifecycle transition.
+- Application understands that a requested Playbook was not found.
+- Notion understands an external rate-limit response.
+- CLI understands that a command failed because the source connection was unavailable.
 
 A raw external exception must not cross every layer unchanged.
 
@@ -50,11 +50,11 @@ A raw external exception must not cross every layer unchanged.
 
 Expected errors must provide:
 
-* A stable machine-readable code.
-* A safe human-readable message.
-* An error category.
-* Optional safe details.
-* Optional cause information for internal diagnostics.
+- A stable machine-readable code.
+- A safe human-readable message.
+- An error category.
+- Optional safe details.
+- Optional cause information for internal diagnostics.
 
 Consumers must depend on the stable code or category, not the exact message text.
 
@@ -64,20 +64,20 @@ Message wording may evolve without breaking automation.
 
 Expected failures include:
 
-* Invalid user input.
-* Missing records.
-* State conflicts.
-* Validation failures.
-* External integration failures.
-* Retryable operational failures.
+- Invalid user input.
+- Missing records.
+- State conflicts.
+- Validation failures.
+- External integration failures.
+- Retryable operational failures.
 
 Unexpected failures include:
 
-* Broken invariants caused by invalid internal code.
-* Impossible states.
-* Unhandled library behavior.
-* Programming defects.
-* Corrupted assumptions.
+- Broken invariants caused by invalid internal code.
+- Impossible states.
+- Unhandled library behavior.
+- Programming defects.
+- Corrupted assumptions.
 
 Expected failures should normally be represented explicitly.
 
@@ -87,26 +87,26 @@ Unexpected failures may be caught at an outer boundary and converted into a safe
 
 Error messages and metadata must not contain:
 
-* Notion tokens.
-* Database credentials.
-* Environment variable values.
-* Raw authorization headers.
-* Secret file contents.
-* Full sensitive source payloads.
-* Unredacted connection strings.
+- Notion tokens.
+- Database credentials.
+- Environment variable values.
+- Raw authorization headers.
+- Secret file contents.
+- Full sensitive source payloads.
+- Unredacted connection strings.
 
 ## Errors Must Be Traceable
 
 Operational errors should support:
 
-* CorrelationId.
-* WorkspaceId where available.
-* Operation name.
-* Aggregate or resource identity.
-* Failure stage.
-* Retryability.
-* Safe external reference.
-* Timestamp.
+- CorrelationId.
+- WorkspaceId where available.
+- Operation name.
+- Aggregate or resource identity.
+- Failure stage.
+- Retryability.
+- Safe external reference.
+- Timestamp.
 
 These fields do not all need to live inside every domain error.
 
@@ -144,24 +144,24 @@ packages/core
 
 Domain errors:
 
-* Use domain language.
-* Do not reference CLI, HTTP, PostgreSQL or Notion.
-* Are deterministic for the same invalid operation.
-* Must not expose framework exceptions.
-* May be returned or thrown according to the approved domain coding pattern.
-* Must include stable domain error codes.
+- Use domain language.
+- Do not reference CLI, HTTP, PostgreSQL or Notion.
+- Are deterministic for the same invalid operation.
+- Must not expose framework exceptions.
+- May be returned or thrown according to the approved domain coding pattern.
+- Must include stable domain error codes.
 
 ## Examples
 
-* Invalid Workspace name.
-* Attempt to rename an Archived Playbook.
-* Attempt to activate a non-Published version.
-* Attempt to start an already Running Synchronization Run.
-* Attempt to validate before normalization completes.
-* Attempt to publish an Invalid version.
-* Duplicate SourceStableKey.
-* Invalid Knowledge attributes for the selected KnowledgeType.
-* Invalid lifecycle timestamp ordering.
+- Invalid Workspace name.
+- Attempt to rename an Archived Playbook.
+- Attempt to activate a non-Published version.
+- Attempt to start an already Running Synchronization Run.
+- Attempt to validate before normalization completes.
+- Attempt to publish an Invalid version.
+- Duplicate SourceStableKey.
+- Invalid Knowledge attributes for the selected KnowledgeType.
+- Invalid lifecycle timestamp ordering.
 
 ## Candidate Domain Error Codes
 
@@ -253,20 +253,20 @@ CONTENT_CHECKSUM_INVALID
 
 Domain errors may include safe structured details such as:
 
-* Current state.
-* Requested transition.
-* Expected state.
-* KnowledgeType.
-* ValidationCode.
-* Conflicting identifier.
-* Allowed values.
+- Current state.
+- Requested transition.
+- Expected state.
+- KnowledgeType.
+- ValidationCode.
+- Conflicting identifier.
+- Allowed values.
 
 They must not include:
 
-* ORM records.
-* Raw Notion payloads.
-* Stack traces as public data.
-* Credentials.
+- ORM records.
+- Raw Notion payloads.
+- Stack traces as public data.
+- Credentials.
 
 ---
 
@@ -284,11 +284,11 @@ packages/application
 
 Application errors may wrap or translate:
 
-* Domain errors.
-* Repository outcomes.
-* Integration errors.
-* Infrastructure failures.
-* Cross-Aggregate validation failures.
+- Domain errors.
+- Repository outcomes.
+- Integration errors.
+- Infrastructure failures.
+- Cross-Aggregate validation failures.
 
 ## Application Error Categories
 
@@ -313,10 +313,10 @@ The request is malformed or cannot be converted into valid domain input.
 
 Examples:
 
-* Missing required command field.
-* Malformed identifier.
-* Invalid source configuration.
-* Unsupported query filter.
+- Missing required command field.
+- Malformed identifier.
+- Invalid source configuration.
+- Unsupported query filter.
 
 Candidate codes:
 
@@ -513,19 +513,19 @@ NOTION_UNEXPECTED_ERROR
 
 An integration error may contain safe fields such as:
 
-* External status code.
-* Request identifier.
-* Retry-after duration.
-* External object type.
-* External object identifier when safe.
-* Failure stage.
+- External status code.
+- Request identifier.
+- Retry-after duration.
+- External object type.
+- External object identifier when safe.
+- Failure stage.
 
 It must not expose:
 
-* Authentication headers.
-* Tokens.
-* Full raw response bodies by default.
-* Internal SDK objects.
+- Authentication headers.
+- Tokens.
+- Full raw response bodies by default.
+- Internal SDK objects.
 
 ## Unsupported Content
 
@@ -663,14 +663,14 @@ The CLI must not redefine the underlying error meaning.
 
 The CLI:
 
-* Maps Application categories to exit codes.
-* Renders safe human-readable messages.
-* Produces structured JSON errors.
-* Hides stack traces by default.
-* Shows diagnostic details only in an approved debug mode.
-* Preserves stable Application error codes.
-* Includes correlation identity when useful.
-* Avoids printing secret values.
+- Maps Application categories to exit codes.
+- Renders safe human-readable messages.
+- Produces structured JSON errors.
+- Hides stack traces by default.
+- Shows diagnostic details only in an approved debug mode.
+- Preserves stable Application error codes.
+- Includes correlation identity when useful.
+- Avoids printing secret values.
 
 ## Human-Readable Error Shape
 
@@ -709,14 +709,14 @@ Conceptual structure:
 
 ## JSON Error Rules
 
-* `code` is stable.
-* `category` is stable within the delivery contract.
-* `message` is safe for users.
-* `details` contains only safe, documented values.
-* `correlationId` supports diagnostics.
-* Stack traces are excluded.
-* Raw causes are excluded.
-* Empty optional properties should be omitted consistently.
+- `code` is stable.
+- `category` is stable within the delivery contract.
+- `message` is safe for users.
+- `details` contains only safe, documented values.
+- `correlationId` supports diagnostics.
+- Stack traces are excluded.
+- Raw causes are excluded.
+- Empty optional properties should be omitted consistently.
 
 ---
 
@@ -728,12 +728,12 @@ An unexpected internal error is a failure not represented by an approved expecte
 
 Examples:
 
-* Null or undefined value in an impossible internal state.
-* Unhandled library behavior.
-* Programming bug.
-* Broken persistence mapping assumption.
-* Invalid dependency wiring.
-* Corrupted historical state.
+- Null or undefined value in an impossible internal state.
+- Unhandled library behavior.
+- Programming bug.
+- Broken persistence mapping assumption.
+- Invalid dependency wiring.
+- Corrupted historical state.
 
 ## Boundary Handling
 
@@ -765,10 +765,10 @@ An explicit local debug mode may display more diagnostics.
 
 It must still redact:
 
-* Secrets.
-* Credentials.
-* Authorization headers.
-* Sensitive configuration values.
+- Secrets.
+- Credentials.
+- Authorization headers.
+- Sensitive configuration values.
 
 Debug mode must not change the stable error code.
 
@@ -797,11 +797,11 @@ Stable machine-readable identifier.
 
 Rules:
 
-* Uppercase snake case.
-* Describes the failure, not the implementation class.
-* Must be unique enough within the project.
-* Must not include package names unnecessarily.
-* Must not be generated dynamically from messages.
+- Uppercase snake case.
+- Describes the failure, not the implementation class.
+- Must be unique enough within the project.
+- Must not include package names unnecessarily.
+- Must not be generated dynamically from messages.
 
 ## Category
 
@@ -827,11 +827,11 @@ Human-readable safe summary.
 
 Rules:
 
-* Clear and actionable where possible.
-* No secrets.
-* No raw library message dependency.
-* No stack trace.
-* No unstable machine parsing.
+- Clear and actionable where possible.
+- No secrets.
+- No raw library message dependency.
+- No stack trace.
+- No unstable machine parsing.
 
 ## Details
 
@@ -855,9 +855,9 @@ Indicates whether repeating the operation may succeed without changing business 
 
 Possible values:
 
-* `true`.
-* `false`.
-* `unknown`.
+- `true`.
+- `false`.
+- `unknown`.
 
 The implementation may use a boolean plus absence, or an explicit classification.
 
@@ -867,10 +867,10 @@ Internal cause information.
 
 Rules:
 
-* Used for logging and diagnostics.
-* Not serialized to normal CLI JSON output.
-* May preserve the original exception through standard error cause mechanisms.
-* Must not change the public code.
+- Used for logging and diagnostics.
+- Not serialized to normal CLI JSON output.
+- May preserve the original exception through standard error cause mechanisms.
+- Must not change the public code.
 
 ---
 
@@ -880,29 +880,29 @@ Rules:
 
 Candidate retryable failures:
 
-* Notion rate limiting.
-* Temporary Notion unavailability.
-* Network timeout.
-* Transient database connection failure.
-* Temporary file lock.
-* Optimistic concurrency conflict when the use case can safely reload.
-* Temporary storage unavailability.
+- Notion rate limiting.
+- Temporary Notion unavailability.
+- Network timeout.
+- Transient database connection failure.
+- Temporary file lock.
+- Optimistic concurrency conflict when the use case can safely reload.
+- Temporary storage unavailability.
 
 ## Non-Retryable Errors
 
 Candidate non-retryable failures:
 
-* Invalid input.
-* Missing required resource.
-* Archived Playbook.
-* Disabled source.
-* Invalid lifecycle transition.
-* Duplicate SourceStableKey.
-* Invalid Notion credentials.
-* Access denied.
-* Unsupported source type.
-* Blocking validation findings.
-* Idempotency conflict.
+- Invalid input.
+- Missing required resource.
+- Archived Playbook.
+- Disabled source.
+- Invalid lifecycle transition.
+- Duplicate SourceStableKey.
+- Invalid Notion credentials.
+- Access denied.
+- Unsupported source type.
+- Blocking validation findings.
+- Idempotency conflict.
 
 ## Retry Policy Ownership
 
@@ -914,21 +914,21 @@ The deciding layer determines whether to retry.
 
 Examples:
 
-* Notion adapter applies bounded technical retry for rate limits.
-* Application decides whether a synchronization attempt should fail.
-* Synchronization retry creates a new Synchronization Run.
-* CLI does not silently retry state-changing commands indefinitely.
+- Notion adapter applies bounded technical retry for rate limits.
+- Application decides whether a synchronization attempt should fail.
+- Synchronization retry creates a new Synchronization Run.
+- CLI does not silently retry state-changing commands indefinitely.
 
 ## No Hidden Retries
 
 Retries must not:
 
-* Hide repeated external usage.
-* Overwrite attempt history.
-* Create duplicate Aggregate records.
-* Ignore idempotency.
-* Extend beyond configured limits.
-* Convert permanent failures into generic timeouts.
+- Hide repeated external usage.
+- Overwrite attempt history.
+- Create duplicate Aggregate records.
+- Ignore idempotency.
+- Extend beyond configured limits.
+- Convert permanent failures into generic timeouts.
 
 ---
 
@@ -1015,11 +1015,11 @@ Repeated logging at every translation layer creates noise.
 
 A translator may add:
 
-* Operation.
-* Resource identifier.
-* Failure stage.
-* Retryability.
-* Safe external request reference.
+- Operation.
+- Resource identifier.
+- Failure stage.
+- Retryability.
+- Safe external request reference.
 
 It must not change a permanent failure into a retryable one without evidence.
 
@@ -1039,10 +1039,10 @@ Version 1 should use explicit result types for expected Application use-case out
 
 Exceptions remain appropriate for:
 
-* Unexpected failures.
-* Broken internal assumptions.
-* Technical exceptions caught and translated by adapters.
-* Construction failures when the selected Value Object pattern uses controlled exceptions internally.
+- Unexpected failures.
+- Broken internal assumptions.
+- Technical exceptions caught and translated by adapters.
+- Construction failures when the selected Value Object pattern uses controlled exceptions internally.
 
 ## Application Boundary
 
@@ -1058,9 +1058,9 @@ The exact TypeScript implementation will be defined separately.
 
 The domain may use one consistent pattern:
 
-* Result-based factories and transitions.
-* Controlled domain exceptions.
-* A hybrid where creation returns Result and impossible internal failures throw.
+- Result-based factories and transitions.
+- Controlled domain exceptions.
+- A hybrid where creation returns Result and impossible internal failures throw.
 
 The project must choose one dominant pattern before implementation.
 
@@ -1217,9 +1217,9 @@ The resource changed while the operation was being processed. Reload it and retr
 
 An optimistic concurrency conflict is not the same as:
 
-* Duplicate Playbook name.
-* Active source conflict.
-* Active synchronization conflict.
+- Duplicate Playbook name.
+- Active source conflict.
+- Active synchronization conflict.
 
 Known constraint violations should receive their specific conflict codes.
 
@@ -1227,10 +1227,10 @@ Known constraint violations should receive their specific conflict codes.
 
 The Application may reload and retry only when:
 
-* The operation is idempotent.
-* Reapplying it is safe.
-* Retry count is bounded.
-* The Aggregate revalidates all invariants.
+- The operation is idempotent.
+- Reapplying it is safe.
+- Retry count is bounded.
+- The Aggregate revalidates all invariants.
 
 ---
 
@@ -1251,11 +1251,11 @@ SNAPSHOT_STORAGE_CONFIGURATION_INVALID
 
 ## Rules
 
-* Show the configuration key when safe.
-* Never show the secret value.
-* Fail fast when required configuration is invalid.
-* Do not allow Core to receive partially validated runtime configuration.
-* CLI `config validate` may display all detected safe configuration issues together.
+- Show the configuration key when safe.
+- Never show the secret value.
+- Fail fast when required configuration is invalid.
+- Do not allow Core to receive partially validated runtime configuration.
+- CLI `config validate` may display all detected safe configuration issues together.
 
 ---
 
@@ -1265,31 +1265,31 @@ Recommended mapping:
 
 ## Debug
 
-* Internal retry attempt.
-* Safe adapter diagnostics.
-* Validation rule execution context.
-* Mapped external status details.
+- Internal retry attempt.
+- Safe adapter diagnostics.
+- Validation rule execution context.
+- Mapped external status details.
 
 ## Information
 
-* Expected no-change outcomes when operationally useful.
-* Successful recovery after a retry.
-* Command completion summary.
+- Expected no-change outcomes when operationally useful.
+- Successful recovery after a retry.
+- Command completion summary.
 
 ## Warning
 
-* Retryable external failure.
-* Unsupported non-blocking source content.
-* Stale synchronization run detected.
-* Validation warnings.
-* Expected conflict that may require user action.
+- Retryable external failure.
+- Unsupported non-blocking source content.
+- Stale synchronization run detected.
+- Validation warnings.
+- Expected conflict that may require user action.
 
 ## Error
 
-* Command failed due to external or infrastructure failure.
-* Synchronization Run failed.
-* Snapshot storage failed.
-* Unexpected internal error.
+- Command failed due to external or infrastructure failure.
+- Synchronization Run failed.
+- Snapshot storage failed.
+- Unexpected internal error.
 
 Expected validation and not-found outcomes should not automatically be logged as Error unless their operational context justifies it.
 
@@ -1301,13 +1301,13 @@ Expected validation and not-found outcomes should not automatically be logged as
 
 At minimum, redact:
 
-* Notion token.
-* Database password.
-* Full connection string.
-* Authorization headers.
-* Cookie values.
-* Secret environment variables.
-* Credential-provider responses.
+- Notion token.
+- Database password.
+- Full connection string.
+- Authorization headers.
+- Cookie values.
+- Secret environment variables.
+- Credential-provider responses.
 
 ## Safe Referencing
 
@@ -1325,11 +1325,11 @@ Raw external error messages may contain request information.
 
 Before including them in details or logs:
 
-* Inspect known SDK behavior.
-* Remove authorization data.
-* Avoid logging full request objects.
-* Truncate large response bodies.
-* Prefer structured safe fields.
+- Inspect known SDK behavior.
+- Remove authorization data.
+- Avoid logging full request objects.
+- Truncate large response bodies.
+- Prefer structured safe fields.
 
 ---
 
@@ -1341,21 +1341,21 @@ Application errors intended for delivery must be serializable.
 
 Serialization must:
 
-* Preserve code.
-* Preserve category.
-* Preserve safe message.
-* Preserve safe details.
-* Preserve retryability.
-* Exclude raw cause.
-* Exclude stack trace.
-* Produce deterministic field names.
+- Preserve code.
+- Preserve category.
+- Preserve safe message.
+- Preserve safe details.
+- Preserve retryability.
+- Exclude raw cause.
+- Exclude stack trace.
+- Produce deterministic field names.
 
 ## Date and Identifier Values
 
-* Identifiers use canonical strings.
-* Timestamps use ISO 8601 UTC strings.
-* Durations use explicitly named units.
-* Undefined optional fields are omitted.
+- Identifiers use canonical strings.
+- Timestamps use ISO 8601 UTC strings.
+- Durations use explicitly named units.
+- Undefined optional fields are omitted.
 
 ## Diagnostic Metadata
 
@@ -1363,11 +1363,11 @@ Metadata values should be limited to JSON-safe primitives and bounded structures
 
 Do not serialize:
 
-* Error objects.
-* Database records.
-* SDK responses.
-* Arbitrary class instances.
-* Circular structures.
+- Error objects.
+- Database records.
+- SDK responses.
+- Arbitrary class instances.
+- Circular structures.
 
 ---
 
@@ -1377,69 +1377,69 @@ Do not serialize:
 
 May contain:
 
-* Generic Result primitives.
-* Generic base error typing.
-* Safe JSON metadata types.
-* Retryability classification.
+- Generic Result primitives.
+- Generic base error typing.
+- Safe JSON metadata types.
+- Retryability classification.
 
 Must not contain:
 
-* Domain-specific error codes.
-* Notion error codes.
-* Database error translation.
+- Domain-specific error codes.
+- Notion error codes.
+- Database error translation.
 
 ## Core
 
 Owns:
 
-* Domain error codes.
-* Domain error structures.
-* Invariant violation outcomes.
-* Domain-safe error details.
+- Domain error codes.
+- Domain error structures.
+- Invariant violation outcomes.
+- Domain-safe error details.
 
 ## Application
 
 Owns:
 
-* Application error categories.
-* Use-case error contracts.
-* Domain-to-Application translation where needed.
-* Repository and port failure abstractions.
-* Stable use-case outcomes.
+- Application error categories.
+- Use-case error contracts.
+- Domain-to-Application translation where needed.
+- Repository and port failure abstractions.
+- Stable use-case outcomes.
 
 ## Config
 
 Owns:
 
-* Configuration validation errors.
-* Redacted configuration diagnostics.
+- Configuration validation errors.
+- Redacted configuration diagnostics.
 
 ## Infrastructure
 
 Owns:
 
-* Database, transaction, storage and technical error translation.
-* Vendor-specific error recognition.
-* Mapping known technical constraints to infrastructure error codes.
+- Database, transaction, storage and technical error translation.
+- Vendor-specific error recognition.
+- Mapping known technical constraints to infrastructure error codes.
 
 ## Notion
 
 Owns:
 
-* Notion SDK error recognition.
-* External status normalization.
-* Rate-limit and retry metadata.
-* Safe source-integration errors.
+- Notion SDK error recognition.
+- External status normalization.
+- Rate-limit and retry metadata.
+- Safe source-integration errors.
 
 ## CLI
 
 Owns:
 
-* Error rendering.
-* Exit-code mapping.
-* JSON serialization.
-* Debug-display behavior.
-* Final unexpected-error boundary.
+- Error rendering.
+- Exit-code mapping.
+- JSON serialization.
+- Debug-display behavior.
+- Final unexpected-error boundary.
 
 ---
 
@@ -1449,35 +1449,35 @@ Owns:
 
 Test:
 
-* Invalid transitions produce stable codes.
-* Details identify current and requested state safely.
-* Messages contain no technical implementation details.
-* Valid operations do not produce errors.
-* Error code values do not change accidentally.
+- Invalid transitions produce stable codes.
+- Details identify current and requested state safely.
+- Messages contain no technical implementation details.
+- Valid operations do not produce errors.
+- Error code values do not change accidentally.
 
 ## Application Error Tests
 
 Test:
 
-* Not-found records map correctly.
-* Workspace mismatches do not leak existence across Workspaces.
-* Domain errors map correctly.
-* Known uniqueness conflicts map to specific codes.
-* Unknown infrastructure errors remain infrastructure failures.
-* Idempotency conflicts are detected.
+- Not-found records map correctly.
+- Workspace mismatches do not leak existence across Workspaces.
+- Domain errors map correctly.
+- Known uniqueness conflicts map to specific codes.
+- Unknown infrastructure errors remain infrastructure failures.
+- Idempotency conflicts are detected.
 
 ## Integration Error Tests
 
 For Notion:
 
-* Authentication failure.
-* Access denied.
-* Root not found.
-* Rate limit.
-* Timeout.
-* Invalid response.
-* Unsupported non-blocking content.
-* Unexpected SDK error.
+- Authentication failure.
+- Access denied.
+- Root not found.
+- Rate limit.
+- Timeout.
+- Invalid response.
+- Unsupported non-blocking content.
+- Unexpected SDK error.
 
 Tests must verify that tokens and request headers do not appear in serialized errors.
 
@@ -1485,37 +1485,37 @@ Tests must verify that tokens and request headers do not appear in serialized er
 
 Test:
 
-* Known database constraints.
-* Concurrency conflicts.
-* Connection failure.
-* Storage write failure.
-* Missing payload.
-* Checksum mismatch.
-* Unknown driver failure.
+- Known database constraints.
+- Concurrency conflicts.
+- Connection failure.
+- Storage write failure.
+- Missing payload.
+- Checksum mismatch.
+- Unknown driver failure.
 
 ## CLI Error Tests
 
 Test:
 
-* Human-readable rendering.
-* JSON rendering.
-* Stable code.
-* Category.
-* CorrelationId.
-* Secret redaction.
-* Stack trace hidden by default.
-* Debug behavior.
-* Exit-code mapping after it is defined.
+- Human-readable rendering.
+- JSON rendering.
+- Stable code.
+- Category.
+- CorrelationId.
+- Secret redaction.
+- Stack trace hidden by default.
+- Debug behavior.
+- Exit-code mapping after it is defined.
 
 ## Unexpected Error Tests
 
 Test that an unexpected exception:
 
-* Is logged.
-* Returns `INTERNAL_ERROR`.
-* Does not expose its stack trace normally.
-* Preserves correlation identity.
-* Produces a non-success exit.
+- Is logged.
+- Returns `INTERNAL_ERROR`.
+- Does not expose its stack trace normally.
+- Preserves correlation identity.
+- Produces a non-success exit.
 
 ---
 
@@ -1568,10 +1568,10 @@ PLAYBOOK_VERSION_NOT_ELIGIBLE
 
 Additional codes must be introduced alongside:
 
-* Their owning package.
-* Tests.
-* The behavior that produces them.
-* Safe delivery mapping when applicable.
+- Their owning package.
+- Tests.
+- The behavior that produces them.
+- Safe delivery mapping when applicable.
 
 ---
 
@@ -1579,21 +1579,21 @@ Additional codes must be introduced alongside:
 
 Version 1 must not:
 
-* Return raw Notion SDK errors from Application.
-* Return raw database-driver errors to CLI.
-* Parse human-readable messages to determine behavior.
-* Use one generic error code for all expected failures.
-* Include credentials in error metadata.
-* Log the same expected error in every layer.
-* Use stack traces as normal CLI output.
-* silently catch and ignore failures.
-* Convert all database constraint violations into the same conflict.
-* Mark permanent validation errors as retryable.
-* Throw plain strings.
-* Return `null` to represent every failure.
-* expose ORM records through error details.
-* use HTTP status codes inside Core or Application.
-* let CLI exit-code concerns shape domain errors.
+- Return raw Notion SDK errors from Application.
+- Return raw database-driver errors to CLI.
+- Parse human-readable messages to determine behavior.
+- Use one generic error code for all expected failures.
+- Include credentials in error metadata.
+- Log the same expected error in every layer.
+- Use stack traces as normal CLI output.
+- silently catch and ignore failures.
+- Convert all database constraint violations into the same conflict.
+- Mark permanent validation errors as retryable.
+- Throw plain strings.
+- Return `null` to represent every failure.
+- expose ORM records through error details.
+- use HTTP status codes inside Core or Application.
+- let CLI exit-code concerns shape domain errors.
 
 ---
 
@@ -1601,16 +1601,16 @@ Version 1 must not:
 
 The following decisions remain deferred:
 
-* Exact TypeScript Result implementation.
-* Whether domain factories return Result or controlled domain exceptions.
-* Final shared base error class or interface.
-* Numeric CLI exit codes.
-* HTTP status mappings.
-* Error localization.
-* Persistence schema for operational failure records.
-* Full Notion retry policy.
-* Centralized external observability integration.
-* Error aggregation format for batch operations.
+- Exact TypeScript Result implementation.
+- Whether domain factories return Result or controlled domain exceptions.
+- Final shared base error class or interface.
+- Numeric CLI exit codes.
+- HTTP status mappings.
+- Error localization.
+- Persistence schema for operational failure records.
+- Full Notion retry policy.
+- Centralized external observability integration.
+- Error aggregation format for batch operations.
 
 These decisions must remain compatible with the principles in this document.
 
@@ -1620,20 +1620,20 @@ These decisions must remain compatible with the principles in this document.
 
 Version 1 will use:
 
-* Stable machine-readable error codes.
-* Explicit Application error categories.
-* Domain errors owned by Core.
-* Use-case errors owned by Application.
-* Notion errors normalized inside the Notion package.
-* Database and storage errors normalized inside Infrastructure.
-* Safe translation between layers.
-* Explicit retryability.
-* Structured safe metadata.
-* Correlation-aware logging.
-* Human-readable and JSON CLI errors.
-* Generic handling for unexpected internal failures.
-* Strict secret redaction.
-* Validation Findings separate from command errors.
+- Stable machine-readable error codes.
+- Explicit Application error categories.
+- Domain errors owned by Core.
+- Use-case errors owned by Application.
+- Notion errors normalized inside the Notion package.
+- Database and storage errors normalized inside Infrastructure.
+- Safe translation between layers.
+- Explicit retryability.
+- Structured safe metadata.
+- Correlation-aware logging.
+- Human-readable and JSON CLI errors.
+- Generic handling for unexpected internal failures.
+- Strict secret redaction.
+- Validation Findings separate from command errors.
 
 ---
 
@@ -1641,13 +1641,13 @@ Version 1 will use:
 
 The error model is ready for implementation when:
 
-* Expected failures have clear layer ownership.
-* Raw technical exceptions cannot cross public boundaries.
-* Error codes remain stable independently from messages.
-* Retryable and non-retryable failures are distinguishable.
-* Validation Findings remain separate from Application errors.
-* CLI can render errors safely.
-* Unexpected failures have an outer boundary.
-* Secrets are excluded from messages and metadata.
-* Package responsibilities are explicit.
-* Required testing scenarios are defined.
+- Expected failures have clear layer ownership.
+- Raw technical exceptions cannot cross public boundaries.
+- Error codes remain stable independently from messages.
+- Retryable and non-retryable failures are distinguishable.
+- Validation Findings remain separate from Application errors.
+- CLI can render errors safely.
+- Unexpected failures have an outer boundary.
+- Secrets are excluded from messages and metadata.
+- Package responsibilities are explicit.
+- Required testing scenarios are defined.

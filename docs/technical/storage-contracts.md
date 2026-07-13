@@ -6,28 +6,28 @@ This document defines the storage contracts used by AI Playbook Engine version 1
 
 It establishes:
 
-* The separation between structured metadata and payload storage.
-* Snapshot storage responsibilities.
-* Atomic write behavior.
-* Checksum verification.
-* Deduplication boundaries.
-* Storage references.
-* Workspace isolation.
-* Failure and recovery behavior.
-* Orphaned payload handling.
-* Security requirements.
-* Testing expectations.
+- The separation between structured metadata and payload storage.
+- Snapshot storage responsibilities.
+- Atomic write behavior.
+- Checksum verification.
+- Deduplication boundaries.
+- Storage references.
+- Workspace isolation.
+- Failure and recovery behavior.
+- Orphaned payload handling.
+- Security requirements.
+- Testing expectations.
 
 This document does not define:
 
-* The final local directory layout.
-* Cloud object-storage configuration.
-* Database tables.
-* Compression algorithms.
-* Backup infrastructure.
-* Snapshot-retention policies.
-* Project artifact storage.
-* User-uploaded file storage.
+- The final local directory layout.
+- Cloud object-storage configuration.
+- Database tables.
+- Compression algorithms.
+- Backup infrastructure.
+- Snapshot-retention policies.
+- Project artifact storage.
+- User-uploaded file storage.
 
 Version 1 uses local file storage through an abstraction that permits a future object-storage implementation.
 
@@ -70,10 +70,10 @@ The payload must not be stored directly inside Aggregate state.
 
 Moving a payload must not change:
 
-* Snapshot identity.
-* Snapshot checksum.
-* Synchronization lineage.
-* Playbook Version references.
+- Snapshot identity.
+- Snapshot checksum.
+- Synchronization lineage.
+- Playbook Version references.
 
 ## Storage Is Accessed Through a Port
 
@@ -81,19 +81,19 @@ Application code must access payload storage through an Application-owned contra
 
 It must not call:
 
-* Node file-system APIs directly.
-* Operating-system paths directly.
-* Cloud SDKs directly.
-* Infrastructure-specific storage classes directly.
+- Node file-system APIs directly.
+- Operating-system paths directly.
+- Cloud SDKs directly.
+- Infrastructure-specific storage classes directly.
 
 ## Payloads Are Immutable
 
 Once a snapshot payload is committed successfully:
 
-* It must not be overwritten.
-* It must not be edited in place.
-* It must not be replaced with different content under the same reference.
-* Its checksum must remain valid.
+- It must not be overwritten.
+- It must not be edited in place.
+- It must not be replaced with different content under the same reference.
+- Its checksum must remain valid.
 
 Corrections require a new Synchronization Snapshot.
 
@@ -103,11 +103,11 @@ Storage failures must not be hidden or converted into successful snapshots.
 
 A Synchronization Run cannot complete successfully unless:
 
-* The payload was stored.
-* The stored content can be associated with a StorageReference.
-* The expected checksum was recorded.
-* Snapshot metadata was persisted.
-* The run was transitioned to Completed.
+- The payload was stored.
+- The stored content can be associated with a StorageReference.
+- The expected checksum was recorded.
+- Snapshot metadata was persisted.
+- The run was transitioned to Completed.
 
 ---
 
@@ -115,21 +115,21 @@ A Synchronization Run cannot complete successfully unless:
 
 Version 1 storage includes:
 
-* Raw or source-aligned Synchronization Snapshot payloads.
-* Optional intermediate serialized snapshot representations when required for reprocessing.
-* Temporary files used during atomic write operations.
-* Safe diagnostic metadata required for storage recovery.
+- Raw or source-aligned Synchronization Snapshot payloads.
+- Optional intermediate serialized snapshot representations when required for reprocessing.
+- Temporary files used during atomic write operations.
+- Safe diagnostic metadata required for storage recovery.
 
 Version 1 does not include:
 
-* Project source-code artifacts.
-* Generated reports.
-* User uploads.
-* AI provider files.
-* Embedding indexes.
-* Media processing.
-* Cloud object storage.
-* Retention and deletion policies.
+- Project source-code artifacts.
+- Generated reports.
+- User uploads.
+- AI provider files.
+- Embedding indexes.
+- Media processing.
+- Cloud object storage.
+- Retention and deletion policies.
 
 ---
 
@@ -145,13 +145,13 @@ It must not expose storage implementation assumptions.
 
 A StorageReference must:
 
-* Be immutable from the perspective of normal application use.
-* Be safe to persist.
-* Be safe to serialize in internal diagnostics.
-* Avoid containing credentials.
-* Avoid exposing unrestricted local file paths.
-* Resolve through the configured storage adapter.
-* Remain stable across application restarts.
+- Be immutable from the perspective of normal application use.
+- Be safe to persist.
+- Be safe to serialize in internal diagnostics.
+- Avoid containing credentials.
+- Avoid exposing unrestricted local file paths.
+- Resolve through the configured storage adapter.
+- Remain stable across application restarts.
 
 ## Prohibited Representation
 
@@ -177,13 +177,13 @@ The Infrastructure adapter maps that key to an actual local path.
 
 A StorageReference must reject:
 
-* Empty values.
-* Absolute paths when logical references are required.
-* Parent-directory traversal.
-* Null bytes.
-* Invalid separators.
-* Unsupported schemes.
-* References outside the configured storage root.
+- Empty values.
+- Absolute paths when logical references are required.
+- Parent-directory traversal.
+- Null bytes.
+- Invalid separators.
+- Unsupported schemes.
+- References outside the configured storage root.
 
 ---
 
@@ -195,25 +195,25 @@ The Snapshot Payload preserves the exact source-aligned state retrieved during s
 
 It must support:
 
-* Reprocessing.
-* Source comparison.
-* Traceability.
-* Parser regression testing.
-* Diagnosis of mapping failures.
-* Verification of normalized knowledge lineage.
+- Reprocessing.
+- Source comparison.
+- Traceability.
+- Parser regression testing.
+- Diagnosis of mapping failures.
+- Verification of normalized knowledge lineage.
 
 ## Payload Characteristics
 
 A payload must be:
 
-* Immutable.
-* Canonically serializable.
-* Versioned by schema.
-* Checksum-verifiable.
-* Independent from active Notion SDK objects.
-* Readable after application restart.
-* Bounded by configured size limits.
-* Safe to process without executing embedded content.
+- Immutable.
+- Canonically serializable.
+- Versioned by schema.
+- Checksum-verifiable.
+- Independent from active Notion SDK objects.
+- Readable after application restart.
+- Bounded by configured size limits.
+- Safe to process without executing embedded content.
 
 ## Recommended Format
 
@@ -221,16 +221,16 @@ Version 1 should use a JSON-compatible serialized format.
 
 The payload may include:
 
-* Source metadata.
-* External object identifiers.
-* Object types.
-* Parent relationships.
-* Properties.
-* Rich-text structures.
-* Block hierarchy.
-* Retrieval diagnostics.
-* Unsupported-object placeholders.
-* Source last-edited timestamps.
+- Source metadata.
+- External object identifiers.
+- Object types.
+- Parent relationships.
+- Properties.
+- Rich-text structures.
+- Block hierarchy.
+- Retrieval diagnostics.
+- Unsupported-object placeholders.
+- Source last-edited timestamps.
 
 The stored representation must not require the Notion SDK to deserialize.
 
@@ -242,11 +242,11 @@ It may be a deterministic source-aligned representation produced by the Notion a
 
 However, it must preserve enough information to:
 
-* Reconstruct normalization inputs.
-* Re-run supported parsing.
-* Trace normalized items back to source objects.
-* Diagnose unsupported structures.
-* Detect meaningful source changes.
+- Reconstruct normalization inputs.
+- Re-run supported parsing.
+- Trace normalized items back to source objects.
+- Diagnose unsupported structures.
+- Detect meaningful source changes.
 
 ---
 
@@ -276,21 +276,21 @@ writeSnapshotPayload(input)
 
 Conceptual input:
 
-* WorkspaceId.
-* SynchronizationSnapshotId.
-* Expected ContentChecksum.
-* Storage format.
-* Schema version.
-* Canonical payload bytes or serializable representation.
-* CorrelationId when operational context is required.
+- WorkspaceId.
+- SynchronizationSnapshotId.
+- Expected ContentChecksum.
+- Storage format.
+- Schema version.
+- Canonical payload bytes or serializable representation.
+- CorrelationId when operational context is required.
 
 Conceptual output:
 
-* StorageReference.
-* Stored byte size.
-* Verified checksum.
-* Deduplication indicator when relevant.
-* Storage metadata safe for persistence.
+- StorageReference.
+- Stored byte size.
+- Verified checksum.
+- Deduplication indicator when relevant.
+- Storage metadata safe for persistence.
 
 ### Read Payload
 
@@ -300,9 +300,9 @@ readSnapshotPayload(storageReference, expectedChecksum)
 
 Conceptual output:
 
-* Payload bytes or parsed source-aligned representation.
-* Actual checksum.
-* Storage metadata.
+- Payload bytes or parsed source-aligned representation.
+- Actual checksum.
+- Storage metadata.
 
 ### Verify Payload
 
@@ -312,10 +312,10 @@ verifySnapshotPayload(storageReference, expectedChecksum)
 
 Conceptual output:
 
-* Exists.
-* Checksum matches.
-* Byte size.
-* Verification timestamp.
+- Exists.
+- Checksum matches.
+- Byte size.
+- Verification timestamp.
 
 ### Check Existence
 
@@ -368,10 +368,10 @@ Temporary paths must not be returned as StorageReference values.
 
 If the final target already exists:
 
-* Read or verify the existing checksum.
-* If the checksum matches, treat the operation as idempotent.
-* If the checksum differs, return a storage conflict.
-* Never overwrite different content silently.
+- Read or verify the existing checksum.
+- If the checksum matches, treat the operation as idempotent.
+- If the checksum differs, return a storage conflict.
+- Never overwrite different content silently.
 
 ## Platform Considerations
 
@@ -379,11 +379,11 @@ Atomic rename behavior may differ across operating systems and filesystems.
 
 The implementation must:
 
-* Keep temporary and final files on the same filesystem.
-* Use a rename or move operation with documented atomic expectations.
-* Handle Windows file-lock behavior.
-* Avoid copy-then-delete as the assumed atomic operation.
-* Include integration tests on the supported local environment where practical.
+- Keep temporary and final files on the same filesystem.
+- Use a rename or move operation with documented atomic expectations.
+- Handle Windows file-lock behavior.
+- Avoid copy-then-delete as the assumed atomic operation.
+- Include integration tests on the supported local environment where practical.
 
 ---
 
@@ -427,10 +427,10 @@ The payload must not be considered committed.
 
 When reading payload for:
 
-* Normalization.
-* Reprocessing.
-* Snapshot comparison.
-* Recovery.
+- Normalization.
+- Reprocessing.
+- Snapshot comparison.
+- Recovery.
 
 the caller may require checksum verification.
 
@@ -440,9 +440,9 @@ Version 1 should verify checksum before normalization.
 
 Snapshot metadata must preserve:
 
-* Checksum algorithm.
-* Canonicalization or payload schema version when required.
-* Checksum value.
+- Checksum algorithm.
+- Canonicalization or payload schema version when required.
+- Checksum value.
 
 The algorithm must not be inferred only from checksum length.
 
@@ -478,13 +478,13 @@ Each Snapshot gets its own payload.
 
 Advantages:
 
-* Simplest.
-* Clear ownership.
-* Simple cleanup.
+- Simplest.
+- Clear ownership.
+- Simple cleanup.
 
 Disadvantages:
 
-* Duplicate storage.
+- Duplicate storage.
 
 ### Strategy B — Content-Addressed Payload
 
@@ -494,14 +494,14 @@ Several Snapshots may reference the same payload.
 
 Advantages:
 
-* Efficient storage.
-* Natural idempotency.
+- Efficient storage.
+- Natural idempotency.
 
 Disadvantages:
 
-* Future deletion requires reference tracking.
-* Storage layout becomes checksum-aware.
-* Corruption may affect several snapshots.
+- Future deletion requires reference tracking.
+- Storage layout becomes checksum-aware.
+- Corruption may affect several snapshots.
 
 ## Version 1 Recommendation
 
@@ -537,23 +537,23 @@ Application supplies domain identifiers and storage intent.
 
 ## Conceptual Inputs
 
-* WorkspaceId.
-* SynchronizationSnapshotId.
-* ContentChecksum.
-* Storage format.
+- WorkspaceId.
+- SynchronizationSnapshotId.
+- ContentChecksum.
+- Storage format.
 
 ## Requirements
 
 Generated keys must:
 
-* Be deterministic for the same Snapshot when idempotency is required.
-* Stay inside the configured root.
-* Avoid raw user-controlled path segments.
-* Use canonical identifier strings.
-* Avoid reserved operating-system names.
-* Use a bounded depth.
-* Not expose credentials.
-* Not use Playbook names or titles as path identity.
+- Be deterministic for the same Snapshot when idempotency is required.
+- Stay inside the configured root.
+- Avoid raw user-controlled path segments.
+- Use canonical identifier strings.
+- Avoid reserved operating-system names.
+- Use a bounded depth.
+- Not expose credentials.
+- Not use Playbook names or titles as path identity.
 
 ## Example Conceptual Layout
 
@@ -582,10 +582,10 @@ A Workspace must not be able to resolve another Workspace's payload through norm
 
 A read operation should validate:
 
-* StorageReference format.
-* Expected Workspace context where part of the contract.
-* Snapshot metadata ownership before storage access.
-* Final resolved path remains under the configured Workspace namespace.
+- StorageReference format.
+- Expected Workspace context where part of the contract.
+- Snapshot metadata ownership before storage access.
+- Final resolved path remains under the configured Workspace namespace.
 
 ## Information Disclosure
 
@@ -599,10 +599,10 @@ Version 1 local storage is not complete tenant-grade physical isolation.
 
 The abstraction must permit future implementations using:
 
-* Object-storage prefixes.
-* Tenant-specific buckets.
-* Separate encryption keys.
-* Separate storage accounts.
+- Object-storage prefixes.
+- Tenant-specific buckets.
+- Separate encryption keys.
+- Separate storage accounts.
 
 ---
 
@@ -630,18 +630,18 @@ Recommended flow:
 
 If retrieval, serialization or checksum calculation fails:
 
-* No final payload should exist.
-* Synchronization Run becomes Failed.
-* No Snapshot metadata is inserted.
+- No final payload should exist.
+- Synchronization Run becomes Failed.
+- No Snapshot metadata is inserted.
 
 ## Failure During Storage Write
 
 If the storage write fails:
 
-* No Snapshot metadata is inserted.
-* Synchronization Run becomes Failed.
-* Temporary files are cleaned where possible.
-* Failure information identifies the storage stage.
+- No Snapshot metadata is inserted.
+- Synchronization Run becomes Failed.
+- Temporary files are cleaned where possible.
+- Failure information identifies the storage stage.
 
 ## Failure After Storage Commit but Before Database Commit
 
@@ -649,10 +649,10 @@ This creates a possible orphaned payload.
 
 The application must:
 
-* Fail the database transaction.
-* Mark or later recover the Synchronization Run safely.
-* Record enough context for orphan detection.
-* Avoid deleting the payload blindly if database commit status is uncertain.
+- Fail the database transaction.
+- Mark or later recover the Synchronization Run safely.
+- Record enough context for orphan detection.
+- Avoid deleting the payload blindly if database commit status is uncertain.
 
 ## Failure After Database Commit
 
@@ -670,10 +670,10 @@ An orphaned payload exists in storage but has no authoritative SynchronizationSn
 
 Possible causes:
 
-* Database transaction failure after successful storage write.
-* Process termination between storage and database commit.
-* Manual storage copying.
-* Failed cleanup.
+- Database transaction failure after successful storage write.
+- Process termination between storage and database commit.
+- Manual storage copying.
+- Failed cleanup.
 
 ## Recovery Strategy
 
@@ -691,10 +691,10 @@ The normal Application API does not need to expose this initially.
 
 A candidate payload is orphaned when:
 
-* It matches the managed storage-key pattern.
-* No authoritative Snapshot metadata references it.
-* It is not a known temporary file.
-* It is older than a configured safety interval.
+- It matches the managed storage-key pattern.
+- No authoritative Snapshot metadata references it.
+- It is not a known temporary file.
+- It is older than a configured safety interval.
 
 ## Safety Interval
 
@@ -706,10 +706,10 @@ Automatic deletion is deferred.
 
 Version 1 may:
 
-* Report orphaned payloads.
-* Log safe details.
-* Provide a future administrative cleanup command.
-* Move confirmed orphaned files into quarantine when explicitly approved.
+- Report orphaned payloads.
+- Log safe details.
+- Provide a future administrative cleanup command.
+- Move confirmed orphaned files into quarantine when explicitly approved.
 
 ## Quarantine
 
@@ -740,21 +740,21 @@ SNAPSHOT_STORAGE_NOT_FOUND
 
 The system must not:
 
-* Recreate content silently from current Notion state.
-* Point the Snapshot to a different payload.
-* Mark the historical Snapshot as valid.
-* Continue normalization.
+- Recreate content silently from current Notion state.
+- Point the Snapshot to a different payload.
+- Mark the historical Snapshot as valid.
+- Continue normalization.
 
 ## Diagnostics
 
 Record safely:
 
-* SnapshotId.
-* StorageReference.
-* WorkspaceId.
-* Expected checksum.
-* Operation.
-* CorrelationId.
+- SnapshotId.
+- StorageReference.
+- WorkspaceId.
+- Expected checksum.
+- Operation.
+- CorrelationId.
 
 Do not expose the physical path in normal CLI output.
 
@@ -766,10 +766,10 @@ Do not expose the physical path in normal CLI output.
 
 A payload exists, but:
 
-* Its checksum does not match.
-* It cannot be deserialized.
-* Its storage format is invalid.
-* Its schema version is unsupported.
+- Its checksum does not match.
+- It cannot be deserialized.
+- Its storage format is invalid.
+- Its schema version is unsupported.
 
 ## Behavior
 
@@ -789,9 +789,9 @@ Corrupted historical payloads must not be overwritten automatically.
 
 Recovery may require:
 
-* Restoring from backup.
-* Re-synchronizing into a new Snapshot.
-* Controlled administrative repair.
+- Restoring from backup.
+- Re-synchronizing into a new Snapshot.
+- Controlled administrative repair.
 
 A new synchronization does not repair the historical Snapshot.
 
@@ -807,13 +807,13 @@ Temporary files support atomic writes.
 
 Temporary files must:
 
-* Use a managed naming convention.
-* Be stored inside the configured storage root.
-* Avoid exposing source titles.
-* Not be returned as StorageReference.
-* Be removed after successful commit.
-* Be removed after failure when safe.
-* Be eligible for stale-file recovery.
+- Use a managed naming convention.
+- Be stored inside the configured storage root.
+- Avoid exposing source titles.
+- Not be returned as StorageReference.
+- Be removed after successful commit.
+- Be removed after failure when safe.
+- Be eligible for stale-file recovery.
 
 ## Stale Temporary Files
 
@@ -821,9 +821,9 @@ Version 1 may include startup or diagnostic cleanup for temporary files older th
 
 Cleanup must not remove:
 
-* Final committed payloads.
-* Recently active temporary files.
-* Unknown files outside the managed pattern.
+- Final committed payloads.
+- Recently active temporary files.
+- Unknown files outside the managed pattern.
 
 ---
 
@@ -835,16 +835,16 @@ The serialized payload must be deterministic for the same source-aligned input a
 
 Canonical rules must define:
 
-* Stable object-key ordering.
-* Stable collection ordering where semantic ordering exists.
-* UTF-8 encoding.
-* LF line endings when textual.
-* Unicode normalization.
-* Timestamp representation.
-* Omission of undefined fields.
-* Explicit handling of null values.
-* Numeric serialization.
-* Unsupported-content representation.
+- Stable object-key ordering.
+- Stable collection ordering where semantic ordering exists.
+- UTF-8 encoding.
+- LF line endings when textual.
+- Unicode normalization.
+- Timestamp representation.
+- Omission of undefined fields.
+- Explicit handling of null values.
+- Numeric serialization.
+- Unsupported-content representation.
 
 ## Pretty Printing
 
@@ -860,10 +860,10 @@ Every payload must identify its storage or snapshot schema version.
 
 The schema version allows:
 
-* Compatible reading.
-* Reprocessing decisions.
-* Controlled migrations.
-* Rejection of unsupported representations.
+- Compatible reading.
+- Reprocessing decisions.
+- Controlled migrations.
+- Rejection of unsupported representations.
 
 ---
 
@@ -877,18 +877,18 @@ Compression is not required initially.
 
 Compression may be added when:
 
-* Representative snapshots are materially large.
-* Storage or I/O becomes a measured problem.
-* Streaming decompression can be implemented safely.
-* Checksum semantics are clearly defined.
+- Representative snapshots are materially large.
+- Storage or I/O becomes a measured problem.
+- Streaming decompression can be implemented safely.
+- Checksum semantics are clearly defined.
 
 ## Checksum Semantics
 
 If compression is introduced later, the system must specify whether checksum applies to:
 
-* Canonical uncompressed content.
-* Stored compressed bytes.
-* Both.
+- Canonical uncompressed content.
+- Stored compressed bytes.
+- Both.
 
 A change requires explicit migration and compatibility rules.
 
@@ -904,11 +904,11 @@ Protect the local system from unbounded payload writes and reads.
 
 Configuration may define:
 
-* Maximum total snapshot size.
-* Maximum individual source object size.
-* Maximum block count.
-* Maximum traversal depth.
-* Maximum in-memory serialization size.
+- Maximum total snapshot size.
+- Maximum individual source object size.
+- Maximum block count.
+- Maximum traversal depth.
+- Maximum in-memory serialization size.
 
 ## Behavior
 
@@ -940,11 +940,11 @@ The local storage adapter receives one validated root directory from Config.
 
 It must:
 
-* Resolve it to a canonical path.
-* Create it when permitted.
-* Verify write access.
-* Refuse unsafe or invalid paths.
-* Avoid following untrusted path components.
+- Resolve it to a canonical path.
+- Create it when permitted.
+- Verify write access.
+- Refuse unsafe or invalid paths.
+- Avoid following untrusted path components.
 
 ## Path Traversal
 
@@ -970,10 +970,10 @@ Symlink behavior must be considered explicitly.
 
 Preferred version 1 direction:
 
-* Do not follow symlinks that escape the configured storage root.
-* Validate resolved real paths where supported.
-* Document limitations on Windows junctions and symlinks.
-* Keep managed directories under application control.
+- Do not follow symlinks that escape the configured storage root.
+- Validate resolved real paths where supported.
+- Document limitations on Windows junctions and symlinks.
+- Keep managed directories under application control.
 
 ## File Permissions
 
@@ -991,10 +991,10 @@ Sensitive credentials must never be stored in snapshot payloads.
 
 Snapshot payloads must not contain:
 
-* Notion integration tokens.
-* Authorization headers.
-* Database credentials.
-* Environment secret values.
+- Notion integration tokens.
+- Authorization headers.
+- Database credentials.
+- Environment secret values.
 
 ## Source Content
 
@@ -1004,11 +1004,11 @@ Logs must not include full payloads by default.
 
 Error metadata should use:
 
-* Object identifiers.
-* Counts.
-* Safe excerpts only when explicitly bounded.
-* Checksums.
-* Schema versions.
+- Object identifiers.
+- Counts.
+- Safe excerpts only when explicitly bounded.
+- Checksums.
+- Schema versions.
 
 ## CLI
 
@@ -1041,19 +1041,19 @@ SNAPSHOT_ORPHAN_DETECTED
 
 Potentially retryable:
 
-* Temporary write lock.
-* Transient file-system unavailable.
-* Temporary read failure.
-* Temporary disk access issue.
+- Temporary write lock.
+- Transient file-system unavailable.
+- Temporary read failure.
+- Temporary disk access issue.
 
 Normally non-retryable without intervention:
 
-* Invalid StorageReference.
-* Checksum mismatch.
-* Unsupported schema.
-* Payload too large.
-* Different content already committed under the same Snapshot identity.
-* Path outside storage root.
+- Invalid StorageReference.
+- Checksum mismatch.
+- Unsupported schema.
+- Payload too large.
+- Different content already committed under the same Snapshot identity.
+- Path outside storage root.
 
 ## Disk Capacity
 
@@ -1099,10 +1099,10 @@ The exact TypeScript types will be defined in Application contracts.
 
 Repeated write with:
 
-* Same SnapshotId.
-* Same canonical content.
-* Same checksum.
-* Same format and schema.
+- Same SnapshotId.
+- Same canonical content.
+- Same checksum.
+- Same format and schema.
 
 may return the prior StorageReference.
 
@@ -1132,9 +1132,9 @@ After a successful write result is returned, the adapter must support reading th
 
 Readers must not observe:
 
-* Temporary files.
-* Partially written payloads.
-* Files before checksum verification.
+- Temporary files.
+- Partially written payloads.
+- Files before checksum verification.
 
 ## Concurrent Readers
 
@@ -1167,10 +1167,10 @@ Recovery should:
 
 Automatically reconstructing missing metadata risks:
 
-* Associating the wrong payload.
-* Missing source summary data.
-* Hiding an incomplete transaction.
-* Violating auditability.
+- Associating the wrong payload.
+- Missing source summary data.
+- Hiding an incomplete transaction.
+- Violating auditability.
 
 Version 1 favors explicit failure and diagnostic recovery.
 
@@ -1180,20 +1180,20 @@ Version 1 favors explicit failure and diagnostic recovery.
 
 PostgreSQL snapshot metadata should eventually preserve:
 
-* SynchronizationSnapshotId.
-* WorkspaceId.
-* PlaybookSourceId.
-* SynchronizationRunId.
-* StorageReference.
-* Storage format.
-* Storage schema version.
-* Content checksum algorithm.
-* Content checksum value.
-* Byte size.
-* Source item counts.
-* Created timestamp.
-* Optional payload deduplication metadata.
-* Optional storage verification timestamp.
+- SynchronizationSnapshotId.
+- WorkspaceId.
+- PlaybookSourceId.
+- SynchronizationRunId.
+- StorageReference.
+- Storage format.
+- Storage schema version.
+- Content checksum algorithm.
+- Content checksum value.
+- Byte size.
+- Source item counts.
+- Created timestamp.
+- Optional payload deduplication metadata.
+- Optional storage verification timestamp.
 
 The exact relational model will be defined during data modeling.
 
@@ -1203,20 +1203,20 @@ The exact relational model will be defined during data modeling.
 
 Version 1 local storage configuration should include:
 
-* Storage root directory.
-* Temporary-file suffix or managed subdirectory.
-* Maximum payload size.
-* Optional stale temporary-file age.
-* Optional checksum verification behavior for reads.
-* Optional file-sync behavior where supported.
+- Storage root directory.
+- Temporary-file suffix or managed subdirectory.
+- Maximum payload size.
+- Optional stale temporary-file age.
+- Optional checksum verification behavior for reads.
+- Optional file-sync behavior where supported.
 
 Configuration must be:
 
-* Validated at startup.
-* Redacted safely.
-* Independent from Core.
-* Injected into Infrastructure.
-* Documented in `.env.example` later.
+- Validated at startup.
+- Redacted safely.
+- Independent from Core.
+- Injected into Infrastructure.
+- Documented in `.env.example` later.
 
 ---
 
@@ -1226,10 +1226,10 @@ Configuration must be:
 
 Owns:
 
-* SynchronizationSnapshot identity.
-* ContentChecksum semantics.
-* StorageReference Value Object when treated as domain-safe metadata.
-* Snapshot immutability rules.
+- SynchronizationSnapshot identity.
+- ContentChecksum semantics.
+- StorageReference Value Object when treated as domain-safe metadata.
+- Snapshot immutability rules.
 
 Core does not perform file operations.
 
@@ -1237,30 +1237,30 @@ Core does not perform file operations.
 
 Owns:
 
-* SnapshotStorage port.
-* Snapshot write and read orchestration.
-* Compensation and recovery workflow contracts.
-* Application-facing storage errors.
-* Transaction coordination with repositories.
+- SnapshotStorage port.
+- Snapshot write and read orchestration.
+- Compensation and recovery workflow contracts.
+- Application-facing storage errors.
+- Transaction coordination with repositories.
 
 ## Config
 
 Owns:
 
-* Validated local-storage configuration.
-* Safe diagnostic representation.
+- Validated local-storage configuration.
+- Safe diagnostic representation.
 
 ## Infrastructure
 
 Owns:
 
-* Local file storage implementation.
-* Path generation.
-* Atomic write mechanics.
-* Checksum verification over stored bytes.
-* Temporary-file management.
-* Orphan scanning.
-* Safe file-system error translation.
+- Local file storage implementation.
+- Path generation.
+- Atomic write mechanics.
+- Checksum verification over stored bytes.
+- Temporary-file management.
+- Orphan scanning.
+- Safe file-system error translation.
 
 ## Notion
 
@@ -1282,67 +1282,67 @@ It does not resolve storage paths directly.
 
 Test:
 
-* StorageReference validation.
-* Storage-key generation.
-* Path traversal rejection.
-* Canonical serialization.
-* Checksum calculation input consistency.
-* Idempotent write decision.
-* Conflict detection.
-* Size-limit enforcement.
+- StorageReference validation.
+- Storage-key generation.
+- Path traversal rejection.
+- Canonical serialization.
+- Checksum calculation input consistency.
+- Idempotent write decision.
+- Conflict detection.
+- Size-limit enforcement.
 
 ## Integration Tests
 
 Using a temporary directory, test:
 
-* Successful atomic write.
-* Read-after-write.
-* Checksum verification.
-* Same Snapshot and same content.
-* Same Snapshot and different content.
-* Missing payload.
-* Corrupted payload.
-* Temporary-file cleanup.
-* Concurrent write attempts.
-* Workspace path isolation.
-* Invalid StorageReference.
-* Process-like interruption between temporary write and rename where practical.
+- Successful atomic write.
+- Read-after-write.
+- Checksum verification.
+- Same Snapshot and same content.
+- Same Snapshot and different content.
+- Missing payload.
+- Corrupted payload.
+- Temporary-file cleanup.
+- Concurrent write attempts.
+- Workspace path isolation.
+- Invalid StorageReference.
+- Process-like interruption between temporary write and rename where practical.
 
 ## Contract Tests
 
 Every SnapshotStorage implementation must pass common tests for:
 
-* Write.
-* Read.
-* Verify.
-* Existence.
-* Immutability.
-* Idempotency.
-* Conflict behavior.
-* Error translation.
+- Write.
+- Read.
+- Verify.
+- Existence.
+- Immutability.
+- Idempotency.
+- Conflict behavior.
+- Error translation.
 
 ## Recovery Tests
 
 Test:
 
-* Orphan detection.
-* Recent files excluded by safety interval.
-* Stale temporary-file detection.
-* Metadata without payload.
-* Payload without metadata.
-* Corrupted orphan payload.
-* No automatic deletion.
+- Orphan detection.
+- Recent files excluded by safety interval.
+- Stale temporary-file detection.
+- Metadata without payload.
+- Payload without metadata.
+- Corrupted orphan payload.
+- No automatic deletion.
 
 ## Security Tests
 
 Test:
 
-* Traversal attempts.
-* Absolute-path injection.
-* Mixed path separators.
-* Symlink or junction escape where supported.
-* Secret values absent from error serialization.
-* Physical paths absent from normal Application errors.
+- Traversal attempts.
+- Absolute-path injection.
+- Mixed path separators.
+- Symlink or junction escape where supported.
+- Secret values absent from error serialization.
+- Physical paths absent from normal Application errors.
 
 ---
 
@@ -1350,15 +1350,15 @@ Test:
 
 The following are prohibited:
 
-* Core importing Node file-system APIs.
-* Application constructing local paths.
-* Notion writing Snapshot files.
-* CLI opening Snapshot files directly.
-* Persistence repository storing arbitrary payload bytes without the Storage port.
-* Storage adapter changing Synchronization Run state.
-* Storage adapter inserting Snapshot metadata into PostgreSQL.
-* Domain using StorageReference as Snapshot identity.
-* Snapshot completion without successful storage verification.
+- Core importing Node file-system APIs.
+- Application constructing local paths.
+- Notion writing Snapshot files.
+- CLI opening Snapshot files directly.
+- Persistence repository storing arbitrary payload bytes without the Storage port.
+- Storage adapter changing Synchronization Run state.
+- Storage adapter inserting Snapshot metadata into PostgreSQL.
+- Domain using StorageReference as Snapshot identity.
+- Snapshot completion without successful storage verification.
 
 ---
 
@@ -1391,20 +1391,20 @@ No direct file-management command should bypass repository and storage contracts
 
 The following remain deferred:
 
-* Exact local directory layout.
-* Whether JSON payloads are pretty-printed.
-* Streaming write implementation.
-* Compression.
-* Shared content-addressed deduplication.
-* Automatic orphan cleanup.
-* Retention policies.
-* Snapshot deletion.
-* Cloud object-storage provider.
-* Encryption at rest beyond operating-system and infrastructure controls.
-* Backup and restore.
-* Storage migration tooling.
-* Project artifact storage.
-* Report storage.
+- Exact local directory layout.
+- Whether JSON payloads are pretty-printed.
+- Streaming write implementation.
+- Compression.
+- Shared content-addressed deduplication.
+- Automatic orphan cleanup.
+- Retention policies.
+- Snapshot deletion.
+- Cloud object-storage provider.
+- Encryption at rest beyond operating-system and infrastructure controls.
+- Backup and restore.
+- Storage migration tooling.
+- Project artifact storage.
+- Report storage.
 
 These decisions must preserve the contracts and immutability rules defined here.
 
@@ -1414,22 +1414,22 @@ These decisions must preserve the contracts and immutability rules defined here.
 
 Version 1 will use:
 
-* PostgreSQL for authoritative Snapshot metadata.
-* Local file storage for immutable payloads.
-* Application-owned SnapshotStorage contract.
-* Infrastructure-owned local adapter.
-* Opaque StorageReference values.
-* Canonical JSON-compatible payloads.
-* Atomic temporary-write plus rename behavior.
-* Checksum verification before commit and before normalization.
-* One metadata Snapshot per successful Synchronization Run.
-* No required physical deduplication.
-* Explicit orphan detection.
-* No automatic payload deletion.
-* Workspace-aware storage namespaces.
-* Strict path validation.
-* Safe error translation.
-* Contract and integration tests.
+- PostgreSQL for authoritative Snapshot metadata.
+- Local file storage for immutable payloads.
+- Application-owned SnapshotStorage contract.
+- Infrastructure-owned local adapter.
+- Opaque StorageReference values.
+- Canonical JSON-compatible payloads.
+- Atomic temporary-write plus rename behavior.
+- Checksum verification before commit and before normalization.
+- One metadata Snapshot per successful Synchronization Run.
+- No required physical deduplication.
+- Explicit orphan detection.
+- No automatic payload deletion.
+- Workspace-aware storage namespaces.
+- Strict path validation.
+- Safe error translation.
+- Contract and integration tests.
 
 ---
 
@@ -1437,13 +1437,13 @@ Version 1 will use:
 
 Storage contracts are ready for implementation when:
 
-* Snapshot metadata and payload responsibilities are separate.
-* StorageReference is opaque and safe.
-* Atomic write behavior is defined.
-* Checksum verification is mandatory at correctness boundaries.
-* Duplicate and conflicting writes are distinguishable.
-* Database and storage coordination failures are understood.
-* Orphaned and missing payload behavior is explicit.
-* Workspace isolation is preserved.
-* Security and path rules are documented.
-* Local and future object-storage adapters can implement the same conceptual port.
+- Snapshot metadata and payload responsibilities are separate.
+- StorageReference is opaque and safe.
+- Atomic write behavior is defined.
+- Checksum verification is mandatory at correctness boundaries.
+- Duplicate and conflicting writes are distinguishable.
+- Database and storage coordination failures are understood.
+- Orphaned and missing payload behavior is explicit.
+- Workspace isolation is preserved.
+- Security and path rules are documented.
+- Local and future object-storage adapters can implement the same conceptual port.

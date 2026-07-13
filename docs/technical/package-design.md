@@ -6,23 +6,23 @@ This document defines the physical package structure of AI Playbook Engine.
 
 It establishes:
 
-* The applications contained in the monorepo.
-* The reusable internal packages.
-* The responsibility of each package.
-* The code that belongs in each package.
-* The code that must not be placed in each package.
-* The intended public surface of each package.
-* The initial package evolution strategy.
+- The applications contained in the monorepo.
+- The reusable internal packages.
+- The responsibility of each package.
+- The code that belongs in each package.
+- The code that must not be placed in each package.
+- The intended public surface of each package.
+- The initial package evolution strategy.
 
 This document does not define:
 
-* Detailed dependency rules.
-* Repository interfaces.
-* Database models.
-* Application use-case contracts.
-* API endpoints.
-* CLI command syntax.
-* Infrastructure implementations.
+- Detailed dependency rules.
+- Repository interfaces.
+- Database models.
+- Application use-case contracts.
+- API endpoints.
+- CLI command syntax.
+- Infrastructure implementations.
 
 Those concerns are documented separately.
 
@@ -67,11 +67,11 @@ The repository remains a modular monolith.
 
 The presence of several packages does not imply:
 
-* Microservices.
-* Independent deployment.
-* Independent databases.
-* Network communication between modules.
-* Separate product ownership.
+- Microservices.
+- Independent deployment.
+- Independent databases.
+- Network communication between modules.
+- Separate product ownership.
 
 Packages exist to enforce boundaries and reuse.
 
@@ -99,16 +99,16 @@ The CLI invokes application use cases and presents their results through termina
 
 ### Responsibilities
 
-* Parse command-line arguments.
-* Validate command syntax.
-* Resolve output mode.
-* Create the application composition root.
-* Invoke application use cases.
-* Map application results to exit codes.
-* Render human-readable output.
-* Render structured JSON output.
-* Redact sensitive values.
-* Handle expected errors without exposing stack traces by default.
+- Parse command-line arguments.
+- Validate command syntax.
+- Resolve output mode.
+- Create the application composition root.
+- Invoke application use cases.
+- Map application results to exit codes.
+- Render human-readable output.
+- Render structured JSON output.
+- Redact sensitive values.
+- Handle expected errors without exposing stack traces by default.
 
 ### Allowed Content
 
@@ -128,15 +128,15 @@ src/
 
 The CLI must not contain:
 
-* Aggregate business rules.
-* Repository implementations.
-* Direct database queries.
-* Notion SDK calls.
-* Environment-variable parsing scattered across commands.
-* Knowledge normalization logic.
-* Playbook validation logic.
-* Lifecycle transitions implemented outside use cases.
-* Raw persistence models.
+- Aggregate business rules.
+- Repository implementations.
+- Direct database queries.
+- Notion SDK calls.
+- Environment-variable parsing scattered across commands.
+- Knowledge normalization logic.
+- Playbook validation logic.
+- Lifecycle transitions implemented outside use cases.
+- Raw persistence models.
 
 ### Version 1 Status
 
@@ -158,25 +158,25 @@ It may expose Engine functionality through a public or private API.
 
 When implemented:
 
-* Configure the HTTP server.
-* Define routes.
-* Validate transport input.
-* Map HTTP requests to application commands and queries.
-* Map application results to HTTP responses.
-* Apply transport-level middleware.
-* Expose health and readiness endpoints.
-* Provide request correlation.
+- Configure the HTTP server.
+- Define routes.
+- Validate transport input.
+- Map HTTP requests to application commands and queries.
+- Map application results to HTTP responses.
+- Apply transport-level middleware.
+- Expose health and readiness endpoints.
+- Provide request correlation.
 
 ### Prohibited Content
 
 The API must not contain:
 
-* Domain logic.
-* Database access directly from routes.
-* Notion SDK operations.
-* AI provider SDK operations.
-* Workspace isolation implemented only through controllers.
-* ORM models exposed as response contracts.
+- Domain logic.
+- Database access directly from routes.
+- Notion SDK operations.
+- AI provider SDK operations.
+- Workspace isolation implemented only through controllers.
+- ORM models exposed as response contracts.
 
 ### Version 1 Status
 
@@ -198,23 +198,23 @@ It will run long-lived, scheduled or asynchronous tasks.
 
 When implemented:
 
-* Consume queued work.
-* Invoke application use cases.
-* Execute scheduled jobs.
-* Manage worker lifecycle.
-* Handle graceful shutdown.
-* Apply operational retry and timeout policies.
-* Preserve correlation and Workspace context.
+- Consume queued work.
+- Invoke application use cases.
+- Execute scheduled jobs.
+- Manage worker lifecycle.
+- Handle graceful shutdown.
+- Apply operational retry and timeout policies.
+- Preserve correlation and Workspace context.
 
 ### Prohibited Content
 
 The Worker must not contain:
 
-* Domain lifecycle rules.
-* Business retry rules that belong to Aggregates or application policies.
-* Direct repository manipulation that bypasses use cases.
-* Notion-specific behavior outside the Notion adapter.
-* AI-provider-specific behavior outside provider adapters.
+- Domain lifecycle rules.
+- Business retry rules that belong to Aggregates or application policies.
+- Direct repository manipulation that bypasses use cases.
+- Notion-specific behavior outside the Notion adapter.
+- AI-provider-specific behavior outside provider adapters.
 
 ### Version 1 Status
 
@@ -242,40 +242,40 @@ Provide small, stable and domain-independent technical primitives.
 
 Candidate responsibilities include:
 
-* Typed identifier primitives.
-* Generic result types.
-* Base error abstractions.
-* Clock contracts.
-* Generic pagination contracts.
-* Safe serialization helpers.
-* Common assertion utilities.
-* Generic branded-type utilities.
+- Typed identifier primitives.
+- Generic result types.
+- Base error abstractions.
+- Clock contracts.
+- Generic pagination contracts.
+- Safe serialization helpers.
+- Common assertion utilities.
+- Generic branded-type utilities.
 
 ### Allowed Characteristics
 
 Code in `shared` must be:
 
-* Domain-independent.
-* Small.
-* Stable.
-* Reusable across several packages.
-* Free from framework coupling.
+- Domain-independent.
+- Small.
+- Stable.
+- Reusable across several packages.
+- Free from framework coupling.
 
 ### Prohibited Content
 
 `shared` must not contain:
 
-* Workspace.
-* Playbook.
-* Synchronization Run.
-* Playbook Version.
-* Knowledge Item.
-* Domain policies.
-* Repository contracts tied to a module.
-* Notion-specific types.
-* Database types.
-* CLI-specific output.
-* Application-specific configuration.
+- Workspace.
+- Playbook.
+- Synchronization Run.
+- Playbook Version.
+- Knowledge Item.
+- Domain policies.
+- Repository contracts tied to a module.
+- Notion-specific types.
+- Database types.
+- CLI-specific output.
+- Application-specific configuration.
 
 ### Design Rule
 
@@ -305,16 +305,16 @@ This package owns business meaning and invariants.
 
 ### Responsibilities
 
-* Aggregate Roots.
-* Entities.
-* Value Objects.
-* Domain policies.
-* Domain services.
-* Domain events when implemented.
-* Lifecycle transitions.
-* Domain validation that does not require external systems.
-* Domain-specific identifiers.
-* Domain-specific errors.
+- Aggregate Roots.
+- Entities.
+- Value Objects.
+- Domain policies.
+- Domain services.
+- Domain events when implemented.
+- Lifecycle transitions.
+- Domain validation that does not require external systems.
+- Domain-specific identifiers.
+- Domain-specific errors.
 
 ### Initial Version 1 Modules
 
@@ -338,38 +338,38 @@ Folder names may be refined, but the domain boundaries must remain explicit.
 
 The Core may use:
 
-* TypeScript standard language features.
-* `packages/shared`.
-* Small domain-safe libraries only when explicitly approved.
+- TypeScript standard language features.
+- `packages/shared`.
+- Small domain-safe libraries only when explicitly approved.
 
 ### Prohibited Content
 
 The Core must not contain:
 
-* Environment-variable access.
-* PostgreSQL code.
-* ORM decorators or models.
-* Notion SDK imports.
-* File-system access.
-* HTTP or CLI types.
-* Logging implementations.
-* Queue implementations.
-* Vendor-specific errors.
-* Credential values.
-* Application orchestration.
-* Framework dependency injection containers.
+- Environment-variable access.
+- PostgreSQL code.
+- ORM decorators or models.
+- Notion SDK imports.
+- File-system access.
+- HTTP or CLI types.
+- Logging implementations.
+- Queue implementations.
+- Vendor-specific errors.
+- Credential values.
+- Application orchestration.
+- Framework dependency injection containers.
 
 ### Public Surface
 
 The package may expose:
 
-* Aggregate Roots.
-* Domain entities.
-* Value Objects.
-* Domain services.
-* Domain events.
-* Domain error types.
-* Stable domain contracts required by the Application package.
+- Aggregate Roots.
+- Domain entities.
+- Value Objects.
+- Domain services.
+- Domain events.
+- Domain error types.
+- Stable domain contracts required by the Application package.
 
 Internal construction helpers and implementation details must not be exported unnecessarily.
 
@@ -389,19 +389,19 @@ The package coordinates the domain and external ports without containing infrast
 
 ### Responsibilities
 
-* Commands.
-* Queries.
-* Use-case handlers.
-* Application services.
-* Repository interfaces.
-* Transaction abstractions.
-* Storage ports.
-* External source ports.
-* Workspace resolution contract.
-* Idempotency contracts.
-* Application result types.
-* Application-level error mapping.
-* Cross-Aggregate orchestration.
+- Commands.
+- Queries.
+- Use-case handlers.
+- Application services.
+- Repository interfaces.
+- Transaction abstractions.
+- Storage ports.
+- External source ports.
+- Workspace resolution contract.
+- Idempotency contracts.
+- Application result types.
+- Application-level error mapping.
+- Cross-Aggregate orchestration.
 
 ### Initial Version 1 Modules
 
@@ -423,51 +423,51 @@ src/
 
 ### Examples of Application Responsibilities
 
-* Create a Playbook.
-* Register a Notion source.
-* Start a Synchronization Run.
-* Store a Synchronization Snapshot.
-* Create a Draft Playbook Version.
-* Normalize knowledge.
-* Validate a version.
-* Publish a version.
-* Activate a version.
-* Query normalized knowledge.
+- Create a Playbook.
+- Register a Notion source.
+- Start a Synchronization Run.
+- Store a Synchronization Snapshot.
+- Create a Draft Playbook Version.
+- Normalize knowledge.
+- Validate a version.
+- Publish a version.
+- Activate a version.
+- Query normalized knowledge.
 
 ### Allowed Dependencies
 
 The Application package may depend on:
 
-* `packages/core`.
-* `packages/shared`.
+- `packages/core`.
+- `packages/shared`.
 
 ### Prohibited Content
 
 The Application package must not contain:
 
-* PostgreSQL queries.
-* ORM models.
-* Notion SDK requests.
-* CLI formatting.
-* HTTP responses.
-* Environment parsing.
-* Concrete file-system operations.
-* Real secret resolution.
-* Provider-specific retry code.
-* Domain state mutation that bypasses Aggregate behavior.
+- PostgreSQL queries.
+- ORM models.
+- Notion SDK requests.
+- CLI formatting.
+- HTTP responses.
+- Environment parsing.
+- Concrete file-system operations.
+- Real secret resolution.
+- Provider-specific retry code.
+- Domain state mutation that bypasses Aggregate behavior.
 
 ### Public Surface
 
 The package may expose:
 
-* Use-case contracts.
-* Use-case implementations.
-* Command and query input types.
-* Application output types.
-* Repository interfaces.
-* External integration ports.
-* Transaction boundary contracts.
-* Application errors.
+- Use-case contracts.
+- Use-case implementations.
+- Command and query input types.
+- Application output types.
+- Repository interfaces.
+- External integration ports.
+- Transaction boundary contracts.
+- Application errors.
 
 The package must not expose infrastructure implementation types.
 
@@ -481,45 +481,45 @@ Provide centralized, typed and validated runtime configuration.
 
 ### Responsibilities
 
-* Define configuration schemas.
-* Read approved environment variables.
-* Validate startup configuration.
-* Produce typed configuration objects.
-* Redact sensitive values.
-* Support configuration diagnostics.
-* Define environment-specific defaults where explicitly allowed.
+- Define configuration schemas.
+- Read approved environment variables.
+- Validate startup configuration.
+- Produce typed configuration objects.
+- Redact sensitive values.
+- Support configuration diagnostics.
+- Define environment-specific defaults where explicitly allowed.
 
 ### Version 1 Configuration Areas
 
-* Application environment.
-* PostgreSQL connection.
-* Current personal Workspace resolution.
-* Notion credential reference.
-* Snapshot storage directory.
-* Logging level.
-* CLI output defaults.
-* Synchronization limits.
+- Application environment.
+- PostgreSQL connection.
+- Current personal Workspace resolution.
+- Notion credential reference.
+- Snapshot storage directory.
+- Logging level.
+- CLI output defaults.
+- Synchronization limits.
 
 ### Prohibited Content
 
 The Config package must not contain:
 
-* Domain rules.
-* Aggregate state.
-* Database connections.
-* Notion client instances.
-* CLI commands.
-* Actual credential persistence.
-* Secret values in public diagnostic output.
+- Domain rules.
+- Aggregate state.
+- Database connections.
+- Notion client instances.
+- CLI commands.
+- Actual credential persistence.
+- Secret values in public diagnostic output.
 
 ### Public Surface
 
 Expose:
 
-* Validated configuration types.
-* Configuration loader.
-* Redacted configuration diagnostics.
-* Stable configuration errors.
+- Validated configuration types.
+- Configuration loader.
+- Redacted configuration diagnostics.
+- Stable configuration errors.
 
 ### Rule
 
@@ -539,18 +539,18 @@ Implement technical adapters required by application ports.
 
 Version 1 infrastructure may include:
 
-* PostgreSQL connection management.
-* Database migrations.
-* Repository implementations.
-* Transaction implementation.
-* Local snapshot storage.
-* Checksum implementation.
-* Structured logging implementation.
-* System clock.
-* Identifier generation.
-* Workspace resolver for personal mode.
-* Persistence mappings.
-* Operational recovery helpers.
+- PostgreSQL connection management.
+- Database migrations.
+- Repository implementations.
+- Transaction implementation.
+- Local snapshot storage.
+- Checksum implementation.
+- Structured logging implementation.
+- System clock.
+- Identifier generation.
+- Workspace resolver for personal mode.
+- Persistence mappings.
+- Operational recovery helpers.
 
 ### Candidate Structure
 
@@ -571,24 +571,24 @@ src/
 
 Infrastructure may depend on:
 
-* `packages/application`.
-* `packages/core`.
-* `packages/shared`.
-* `packages/config`.
-* Approved infrastructure libraries.
+- `packages/application`.
+- `packages/core`.
+- `packages/shared`.
+- `packages/config`.
+- Approved infrastructure libraries.
 
 ### Prohibited Content
 
 Infrastructure must not:
 
-* Redefine Aggregate invariants.
-* Publish a Playbook Version by directly changing persistence state.
-* Infer a Workspace silently.
-* Expose ORM models as domain objects.
-* Store raw credentials in domain records.
-* Contain Notion API traversal logic.
-* Contain CLI formatting.
-* Become a general location for every external integration.
+- Redefine Aggregate invariants.
+- Publish a Playbook Version by directly changing persistence state.
+- Infer a Workspace silently.
+- Expose ORM models as domain objects.
+- Store raw credentials in domain records.
+- Contain Notion API traversal logic.
+- Contain CLI formatting.
+- Become a general location for every external integration.
 
 ### Public Surface
 
@@ -606,19 +606,19 @@ Implement the Notion Playbook Source adapter.
 
 ### Responsibilities
 
-* Create and configure the Notion client.
-* Verify access to configured roots.
-* Retrieve pages.
-* Retrieve databases.
-* Retrieve database records.
-* Retrieve block hierarchies.
-* Handle pagination.
-* Apply bounded retry and rate-limit behavior.
-* Translate Notion errors into integration errors.
-* Produce source-aligned snapshot data.
-* Preserve source references.
-* Report unsupported block types.
-* Map Notion transport objects into intermediate internal source structures.
+- Create and configure the Notion client.
+- Verify access to configured roots.
+- Retrieve pages.
+- Retrieve databases.
+- Retrieve database records.
+- Retrieve block hierarchies.
+- Handle pagination.
+- Apply bounded retry and rate-limit behavior.
+- Translate Notion errors into integration errors.
+- Produce source-aligned snapshot data.
+- Preserve source references.
+- Report unsupported block types.
+- Map Notion transport objects into intermediate internal source structures.
 
 ### Internal Layers
 
@@ -640,26 +640,26 @@ src/
 
 The Notion package may depend on:
 
-* `packages/application`.
-* `packages/core` only for approved public domain types where necessary.
-* `packages/shared`.
-* `packages/config`.
-* The official Notion SDK.
-* Approved retry utilities when explicitly selected.
+- `packages/application`.
+- `packages/core` only for approved public domain types where necessary.
+- `packages/shared`.
+- `packages/config`.
+- The official Notion SDK.
+- Approved retry utilities when explicitly selected.
 
 ### Prohibited Content
 
 The Notion package must not:
 
-* Publish Playbook Versions.
-* Activate versions.
-* Define Knowledge domain rules.
-* Expose Notion SDK types through application contracts.
-* Store snapshots directly without using the approved storage port.
-* Read arbitrary environment variables.
-* Implement CLI commands.
-* Write to Notion in version 1.
-* Decide Playbook naming or lifecycle policy.
+- Publish Playbook Versions.
+- Activate versions.
+- Define Knowledge domain rules.
+- Expose Notion SDK types through application contracts.
+- Store snapshots directly without using the approved storage port.
+- Read arbitrary environment variables.
+- Implement CLI commands.
+- Write to Notion in version 1.
+- Decide Playbook naming or lifecycle policy.
 
 ### Boundary Rule
 
@@ -683,14 +683,14 @@ Reserve the boundary for future AI provider adapters.
 
 Future responsibilities may include:
 
-* OpenAI adapter.
-* Anthropic adapter.
-* Google adapter.
-* Local model adapter.
-* Provider-neutral request mapping.
-* Provider response normalization.
-* Usage collection.
-* Provider error translation.
+- OpenAI adapter.
+- Anthropic adapter.
+- Google adapter.
+- Local model adapter.
+- Provider-neutral request mapping.
+- Provider response normalization.
+- Usage collection.
+- Provider error translation.
 
 ### Version 1 Status
 
@@ -702,13 +702,13 @@ The package may remain empty.
 
 Do not add:
 
-* Provider SDKs.
-* AI Request models.
-* Token accounting.
-* Model routing.
-* Embeddings.
-* Vector search.
-* Runtime model selection.
+- Provider SDKs.
+- AI Request models.
+- Token accounting.
+- Model routing.
+- Embeddings.
+- Vector search.
+- Runtime model selection.
 
 The package remains reserved to protect the future architecture.
 
@@ -722,26 +722,26 @@ Provide reusable test support across packages.
 
 ### Responsibilities
 
-* Test builders.
-* Domain object factories.
-* Fake clocks.
-* Fake identifier generators.
-* In-memory repository implementations.
-* Test database helpers.
-* Fixture loaders.
-* Contract-test suites.
-* Architecture-test helpers.
-* Fake external source gateways.
+- Test builders.
+- Domain object factories.
+- Fake clocks.
+- Fake identifier generators.
+- In-memory repository implementations.
+- Test database helpers.
+- Fixture loaders.
+- Contract-test suites.
+- Architecture-test helpers.
+- Fake external source gateways.
 
 ### Prohibited Content
 
 The Testing package must not:
 
-* Contain production business logic.
-* Become a required runtime dependency.
-* Export real credentials.
-* Duplicate large portions of production implementation.
-* Hide test setup so extensively that tests become unreadable.
+- Contain production business logic.
+- Become a required runtime dependency.
+- Export real credentials.
+- Duplicate large portions of production implementation.
+- Hide test setup so extensively that tests become unreadable.
 
 ### Dependency Rule
 
@@ -757,29 +757,29 @@ Packages are classified into four categories.
 
 ## Domain Packages
 
-* `core`.
+- `core`.
 
 Own business meaning and invariants.
 
 ## Application Packages
 
-* `application`.
+- `application`.
 
 Own orchestration and external contracts.
 
 ## Technical Packages
 
-* `config`.
-* `infrastructure`.
-* `notion`.
-* `ai-providers`.
+- `config`.
+- `infrastructure`.
+- `notion`.
+- `ai-providers`.
 
 Own configuration and technical implementations.
 
 ## Support Packages
 
-* `shared`.
-* `testing`.
+- `shared`.
+- `testing`.
 
 Provide reusable technical support.
 
@@ -801,20 +801,20 @@ apps/worker/src/composition/
 
 A composition root may:
 
-* Load validated configuration.
-* Create database connections.
-* Create repositories.
-* Create storage adapters.
-* Create the Notion adapter.
-* Create use-case handlers.
-* Create CLI command dependencies.
+- Load validated configuration.
+- Create database connections.
+- Create repositories.
+- Create storage adapters.
+- Create the Notion adapter.
+- Create use-case handlers.
+- Create CLI command dependencies.
 
 A composition root must not:
 
-* Contain business decisions.
-* Perform domain state transitions itself.
-* Become a global service locator.
-* Be imported by Core or Application.
+- Contain business decisions.
+- Perform domain state transitions itself.
+- Become a global service locator.
+- Be imported by Core or Application.
 
 ---
 
@@ -923,16 +923,16 @@ All internal packages remain private during version 1.
 
 Each package must define:
 
-* `name`.
-* `version`.
-* `private`.
-* `type`.
-* `main`.
-* `types`.
-* `exports`.
-* `files`.
-* Required scripts.
-* Explicit dependencies.
+- `name`.
+- `version`.
+- `private`.
+- `type`.
+- `main`.
+- `types`.
+- `exports`.
+- `files`.
+- Required scripts.
+- Explicit dependencies.
 
 Recommended scripts:
 
@@ -976,9 +976,9 @@ The reference must represent a valid architectural dependency.
 
 Some packages or applications may remain empty during version 1:
 
-* `apps/api`.
-* `apps/worker`.
-* `packages/ai-providers`.
+- `apps/api`.
+- `apps/worker`.
+- `packages/ai-providers`.
 
 Reserved packages exist because their architectural role is already approved.
 
@@ -986,10 +986,10 @@ They must not receive placeholder business logic.
 
 An empty package may contain:
 
-* `package.json`.
-* `tsconfig.json`.
-* `src/index.ts`.
-* A short README explaining its deferred scope.
+- `package.json`.
+- `tsconfig.json`.
+- `src/index.ts`.
+- A short README explaining its deferred scope.
 
 It should not contain speculative interfaces or generated scaffolding without a current use case.
 
@@ -1010,9 +1010,9 @@ Packages will be implemented in this order:
 
 Reserved packages remain inactive:
 
-* `apps/api`.
-* `apps/worker`.
-* `packages/ai-providers`.
+- `apps/api`.
+- `apps/worker`.
+- `packages/ai-providers`.
 
 This order follows dependency direction and reduces speculative implementation.
 
@@ -1031,11 +1031,11 @@ A new package may be introduced only when:
 
 A package must not be created merely because:
 
-* A folder is growing.
-* A coding agent suggests it.
-* A dependency has a different vendor name.
-* A technical class has a unique name.
-* Microservice extraction may happen someday.
+- A folder is growing.
+- A coding agent suggests it.
+- A dependency has a different vendor name.
+- A technical class has a unique name.
+- Microservice extraction may happen someday.
 
 ---
 
@@ -1043,19 +1043,19 @@ A package must not be created merely because:
 
 Packages may be merged or removed when:
 
-* Their responsibilities cannot be distinguished.
-* They create circular dependencies.
-* Their public contracts are artificial.
-* They remain empty without a justified future role.
-* Their separation increases complexity without protecting a boundary.
+- Their responsibilities cannot be distinguished.
+- They create circular dependencies.
+- Their public contracts are artificial.
+- They remain empty without a justified future role.
+- Their separation increases complexity without protecting a boundary.
 
 Any material package restructuring requires:
 
-* Updated package-design documentation.
-* Updated dependency rules.
-* TypeScript project-reference changes.
-* Import-boundary validation.
-* A focused migration plan.
+- Updated package-design documentation.
+- Updated dependency rules.
+- TypeScript project-reference changes.
+- Import-boundary validation.
+- A focused migration plan.
 
 ---
 
@@ -1088,19 +1088,19 @@ No additional package may be introduced during the initial implementation withou
 
 OpenCode must not:
 
-* Place use cases in Core.
-* Place Aggregate behavior in Application.
-* Place database models in Core.
-* Place Notion SDK types in Application contracts.
-* Place CLI rendering in Application.
-* Place environment reads outside Config.
-* Place repository implementations in Application.
-* Place repository interfaces in Infrastructure.
-* Add future AI provider code during version 1.
-* Put production code in Testing.
-* Use Shared as a miscellaneous code container.
-* Add a new package without approval.
-* Use deep imports to bypass public exports.
+- Place use cases in Core.
+- Place Aggregate behavior in Application.
+- Place database models in Core.
+- Place Notion SDK types in Application contracts.
+- Place CLI rendering in Application.
+- Place environment reads outside Config.
+- Place repository implementations in Application.
+- Place repository interfaces in Infrastructure.
+- Add future AI provider code during version 1.
+- Put production code in Testing.
+- Use Shared as a miscellaneous code container.
+- Add a new package without approval.
+- Use deep imports to bypass public exports.
 
 ---
 
@@ -1108,13 +1108,13 @@ OpenCode must not:
 
 The package design is considered implemented when:
 
-* Every approved package has a documented responsibility.
-* Applications remain thin delivery mechanisms.
-* Domain logic has one clear home.
-* Application orchestration has one clear home.
-* Technical adapters have explicit package ownership.
-* Notion remains isolated from Core.
-* Configuration access is centralized.
-* Testing support cannot become a runtime dependency.
-* Public exports are intentional.
-* Reserved future packages remain free from speculative functionality.
+- Every approved package has a documented responsibility.
+- Applications remain thin delivery mechanisms.
+- Domain logic has one clear home.
+- Application orchestration has one clear home.
+- Technical adapters have explicit package ownership.
+- Notion remains isolated from Core.
+- Configuration access is centralized.
+- Testing support cannot become a runtime dependency.
+- Public exports are intentional.
+- Reserved future packages remain free from speculative functionality.
