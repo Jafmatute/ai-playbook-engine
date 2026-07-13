@@ -114,13 +114,34 @@ describe('Workspace', () => {
     expect(result.toSnapshot()).toEqual(before);
     result.archive({ archivedAt: instant('2026-07-12T11:00:00Z') });
     const archived = result.toSnapshot();
-    expect(
-      result.rename({ name: name('Blocked'), updatedAt: instant('2026-07-12T12:00:00Z') }),
-    ).toMatchObject({
+    const renameResult = result.rename({
+      name: name('Blocked'),
+      updatedAt: instant('2026-07-12T12:00:00Z'),
+    });
+    expect(renameResult).toMatchObject({
       success: false,
-      error: { code: 'WORKSPACE_OPERATION_NOT_ALLOWED' },
+      error: {
+        code: 'WORKSPACE_OPERATION_NOT_ALLOWED',
+        details: { operation: 'rename' },
+      },
     });
     expect(result.toSnapshot()).toEqual(archived);
+  });
+
+  it('rejects restored archived state with archivedAt before createdAt', () => {
+    const createdAt = instant('2026-07-12T10:00:00Z');
+
+    expect(
+      Workspace.restore({
+        workspaceId,
+        name: name(),
+        status: 'archived',
+        description: null,
+        createdAt,
+        updatedAt: createdAt,
+        archivedAt: instant('2026-07-12T09:00:00Z'),
+      }),
+    ).toMatchObject({ success: false, error: { code: 'WORKSPACE_STATE_INVALID' } });
   });
 
   it('restores an archived workspace and rejects invalid restore timestamps', () => {

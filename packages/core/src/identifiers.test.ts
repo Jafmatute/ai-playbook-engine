@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { parsePlaybookId, parseWorkspaceId, type PlaybookId, type WorkspaceId } from './index.js';
+import * as core from './index.js';
 
 const uuid = 'de305d54-75b4-431b-adb2-eb6b9e546014';
 
@@ -42,5 +43,10 @@ describe('typed identifiers', () => {
     acceptsPlaybook(playbookResult.value);
     // @ts-expect-error Identifier brands must not be interchangeable.
     acceptsWorkspace(playbookResult.value);
+  });
+
+  it('does not export an unsafe identifier constructor', () => {
+    expect('createWorkspaceId' in core).toBe(false);
+    expect('createPlaybookId' in core).toBe(false);
   });
 });
