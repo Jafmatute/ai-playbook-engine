@@ -1,4 +1,4 @@
-﻿export type Result<TValue, TError> =
+export type Result<TValue, TError> =
   | {
       readonly success: true;
       readonly value: TValue;
