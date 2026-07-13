@@ -2,6 +2,7 @@ import { err, ok, type Result } from '@ai-playbook-engine/shared';
 
 declare const workspaceIdBrand: unique symbol;
 declare const playbookIdBrand: unique symbol;
+declare const playbookVersionIdBrand: unique symbol;
 declare const canonicalUuidBrand: unique symbol;
 
 type CanonicalUuid = string & {
@@ -16,11 +17,15 @@ export type PlaybookId = CanonicalUuid & {
   readonly [playbookIdBrand]: true;
 };
 
+export type PlaybookVersionId = CanonicalUuid & {
+  readonly [playbookVersionIdBrand]: true;
+};
+
 export interface IdentifierError {
   readonly code: 'INVALID_IDENTIFIER';
   readonly message: string;
   readonly details: {
-    readonly expectedType: 'workspace_id' | 'playbook_id';
+    readonly expectedType: 'workspace_id' | 'playbook_id' | 'playbook_version_id';
   };
 }
 
@@ -35,6 +40,13 @@ export function parseWorkspaceId(rawValue: string): Result<WorkspaceId, Identifi
 export function parsePlaybookId(rawValue: string): Result<PlaybookId, IdentifierError> {
   const parsed = parseIdentifier(rawValue, 'playbook_id');
   return parsed.success ? ok(createPlaybookId(parsed.value)) : parsed;
+}
+
+export function parsePlaybookVersionId(
+  rawValue: string,
+): Result<PlaybookVersionId, IdentifierError> {
+  const parsed = parseIdentifier(rawValue, 'playbook_version_id');
+  return parsed.success ? ok(createPlaybookVersionId(parsed.value)) : parsed;
 }
 
 function parseIdentifier(
@@ -58,6 +70,10 @@ function createWorkspaceId(value: CanonicalUuid): WorkspaceId {
 
 function createPlaybookId(value: CanonicalUuid): PlaybookId {
   return value as PlaybookId;
+}
+
+function createPlaybookVersionId(value: CanonicalUuid): PlaybookVersionId {
+  return value as PlaybookVersionId;
 }
 
 function invalidIdentifier(
