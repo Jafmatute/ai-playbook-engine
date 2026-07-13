@@ -15,9 +15,17 @@ export {
 } from './identifiers.js';
 export { Instant, type InstantError } from './instant.js';
 export {
+  NormalizationAttempt,
+  type CreateNormalizationAttemptInput,
   isNormalizationAttemptStatus,
+  type NormalizationAttemptCreationError,
+  type NormalizationAttemptRestorationError,
+  type NormalizationAttemptSnapshot,
+  type NormalizationAttemptStateInvalidError,
+  type NormalizationAttemptStateInvalidReason,
   type NormalizationAttemptStatus,
-} from './normalization-attempt/normalization-attempt-status.js';
+  type RestoreNormalizationAttemptInput,
+} from './normalization-attempt/index.js';
 export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
