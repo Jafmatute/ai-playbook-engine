@@ -4,3 +4,8 @@ export {
   type SourceStableKeyError,
   type SourceStableKeyInvalidReason,
 } from './source-stable-key.js';
+export {
+  KnowledgeTitle,
+  type KnowledgeTitleError,
+  type KnowledgeTitleInvalidReason,
+} from './knowledge-title.js';

@@ -60,6 +60,11 @@ export {
   type SourceStableKeyInvalidReason,
 } from './knowledge-item/index.js';
 export {
+  KnowledgeTitle,
+  type KnowledgeTitleError,
+  type KnowledgeTitleInvalidReason,
+} from './knowledge-item/index.js';
+export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
   type WorkspaceCreationError,
