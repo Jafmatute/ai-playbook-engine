@@ -1583,6 +1583,85 @@ describe('PlaybookVersion restoration — published', () => {
       error: { code: 'PLAYBOOK_VERSION_STATE_INVALID' },
     });
   });
+
+  it('rejects published with checksum mismatch', () => {
+    const validatedAt = instant('2026-07-12T12:00:00Z');
+    const publishedAt = instant('2026-07-12T13:00:00Z');
+    const differentChecksum = contentChecksum(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    const summary = validationSummary({
+      completedAt: validatedAt,
+      validatedContentChecksum: differentChecksum,
+      blockingFindingCount: 0,
+    });
+    const result = PlaybookVersion.restore({
+      playbookVersionId: fixturePlaybookVersionId,
+      workspaceId: fixtureWorkspaceId,
+      playbookId: fixturePlaybookId,
+      synchronizationSnapshotId: fixtureSnapshotId,
+      versionSequence: versionSequence(),
+      versionLabel: null,
+      status: 'published',
+      normalizationStatus: 'completed',
+      parserVersion: parserVersion(),
+      normalizationSchemaVersion: normalizationSchemaVersion(),
+      sourceContentChecksum: contentChecksum(),
+      normalizationAttemptId: fixtureNormalizationAttemptId,
+      validationSummary: summary,
+      createdAt: defaultNow,
+      updatedAt: publishedAt,
+      validationStartedAt: instant('2026-07-12T11:00:00Z'),
+      validatedAt,
+      publishedAt,
+      archivedAt: null,
+    });
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        code: 'PLAYBOOK_VERSION_STATE_INVALID',
+        details: { reason: 'validation_checksum_mismatch' },
+      },
+    });
+  });
+
+  it('rejects published with completedAt different from validatedAt', () => {
+    const validatedAt = instant('2026-07-12T12:00:00Z');
+    const publishedAt = instant('2026-07-12T13:00:00Z');
+    const summary = validationSummary({
+      completedAt: instant('2026-07-12T12:30:00Z'),
+      validatedContentChecksum: contentChecksum(),
+      blockingFindingCount: 0,
+    });
+    const result = PlaybookVersion.restore({
+      playbookVersionId: fixturePlaybookVersionId,
+      workspaceId: fixtureWorkspaceId,
+      playbookId: fixturePlaybookId,
+      synchronizationSnapshotId: fixtureSnapshotId,
+      versionSequence: versionSequence(),
+      versionLabel: null,
+      status: 'published',
+      normalizationStatus: 'completed',
+      parserVersion: parserVersion(),
+      normalizationSchemaVersion: normalizationSchemaVersion(),
+      sourceContentChecksum: contentChecksum(),
+      normalizationAttemptId: fixtureNormalizationAttemptId,
+      validationSummary: summary,
+      createdAt: defaultNow,
+      updatedAt: publishedAt,
+      validationStartedAt: instant('2026-07-12T11:00:00Z'),
+      validatedAt,
+      publishedAt,
+      archivedAt: null,
+    });
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        code: 'PLAYBOOK_VERSION_STATE_INVALID',
+        details: { reason: 'validation_completion_mismatch' },
+      },
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1807,6 +1886,363 @@ describe('PlaybookVersion restoration — archived', () => {
     expect(result).toMatchObject({
       success: false,
       error: { code: 'PLAYBOOK_VERSION_STATE_INVALID' },
+    });
+  });
+
+  it('rejects archived from validated with checksum mismatch', () => {
+    const validatedAt = instant('2026-07-12T12:00:00Z');
+    const archivedAt = instant('2026-07-12T14:00:00Z');
+    const differentChecksum = contentChecksum(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    const summary = validationSummary({
+      completedAt: validatedAt,
+      validatedContentChecksum: differentChecksum,
+      blockingFindingCount: 0,
+    });
+    const result = PlaybookVersion.restore({
+      playbookVersionId: fixturePlaybookVersionId,
+      workspaceId: fixtureWorkspaceId,
+      playbookId: fixturePlaybookId,
+      synchronizationSnapshotId: fixtureSnapshotId,
+      versionSequence: versionSequence(),
+      versionLabel: null,
+      status: 'archived',
+      normalizationStatus: 'completed',
+      parserVersion: parserVersion(),
+      normalizationSchemaVersion: normalizationSchemaVersion(),
+      sourceContentChecksum: contentChecksum(),
+      normalizationAttemptId: fixtureNormalizationAttemptId,
+      validationSummary: summary,
+      createdAt: defaultNow,
+      updatedAt: archivedAt,
+      validationStartedAt: instant('2026-07-12T11:00:00Z'),
+      validatedAt,
+      publishedAt: null,
+      archivedAt,
+    });
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        code: 'PLAYBOOK_VERSION_STATE_INVALID',
+        details: { reason: 'validation_checksum_mismatch' },
+      },
+    });
+  });
+
+  it('rejects archived from validated with completion mismatch', () => {
+    const validatedAt = instant('2026-07-12T12:00:00Z');
+    const archivedAt = instant('2026-07-12T14:00:00Z');
+    const summary = validationSummary({
+      completedAt: instant('2026-07-12T12:30:00Z'),
+      validatedContentChecksum: contentChecksum(),
+      blockingFindingCount: 0,
+    });
+    const result = PlaybookVersion.restore({
+      playbookVersionId: fixturePlaybookVersionId,
+      workspaceId: fixtureWorkspaceId,
+      playbookId: fixturePlaybookId,
+      synchronizationSnapshotId: fixtureSnapshotId,
+      versionSequence: versionSequence(),
+      versionLabel: null,
+      status: 'archived',
+      normalizationStatus: 'completed',
+      parserVersion: parserVersion(),
+      normalizationSchemaVersion: normalizationSchemaVersion(),
+      sourceContentChecksum: contentChecksum(),
+      normalizationAttemptId: fixtureNormalizationAttemptId,
+      validationSummary: summary,
+      createdAt: defaultNow,
+      updatedAt: archivedAt,
+      validationStartedAt: instant('2026-07-12T11:00:00Z'),
+      validatedAt,
+      publishedAt: null,
+      archivedAt,
+    });
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        code: 'PLAYBOOK_VERSION_STATE_INVALID',
+        details: { reason: 'validation_completion_mismatch' },
+      },
+    });
+  });
+
+  it('rejects archived from validated with archivedAt before validatedAt', () => {
+    const validatedAt = instant('2026-07-12T12:00:00Z');
+    const archivedAt = instant('2026-07-12T11:30:00Z');
+    const summary = validationSummary({
+      completedAt: validatedAt,
+      validatedContentChecksum: contentChecksum(),
+      blockingFindingCount: 0,
+    });
+    const result = PlaybookVersion.restore({
+      playbookVersionId: fixturePlaybookVersionId,
+      workspaceId: fixtureWorkspaceId,
+      playbookId: fixturePlaybookId,
+      synchronizationSnapshotId: fixtureSnapshotId,
+      versionSequence: versionSequence(),
+      versionLabel: null,
+      status: 'archived',
+      normalizationStatus: 'completed',
+      parserVersion: parserVersion(),
+      normalizationSchemaVersion: normalizationSchemaVersion(),
+      sourceContentChecksum: contentChecksum(),
+      normalizationAttemptId: fixtureNormalizationAttemptId,
+      validationSummary: summary,
+      createdAt: defaultNow,
+      updatedAt: validatedAt,
+      validationStartedAt: instant('2026-07-12T11:00:00Z'),
+      validatedAt,
+      publishedAt: null,
+      archivedAt,
+    });
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        code: 'PLAYBOOK_VERSION_STATE_INVALID',
+        details: { reason: 'timestamp_order_invalid', field: 'archivedAt' },
+      },
+    });
+  });
+
+  it('rejects archived from invalid with checksum mismatch', () => {
+    const validatedAt = instant('2026-07-12T12:00:00Z');
+    const archivedAt = instant('2026-07-12T14:00:00Z');
+    const differentChecksum = contentChecksum(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    const summary = validationSummary({
+      completedAt: validatedAt,
+      validatedContentChecksum: differentChecksum,
+      blockingFindingCount: 3,
+      publicationEligible: false,
+    });
+    const result = PlaybookVersion.restore({
+      playbookVersionId: fixturePlaybookVersionId,
+      workspaceId: fixtureWorkspaceId,
+      playbookId: fixturePlaybookId,
+      synchronizationSnapshotId: fixtureSnapshotId,
+      versionSequence: versionSequence(),
+      versionLabel: null,
+      status: 'archived',
+      normalizationStatus: 'completed',
+      parserVersion: parserVersion(),
+      normalizationSchemaVersion: normalizationSchemaVersion(),
+      sourceContentChecksum: contentChecksum(),
+      normalizationAttemptId: fixtureNormalizationAttemptId,
+      validationSummary: summary,
+      createdAt: defaultNow,
+      updatedAt: archivedAt,
+      validationStartedAt: instant('2026-07-12T11:00:00Z'),
+      validatedAt,
+      publishedAt: null,
+      archivedAt,
+    });
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        code: 'PLAYBOOK_VERSION_STATE_INVALID',
+        details: { reason: 'validation_checksum_mismatch' },
+      },
+    });
+  });
+
+  it('rejects archived from invalid with completion mismatch', () => {
+    const validatedAt = instant('2026-07-12T12:00:00Z');
+    const archivedAt = instant('2026-07-12T14:00:00Z');
+    const summary = validationSummary({
+      completedAt: instant('2026-07-12T12:30:00Z'),
+      validatedContentChecksum: contentChecksum(),
+      blockingFindingCount: 3,
+      publicationEligible: false,
+    });
+    const result = PlaybookVersion.restore({
+      playbookVersionId: fixturePlaybookVersionId,
+      workspaceId: fixtureWorkspaceId,
+      playbookId: fixturePlaybookId,
+      synchronizationSnapshotId: fixtureSnapshotId,
+      versionSequence: versionSequence(),
+      versionLabel: null,
+      status: 'archived',
+      normalizationStatus: 'completed',
+      parserVersion: parserVersion(),
+      normalizationSchemaVersion: normalizationSchemaVersion(),
+      sourceContentChecksum: contentChecksum(),
+      normalizationAttemptId: fixtureNormalizationAttemptId,
+      validationSummary: summary,
+      createdAt: defaultNow,
+      updatedAt: archivedAt,
+      validationStartedAt: instant('2026-07-12T11:00:00Z'),
+      validatedAt,
+      publishedAt: null,
+      archivedAt,
+    });
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        code: 'PLAYBOOK_VERSION_STATE_INVALID',
+        details: { reason: 'validation_completion_mismatch' },
+      },
+    });
+  });
+
+  it('rejects archived from invalid with archivedAt before validatedAt', () => {
+    const validatedAt = instant('2026-07-12T12:00:00Z');
+    const archivedAt = instant('2026-07-12T11:30:00Z');
+    const summary = validationSummary({
+      completedAt: validatedAt,
+      validatedContentChecksum: contentChecksum(),
+      blockingFindingCount: 3,
+      publicationEligible: false,
+    });
+    const result = PlaybookVersion.restore({
+      playbookVersionId: fixturePlaybookVersionId,
+      workspaceId: fixtureWorkspaceId,
+      playbookId: fixturePlaybookId,
+      synchronizationSnapshotId: fixtureSnapshotId,
+      versionSequence: versionSequence(),
+      versionLabel: null,
+      status: 'archived',
+      normalizationStatus: 'completed',
+      parserVersion: parserVersion(),
+      normalizationSchemaVersion: normalizationSchemaVersion(),
+      sourceContentChecksum: contentChecksum(),
+      normalizationAttemptId: fixtureNormalizationAttemptId,
+      validationSummary: summary,
+      createdAt: defaultNow,
+      updatedAt: validatedAt,
+      validationStartedAt: instant('2026-07-12T11:00:00Z'),
+      validatedAt,
+      publishedAt: null,
+      archivedAt,
+    });
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        code: 'PLAYBOOK_VERSION_STATE_INVALID',
+        details: { reason: 'timestamp_order_invalid', field: 'archivedAt' },
+      },
+    });
+  });
+
+  it('rejects archived from published with checksum mismatch', () => {
+    const validatedAt = instant('2026-07-12T12:00:00Z');
+    const publishedAt = instant('2026-07-12T13:00:00Z');
+    const archivedAt = instant('2026-07-12T14:00:00Z');
+    const differentChecksum = contentChecksum(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    const summary = validationSummary({
+      completedAt: validatedAt,
+      validatedContentChecksum: differentChecksum,
+      blockingFindingCount: 0,
+    });
+    const result = PlaybookVersion.restore({
+      playbookVersionId: fixturePlaybookVersionId,
+      workspaceId: fixtureWorkspaceId,
+      playbookId: fixturePlaybookId,
+      synchronizationSnapshotId: fixtureSnapshotId,
+      versionSequence: versionSequence(),
+      versionLabel: null,
+      status: 'archived',
+      normalizationStatus: 'completed',
+      parserVersion: parserVersion(),
+      normalizationSchemaVersion: normalizationSchemaVersion(),
+      sourceContentChecksum: contentChecksum(),
+      normalizationAttemptId: fixtureNormalizationAttemptId,
+      validationSummary: summary,
+      createdAt: defaultNow,
+      updatedAt: archivedAt,
+      validationStartedAt: instant('2026-07-12T11:00:00Z'),
+      validatedAt,
+      publishedAt,
+      archivedAt,
+    });
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        code: 'PLAYBOOK_VERSION_STATE_INVALID',
+        details: { reason: 'validation_checksum_mismatch' },
+      },
+    });
+  });
+
+  it('rejects archived from published with completion mismatch', () => {
+    const validatedAt = instant('2026-07-12T12:00:00Z');
+    const publishedAt = instant('2026-07-12T13:00:00Z');
+    const archivedAt = instant('2026-07-12T14:00:00Z');
+    const summary = validationSummary({
+      completedAt: instant('2026-07-12T12:30:00Z'),
+      validatedContentChecksum: contentChecksum(),
+      blockingFindingCount: 0,
+    });
+    const result = PlaybookVersion.restore({
+      playbookVersionId: fixturePlaybookVersionId,
+      workspaceId: fixtureWorkspaceId,
+      playbookId: fixturePlaybookId,
+      synchronizationSnapshotId: fixtureSnapshotId,
+      versionSequence: versionSequence(),
+      versionLabel: null,
+      status: 'archived',
+      normalizationStatus: 'completed',
+      parserVersion: parserVersion(),
+      normalizationSchemaVersion: normalizationSchemaVersion(),
+      sourceContentChecksum: contentChecksum(),
+      normalizationAttemptId: fixtureNormalizationAttemptId,
+      validationSummary: summary,
+      createdAt: defaultNow,
+      updatedAt: archivedAt,
+      validationStartedAt: instant('2026-07-12T11:00:00Z'),
+      validatedAt,
+      publishedAt,
+      archivedAt,
+    });
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        code: 'PLAYBOOK_VERSION_STATE_INVALID',
+        details: { reason: 'validation_completion_mismatch' },
+      },
+    });
+  });
+
+  it('rejects archived from published with archivedAt before publishedAt', () => {
+    const validatedAt = instant('2026-07-12T12:00:00Z');
+    const publishedAt = instant('2026-07-12T13:00:00Z');
+    const archivedAt = instant('2026-07-12T12:30:00Z');
+    const summary = validationSummary({
+      completedAt: validatedAt,
+      validatedContentChecksum: contentChecksum(),
+      blockingFindingCount: 0,
+    });
+    const result = PlaybookVersion.restore({
+      playbookVersionId: fixturePlaybookVersionId,
+      workspaceId: fixtureWorkspaceId,
+      playbookId: fixturePlaybookId,
+      synchronizationSnapshotId: fixtureSnapshotId,
+      versionSequence: versionSequence(),
+      versionLabel: null,
+      status: 'archived',
+      normalizationStatus: 'completed',
+      parserVersion: parserVersion(),
+      normalizationSchemaVersion: normalizationSchemaVersion(),
+      sourceContentChecksum: contentChecksum(),
+      normalizationAttemptId: fixtureNormalizationAttemptId,
+      validationSummary: summary,
+      createdAt: defaultNow,
+      updatedAt: publishedAt,
+      validationStartedAt: instant('2026-07-12T11:00:00Z'),
+      validatedAt,
+      publishedAt,
+      archivedAt,
+    });
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        code: 'PLAYBOOK_VERSION_STATE_INVALID',
+        details: { reason: 'timestamp_order_invalid', field: 'archivedAt' },
+      },
     });
   });
 });

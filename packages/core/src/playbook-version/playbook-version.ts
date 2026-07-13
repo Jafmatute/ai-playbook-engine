@@ -323,10 +323,6 @@ function validateRestoredState(input: {
     return stateInvalid({ reason: 'timestamp_order_invalid', field: 'archivedAt' });
   }
 
-  if (input.updatedAt.compare(input.createdAt) < 0) {
-    return stateInvalid({ reason: 'updated_before_created', field: 'updatedAt' });
-  }
-
   if (
     input.validationStartedAt !== null &&
     input.validationStartedAt.compare(input.createdAt) < 0
@@ -529,12 +525,13 @@ function validateValidated(input: {
     return stateInvalid({ reason: 'validation_summary_not_eligible' });
   }
 
-  if (!input.validationSummary.completedAt.equals(input.validatedAt)) {
-    return stateInvalid({ reason: 'validation_completion_mismatch' });
-  }
-
-  if (!input.validationSummary.validatedContentChecksum.equals(input.sourceContentChecksum)) {
-    return stateInvalid({ reason: 'validation_checksum_mismatch' });
+  const summaryErrorValidated = checkFinalizedSummaryIntegrity(
+    input.validationSummary,
+    input.validatedAt,
+    input.sourceContentChecksum,
+  );
+  if (summaryErrorValidated !== null) {
+    return summaryErrorValidated;
   }
 
   if (input.publishedAt !== null) {
@@ -589,12 +586,13 @@ function validateInvalid(input: {
     return stateInvalid({ reason: 'validation_summary_not_eligible' });
   }
 
-  if (!input.validationSummary.completedAt.equals(input.validatedAt)) {
-    return stateInvalid({ reason: 'validation_completion_mismatch' });
-  }
-
-  if (!input.validationSummary.validatedContentChecksum.equals(input.sourceContentChecksum)) {
-    return stateInvalid({ reason: 'validation_checksum_mismatch' });
+  const summaryErrorInvalid = checkFinalizedSummaryIntegrity(
+    input.validationSummary,
+    input.validatedAt,
+    input.sourceContentChecksum,
+  );
+  if (summaryErrorInvalid !== null) {
+    return summaryErrorInvalid;
   }
 
   if (input.publishedAt !== null) {
@@ -645,6 +643,19 @@ function validatePublished(input: {
     return stateInvalid({ reason: 'validation_summary_not_eligible' });
   }
 
+  if (input.validationSummary.blockingFindingCount !== 0) {
+    return stateInvalid({ reason: 'validation_summary_not_eligible' });
+  }
+
+  const summaryError = checkFinalizedSummaryIntegrity(
+    input.validationSummary,
+    input.validatedAt,
+    input.sourceContentChecksum,
+  );
+  if (summaryError !== null) {
+    return summaryError;
+  }
+
   if (input.publishedAt === null) {
     return stateInvalid({ reason: 'required_timestamp_missing', field: 'publishedAt' });
   }
@@ -693,16 +704,56 @@ function validateArchived(input: {
     return stateInvalid({ reason: 'validation_summary_required' });
   }
 
-  if (input.publishedAt !== null && !input.validationSummary.publicationEligible) {
-    return stateInvalid({ reason: 'validation_summary_not_eligible' });
+  if (input.archivedAt.compare(input.validatedAt) < 0) {
+    return stateInvalid({ reason: 'timestamp_order_invalid', field: 'archivedAt' });
   }
 
-  const previouslyPublished = input.publishedAt !== null;
-  const previouslyValidated = !previouslyPublished && input.validationSummary.publicationEligible;
-  const previouslyInvalid = !previouslyPublished && !input.validationSummary.publicationEligible;
+  if (input.publishedAt !== null && input.archivedAt.compare(input.publishedAt) < 0) {
+    return stateInvalid({ reason: 'timestamp_order_invalid', field: 'archivedAt' });
+  }
+
+  const summaryError = checkFinalizedSummaryIntegrity(
+    input.validationSummary,
+    input.validatedAt,
+    input.sourceContentChecksum,
+  );
+  if (summaryError !== null) {
+    return summaryError;
+  }
+
+  const previouslyPublished =
+    input.publishedAt !== null &&
+    input.validationSummary.publicationEligible &&
+    input.validationSummary.blockingFindingCount === 0;
+
+  const previouslyValidated =
+    input.publishedAt === null &&
+    input.validationSummary.publicationEligible &&
+    input.validationSummary.blockingFindingCount === 0;
+
+  const previouslyInvalid =
+    input.publishedAt === null &&
+    !input.validationSummary.publicationEligible &&
+    input.validationSummary.blockingFindingCount > 0;
 
   if (!previouslyPublished && !previouslyValidated && !previouslyInvalid) {
     return stateInvalid({ reason: 'status_combination_invalid' });
+  }
+
+  return null;
+}
+
+function checkFinalizedSummaryIntegrity(
+  summary: ValidationSummary,
+  validatedAt: Instant,
+  sourceContentChecksum: ContentChecksum,
+): PlaybookVersionStateInvalidError | null {
+  if (!summary.completedAt.equals(validatedAt)) {
+    return stateInvalid({ reason: 'validation_completion_mismatch' });
+  }
+
+  if (!summary.validatedContentChecksum.equals(sourceContentChecksum)) {
+    return stateInvalid({ reason: 'validation_checksum_mismatch' });
   }
 
   return null;
