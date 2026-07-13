@@ -40,5 +40,10 @@ export {
   type PlaybookVersionCreationError,
   type PlaybookVersionRestorationError,
   type PlaybookVersionStateInvalidError,
+  type PlaybookVersionOperationNotAllowedError,
+  type PlaybookVersionNormalizationAlreadyRunningError,
+  type PlaybookVersionNormalizationNotRunningError,
+  type PlaybookVersionNormalizationAttemptInvalidError,
+  type PlaybookVersionTransitionError,
   type PlaybookVersionSnapshot,
 } from './playbook-version.js';

@@ -39,12 +39,55 @@ export interface PlaybookVersionStateInvalidError {
     readonly field?: string;
     readonly currentStatus?: string;
     readonly normalizationStatus?: string;
+    readonly operation?: string;
   };
 }
 
 export type PlaybookVersionCreationError = PlaybookVersionStateInvalidError;
 
 export type PlaybookVersionRestorationError = PlaybookVersionStateInvalidError;
+
+export interface PlaybookVersionOperationNotAllowedError {
+  readonly code: 'PLAYBOOK_VERSION_OPERATION_NOT_ALLOWED';
+  readonly message: string;
+  readonly details: {
+    readonly operation: string;
+    readonly reason: string;
+    readonly currentStatus?: PlaybookVersionStatus;
+    readonly normalizationStatus?: NormalizationStatus;
+  };
+}
+
+export interface PlaybookVersionNormalizationAlreadyRunningError {
+  readonly code: 'PLAYBOOK_VERSION_NORMALIZATION_ALREADY_RUNNING';
+  readonly message: string;
+  readonly details: Record<string, never>;
+}
+
+export interface PlaybookVersionNormalizationNotRunningError {
+  readonly code: 'PLAYBOOK_VERSION_NORMALIZATION_NOT_RUNNING';
+  readonly message: string;
+  readonly details: {
+    readonly operation: string;
+    readonly normalizationStatus: NormalizationStatus;
+  };
+}
+
+export interface PlaybookVersionNormalizationAttemptInvalidError {
+  readonly code: 'PLAYBOOK_VERSION_NORMALIZATION_ATTEMPT_INVALID';
+  readonly message: string;
+  readonly details: {
+    readonly reason: 'attempt_must_change';
+    readonly normalizationAttemptId: string;
+  };
+}
+
+export type PlaybookVersionTransitionError =
+  | PlaybookVersionStateInvalidError
+  | PlaybookVersionOperationNotAllowedError
+  | PlaybookVersionNormalizationAlreadyRunningError
+  | PlaybookVersionNormalizationNotRunningError
+  | PlaybookVersionNormalizationAttemptInvalidError;
 
 export interface PlaybookVersionSnapshot {
   readonly playbookVersionId: PlaybookVersionId;
@@ -272,6 +315,158 @@ export class PlaybookVersion {
 
   get archivedAt(): Instant | null {
     return this.#state.archivedAt;
+  }
+
+  beginNormalization(input: {
+    readonly normalizationAttemptId: NormalizationAttemptId;
+    readonly startedAt: Instant;
+  }): Result<void, PlaybookVersionTransitionError> {
+    const { status, normalizationStatus } = this.#state;
+
+    if (status !== 'draft') {
+      return err(
+        operationNotAllowed({
+          operation: 'begin_normalization',
+          currentStatus: status,
+          normalizationStatus,
+          reason: 'version_not_draft',
+        }),
+      );
+    }
+
+    if (normalizationStatus === 'running') {
+      return err(normalizationAlreadyRunning());
+    }
+
+    if (normalizationStatus === 'completed') {
+      return err(
+        operationNotAllowed({
+          operation: 'begin_normalization',
+          currentStatus: status,
+          normalizationStatus,
+          reason: 'normalization_already_completed',
+        }),
+      );
+    }
+
+    if (input.startedAt.compare(this.#state.updatedAt) < 0) {
+      return err(
+        stateInvalid({
+          reason: 'timestamp_order_invalid',
+          field: 'updatedAt',
+          operation: 'begin_normalization',
+        }),
+      );
+    }
+
+    if (normalizationStatus === 'pending') {
+      this.#state.normalizationStatus = 'running';
+      this.#state.normalizationAttemptId = input.normalizationAttemptId;
+      this.#state.updatedAt = input.startedAt;
+      return ok(undefined);
+    }
+
+    if (this.#state.normalizationAttemptId === null) {
+      return err(stateInvalid({ reason: 'normalization_attempt_required' }));
+    }
+
+    if (input.normalizationAttemptId === this.#state.normalizationAttemptId) {
+      return err(
+        normalizationAttemptInvalid({
+          reason: 'attempt_must_change',
+          normalizationAttemptId: input.normalizationAttemptId,
+        }),
+      );
+    }
+
+    this.#state.normalizationStatus = 'running';
+    this.#state.normalizationAttemptId = input.normalizationAttemptId;
+    this.#state.updatedAt = input.startedAt;
+    return ok(undefined);
+  }
+
+  completeNormalization(input: {
+    readonly completedAt: Instant;
+  }): Result<void, PlaybookVersionTransitionError> {
+    const { status, normalizationStatus } = this.#state;
+
+    if (status !== 'draft') {
+      return err(
+        operationNotAllowed({
+          operation: 'complete_normalization',
+          reason: 'version_not_draft',
+        }),
+      );
+    }
+
+    if (normalizationStatus !== 'running') {
+      return err(
+        normalizationNotRunning({
+          operation: 'complete_normalization',
+          normalizationStatus,
+        }),
+      );
+    }
+
+    if (this.#state.normalizationAttemptId === null) {
+      return err(stateInvalid({ reason: 'normalization_attempt_required' }));
+    }
+
+    if (input.completedAt.compare(this.#state.updatedAt) < 0) {
+      return err(
+        stateInvalid({
+          reason: 'timestamp_order_invalid',
+          field: 'updatedAt',
+          operation: 'complete_normalization',
+        }),
+      );
+    }
+
+    this.#state.normalizationStatus = 'completed';
+    this.#state.updatedAt = input.completedAt;
+    return ok(undefined);
+  }
+
+  failNormalization(input: {
+    readonly failedAt: Instant;
+  }): Result<void, PlaybookVersionTransitionError> {
+    const { status, normalizationStatus } = this.#state;
+
+    if (status !== 'draft') {
+      return err(
+        operationNotAllowed({
+          operation: 'fail_normalization',
+          reason: 'version_not_draft',
+        }),
+      );
+    }
+
+    if (normalizationStatus !== 'running') {
+      return err(
+        normalizationNotRunning({
+          operation: 'fail_normalization',
+          normalizationStatus,
+        }),
+      );
+    }
+
+    if (this.#state.normalizationAttemptId === null) {
+      return err(stateInvalid({ reason: 'normalization_attempt_required' }));
+    }
+
+    if (input.failedAt.compare(this.#state.updatedAt) < 0) {
+      return err(
+        stateInvalid({
+          reason: 'timestamp_order_invalid',
+          field: 'updatedAt',
+          operation: 'fail_normalization',
+        }),
+      );
+    }
+
+    this.#state.normalizationStatus = 'failed';
+    this.#state.updatedAt = input.failedAt;
+    return ok(undefined);
   }
 
   toSnapshot(): PlaybookVersionSnapshot {
@@ -780,6 +975,44 @@ function stateInvalid(
   return Object.freeze({
     code: 'PLAYBOOK_VERSION_STATE_INVALID' as const,
     message: 'The playbook version state is inconsistent.',
+    details: Object.freeze(details),
+  });
+}
+
+function operationNotAllowed(
+  details: PlaybookVersionOperationNotAllowedError['details'],
+): PlaybookVersionOperationNotAllowedError {
+  return Object.freeze({
+    code: 'PLAYBOOK_VERSION_OPERATION_NOT_ALLOWED' as const,
+    message: 'The operation is not allowed for the current version state.',
+    details: Object.freeze(details),
+  });
+}
+
+function normalizationAlreadyRunning(): PlaybookVersionNormalizationAlreadyRunningError {
+  return Object.freeze({
+    code: 'PLAYBOOK_VERSION_NORMALIZATION_ALREADY_RUNNING' as const,
+    message: 'Normalization is already running.',
+    details: Object.freeze({}),
+  });
+}
+
+function normalizationNotRunning(
+  details: PlaybookVersionNormalizationNotRunningError['details'],
+): PlaybookVersionNormalizationNotRunningError {
+  return Object.freeze({
+    code: 'PLAYBOOK_VERSION_NORMALIZATION_NOT_RUNNING' as const,
+    message: 'Normalization must be running to perform this operation.',
+    details: Object.freeze(details),
+  });
+}
+
+function normalizationAttemptInvalid(
+  details: PlaybookVersionNormalizationAttemptInvalidError['details'],
+): PlaybookVersionNormalizationAttemptInvalidError {
+  return Object.freeze({
+    code: 'PLAYBOOK_VERSION_NORMALIZATION_ATTEMPT_INVALID' as const,
+    message: 'A new normalization attempt must use a different identifier.',
     details: Object.freeze(details),
   });
 }
