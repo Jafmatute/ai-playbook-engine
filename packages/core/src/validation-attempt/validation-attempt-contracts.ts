@@ -26,6 +26,10 @@ export interface RestoreValidationAttemptInput {
   readonly validationSummary: ValidationSummary | null;
 }
 
+export interface MarkValidationAttemptValidatedInput {
+  readonly validationSummary: ValidationSummary;
+}
+
 export interface ValidationAttemptSnapshot {
   readonly validationAttemptId: ValidationAttemptId;
   readonly playbookVersionId: PlaybookVersionId;

@@ -8,12 +8,14 @@ import type {
   ValidationAttemptState,
   CreateValidationAttemptInput,
   RestoreValidationAttemptInput,
+  MarkValidationAttemptValidatedInput,
 } from './validation-attempt-contracts.js';
 import type {
   ValidationAttemptCreationError,
   ValidationAttemptRestorationError,
+  ValidationAttemptTransitionError,
 } from './validation-attempt-errors.js';
-import { stateInvalid } from './validation-attempt-errors.js';
+import { stateInvalid, notRunning, summaryInvalid } from './validation-attempt-errors.js';
 import {
   isValidationAttemptStatus,
   type ValidationAttemptStatus,
@@ -23,6 +25,9 @@ export { type ValidationAttemptSnapshot } from './validation-attempt-contracts.j
 export {
   type ValidationAttemptCreationError,
   type ValidationAttemptRestorationError,
+  type ValidationAttemptTransitionError,
+  type ValidationAttemptNotRunningError,
+  type ValidationAttemptSummaryInvalidError,
 } from './validation-attempt-errors.js';
 
 export class ValidationAttempt {
@@ -148,6 +153,48 @@ export class ValidationAttempt {
 
   get validationSummary(): ValidationSummary | null {
     return this.#state.validationSummary;
+  }
+
+  markValidated(
+    input: MarkValidationAttemptValidatedInput,
+  ): Result<void, ValidationAttemptTransitionError> {
+    if (this.#state.status !== 'running') {
+      return err(notRunning({ operation: 'markValidated', currentStatus: this.#state.status }));
+    }
+
+    if (input.validationSummary.validationAttemptId !== this.#state.validationAttemptId) {
+      return err(
+        summaryInvalid({
+          operation: 'markValidated',
+          field: 'validationSummary',
+          reason: 'summary_attempt_mismatch',
+        }),
+      );
+    }
+
+    if (input.validationSummary.completedAt.compare(this.#state.startedAt) < 0) {
+      return err(
+        summaryInvalid({
+          operation: 'markValidated',
+          field: 'validationSummary',
+          reason: 'summary_completed_before_started',
+        }),
+      );
+    }
+
+    if (!input.validationSummary.publicationEligible) {
+      return err(
+        summaryInvalid({
+          operation: 'markValidated',
+          field: 'validationSummary',
+          reason: 'summary_not_publication_eligible',
+        }),
+      );
+    }
+
+    this.#state.status = 'validated';
+    this.#state.validationSummary = input.validationSummary;
+    return ok(undefined);
   }
 
   toSnapshot(): ValidationAttemptSnapshot {

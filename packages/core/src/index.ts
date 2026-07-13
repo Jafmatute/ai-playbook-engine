@@ -36,12 +36,18 @@ export {
   ValidationAttempt,
   type CreateValidationAttemptInput,
   isValidationAttemptStatus,
+  type MarkValidationAttemptValidatedInput,
   type ValidationAttemptCreationError,
+  type ValidationAttemptNotRunningError,
+  type ValidationAttemptOperation,
   type ValidationAttemptRestorationError,
   type ValidationAttemptSnapshot,
   type ValidationAttemptStateInvalidError,
   type ValidationAttemptStateInvalidReason,
   type ValidationAttemptStatus,
+  type ValidationAttemptSummaryInvalidError,
+  type ValidationAttemptSummaryInvalidReason,
+  type ValidationAttemptTransitionError,
   type RestoreValidationAttemptInput,
 } from './validation-attempt/index.js';
 export {
