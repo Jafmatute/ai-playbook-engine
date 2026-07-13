@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  parseKnowledgeItemId,
   parseNormalizationAttemptId,
   parsePlaybookId,
   parseSynchronizationSnapshotId,
@@ -159,5 +160,55 @@ describe('ValidationAttemptId', () => {
 
   it('does not export an unsafe constructor', () => {
     expect('createValidationAttemptId' in core).toBe(false);
+  });
+});
+
+describe('KnowledgeItemId', () => {
+  it('parses a valid UUID and normalizes lowercase', () => {
+    const result = parseKnowledgeItemId(uuid.toUpperCase());
+
+    expect(result).toEqual({ success: true, value: uuid });
+  });
+
+  it.each(['', ` ${uuid}`, `${uuid} `, 'not-a-uuid', 'de305d5475b4431badb2eb6b9e546014'])(
+    'rejects invalid input: %s',
+    (rawValue) => {
+      const result = parseKnowledgeItemId(rawValue);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatchObject({
+          code: 'INVALID_IDENTIFIER',
+          details: { expectedType: 'knowledge_item_id' },
+        });
+      }
+    },
+  );
+
+  it('is incompatible with PlaybookVersionId at compile time', () => {
+    const result = parseKnowledgeItemId(uuid);
+    if (!result.success) throw new Error('Fixture must be valid.');
+
+    const acceptsVersion = (_value: PlaybookVersionId): void => undefined;
+    // @ts-expect-error KnowledgeItemId must not be assignable to PlaybookVersionId.
+    acceptsVersion(result.value);
+  });
+
+  it('does not export an unsafe constructor', () => {
+    expect('createKnowledgeItemId' in core).toBe(false);
+  });
+
+  it('error root is frozen', () => {
+    const result = parseKnowledgeItemId('invalid');
+    if (!result.success) {
+      expect(Object.isFrozen(result.error)).toBe(true);
+    }
+  });
+
+  it('error details are frozen', () => {
+    const result = parseKnowledgeItemId('invalid');
+    if (!result.success) {
+      expect(Object.isFrozen(result.error.details)).toBe(true);
+    }
   });
 });

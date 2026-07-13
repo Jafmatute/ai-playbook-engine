@@ -1,4 +1,5 @@
 export {
+  parseKnowledgeItemId,
   parseNormalizationAttemptId,
   parsePlaybookId,
   parsePlaybookVersionId,
@@ -6,6 +7,7 @@ export {
   parseValidationAttemptId,
   parseWorkspaceId,
   type IdentifierError,
+  type KnowledgeItemId,
   type NormalizationAttemptId,
   type PlaybookId,
   type PlaybookVersionId,
