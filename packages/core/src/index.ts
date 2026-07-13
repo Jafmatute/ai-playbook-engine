@@ -55,6 +55,11 @@ export {
 } from './validation-attempt/index.js';
 export { isKnowledgeType, type KnowledgeType } from './knowledge-item/index.js';
 export {
+  SourceStableKey,
+  type SourceStableKeyError,
+  type SourceStableKeyInvalidReason,
+} from './knowledge-item/index.js';
+export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
   type WorkspaceCreationError,
