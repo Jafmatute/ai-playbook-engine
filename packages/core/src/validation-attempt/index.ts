@@ -4,6 +4,7 @@ export {
 } from './validation-attempt-status.js';
 export {
   type CreateValidationAttemptInput,
+  type MarkValidationAttemptInvalidInput,
   type MarkValidationAttemptValidatedInput,
   type RestoreValidationAttemptInput,
   type ValidationAttemptSnapshot,

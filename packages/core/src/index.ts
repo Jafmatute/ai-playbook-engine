@@ -36,6 +36,7 @@ export {
   ValidationAttempt,
   type CreateValidationAttemptInput,
   isValidationAttemptStatus,
+  type MarkValidationAttemptInvalidInput,
   type MarkValidationAttemptValidatedInput,
   type ValidationAttemptCreationError,
   type ValidationAttemptNotRunningError,

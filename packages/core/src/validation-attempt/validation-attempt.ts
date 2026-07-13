@@ -9,6 +9,7 @@ import type {
   CreateValidationAttemptInput,
   RestoreValidationAttemptInput,
   MarkValidationAttemptValidatedInput,
+  MarkValidationAttemptInvalidInput,
 } from './validation-attempt-contracts.js';
 import type {
   ValidationAttemptCreationError,
@@ -193,6 +194,48 @@ export class ValidationAttempt {
     }
 
     this.#state.status = 'validated';
+    this.#state.validationSummary = input.validationSummary;
+    return ok(undefined);
+  }
+
+  markInvalid(
+    input: MarkValidationAttemptInvalidInput,
+  ): Result<void, ValidationAttemptTransitionError> {
+    if (this.#state.status !== 'running') {
+      return err(notRunning({ operation: 'markInvalid', currentStatus: this.#state.status }));
+    }
+
+    if (input.validationSummary.validationAttemptId !== this.#state.validationAttemptId) {
+      return err(
+        summaryInvalid({
+          operation: 'markInvalid',
+          field: 'validationSummary',
+          reason: 'summary_attempt_mismatch',
+        }),
+      );
+    }
+
+    if (input.validationSummary.completedAt.compare(this.#state.startedAt) < 0) {
+      return err(
+        summaryInvalid({
+          operation: 'markInvalid',
+          field: 'validationSummary',
+          reason: 'summary_completed_before_started',
+        }),
+      );
+    }
+
+    if (input.validationSummary.publicationEligible) {
+      return err(
+        summaryInvalid({
+          operation: 'markInvalid',
+          field: 'validationSummary',
+          reason: 'summary_publication_eligible',
+        }),
+      );
+    }
+
+    this.#state.status = 'invalid';
     this.#state.validationSummary = input.validationSummary;
     return ok(undefined);
   }

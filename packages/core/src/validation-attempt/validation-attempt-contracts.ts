@@ -30,6 +30,10 @@ export interface MarkValidationAttemptValidatedInput {
   readonly validationSummary: ValidationSummary;
 }
 
+export interface MarkValidationAttemptInvalidInput {
+  readonly validationSummary: ValidationSummary;
+}
+
 export interface ValidationAttemptSnapshot {
   readonly validationAttemptId: ValidationAttemptId;
   readonly playbookVersionId: PlaybookVersionId;

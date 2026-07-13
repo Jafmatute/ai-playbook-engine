@@ -36,7 +36,7 @@ export function stateInvalid(
 
 import type { ValidationAttemptStatus } from './validation-attempt-status.js';
 
-export type ValidationAttemptOperation = 'markValidated';
+export type ValidationAttemptOperation = 'markValidated' | 'markInvalid';
 
 export interface ValidationAttemptNotRunningError {
   readonly code: 'VALIDATION_ATTEMPT_NOT_RUNNING';
@@ -50,7 +50,8 @@ export interface ValidationAttemptNotRunningError {
 export type ValidationAttemptSummaryInvalidReason =
   | 'summary_attempt_mismatch'
   | 'summary_completed_before_started'
-  | 'summary_not_publication_eligible';
+  | 'summary_not_publication_eligible'
+  | 'summary_publication_eligible';
 
 export interface ValidationAttemptSummaryInvalidError {
   readonly code: 'VALIDATION_ATTEMPT_SUMMARY_INVALID';
