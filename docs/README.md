@@ -29,6 +29,7 @@
 - [Testing Boundaries](./technical/testing-boundaries.md)
 - [Logging and Traceability](./technical/logging.md)
 - [Internal Event Contracts](./technical/event-contracts.md)
+- [Result and Exception Pattern](./technical/result-pattern.md)
 
 ## Architectural Decision Records
 
