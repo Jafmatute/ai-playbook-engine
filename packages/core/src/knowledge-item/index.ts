@@ -9,3 +9,8 @@ export {
   type KnowledgeTitleError,
   type KnowledgeTitleInvalidReason,
 } from './knowledge-title.js';
+export {
+  KnowledgeSlug,
+  type KnowledgeSlugError,
+  type KnowledgeSlugInvalidReason,
+} from './knowledge-slug.js';

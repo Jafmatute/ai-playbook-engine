@@ -65,6 +65,11 @@ export {
   type KnowledgeTitleInvalidReason,
 } from './knowledge-item/index.js';
 export {
+  KnowledgeSlug,
+  type KnowledgeSlugError,
+  type KnowledgeSlugInvalidReason,
+} from './knowledge-item/index.js';
+export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
   type WorkspaceCreationError,
