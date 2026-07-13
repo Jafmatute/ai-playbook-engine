@@ -7,12 +7,14 @@ import type {
   NormalizationAttemptState,
   CreateNormalizationAttemptInput,
   RestoreNormalizationAttemptInput,
+  CompleteNormalizationAttemptInput,
 } from './normalization-attempt-contracts.js';
 import type {
   NormalizationAttemptCreationError,
   NormalizationAttemptRestorationError,
+  NormalizationAttemptTransitionError,
 } from './normalization-attempt-errors.js';
-import { stateInvalid } from './normalization-attempt-errors.js';
+import { stateInvalid, notRunning, timestampInvalid } from './normalization-attempt-errors.js';
 import {
   isNormalizationAttemptStatus,
   type NormalizationAttemptStatus,
@@ -22,6 +24,9 @@ export { type NormalizationAttemptSnapshot } from './normalization-attempt-contr
 export {
   type NormalizationAttemptCreationError,
   type NormalizationAttemptRestorationError,
+  type NormalizationAttemptTransitionError,
+  type NormalizationAttemptNotRunningError,
+  type NormalizationAttemptTimestampInvalidError,
 } from './normalization-attempt-errors.js';
 
 export class NormalizationAttempt {
@@ -170,6 +175,29 @@ export class NormalizationAttempt {
 
   get failedAt(): Instant | null {
     return this.#state.failedAt;
+  }
+
+  complete(
+    input: CompleteNormalizationAttemptInput,
+  ): Result<void, NormalizationAttemptTransitionError> {
+    if (this.#state.status !== 'running') {
+      return err(notRunning({ operation: 'complete', currentStatus: this.#state.status }));
+    }
+
+    if (input.completedAt.compare(this.#state.startedAt) < 0) {
+      return err(
+        timestampInvalid({
+          operation: 'complete',
+          field: 'completedAt',
+          reason: 'timestamp_before_started',
+        }),
+      );
+    }
+
+    this.#state.status = 'completed';
+    this.#state.completedAt = input.completedAt;
+    this.#state.failedAt = null;
+    return ok(undefined);
   }
 
   toSnapshot(): NormalizationAttemptSnapshot {

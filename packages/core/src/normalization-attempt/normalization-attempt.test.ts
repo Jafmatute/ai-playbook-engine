@@ -418,3 +418,250 @@ describe('NormalizationAttempt snapshot', () => {
     expect(Object.isFrozen(snapshot)).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// complete
+// ---------------------------------------------------------------------------
+
+describe('NormalizationAttempt.complete', () => {
+  const completedAt = instant('2026-07-12T10:05:00Z');
+
+  it('completes a running attempt', () => {
+    const attempt = createAttempt();
+    const result = attempt.complete({ completedAt });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('changes status to completed', () => {
+    const attempt = createAttempt();
+    attempt.complete({ completedAt });
+
+    expect(attempt.status).toBe('completed');
+  });
+
+  it('sets completedAt', () => {
+    const attempt = createAttempt();
+    attempt.complete({ completedAt });
+
+    expect(attempt.completedAt?.equals(completedAt)).toBe(true);
+  });
+
+  it('keeps failedAt as null', () => {
+    const attempt = createAttempt();
+    attempt.complete({ completedAt });
+
+    expect(attempt.failedAt).toBeNull();
+  });
+
+  it('accepts completedAt equal to startedAt', () => {
+    const attempt = createAttempt();
+    const result = attempt.complete({ completedAt: startedAt });
+
+    expect(result.success).toBe(true);
+    expect(attempt.completedAt?.equals(startedAt)).toBe(true);
+  });
+
+  it('snapshot reflects completed state', () => {
+    const attempt = createAttempt();
+    attempt.complete({ completedAt });
+    const snapshot = attempt.toSnapshot();
+
+    expect(snapshot.status).toBe('completed');
+    expect(snapshot.completedAt).toBe('2026-07-12T10:05:00.000Z');
+    expect(snapshot.failedAt).toBeNull();
+  });
+});
+
+describe('NormalizationAttempt.complete — timestamp invalid', () => {
+  const beforeStarted = instant('2026-07-12T09:00:00Z');
+
+  it('rejects completedAt before startedAt', () => {
+    const attempt = createAttempt();
+    const result = attempt.complete({ completedAt: beforeStarted });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('returns NORMALIZATION_ATTEMPT_TIMESTAMP_INVALID', () => {
+    const attempt = createAttempt();
+    const result = attempt.complete({ completedAt: beforeStarted });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: { code: 'NORMALIZATION_ATTEMPT_TIMESTAMP_INVALID' },
+    });
+  });
+
+  it('returns operation, field and reason', () => {
+    const attempt = createAttempt();
+    const result = attempt.complete({ completedAt: beforeStarted });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        details: {
+          operation: 'complete',
+          field: 'completedAt',
+          reason: 'timestamp_before_started',
+        },
+      },
+    });
+  });
+
+  it('preserves running status on invalid timestamp', () => {
+    const attempt = createAttempt();
+    attempt.complete({ completedAt: beforeStarted });
+
+    expect(attempt.status).toBe('running');
+  });
+
+  it('preserves completedAt as null on invalid timestamp', () => {
+    const attempt = createAttempt();
+    attempt.complete({ completedAt: beforeStarted });
+
+    expect(attempt.completedAt).toBeNull();
+  });
+
+  it('preserves failedAt as null on invalid timestamp', () => {
+    const attempt = createAttempt();
+    attempt.complete({ completedAt: beforeStarted });
+
+    expect(attempt.failedAt).toBeNull();
+  });
+});
+
+describe('NormalizationAttempt.complete — already completed', () => {
+  const completedAt = instant('2026-07-12T10:05:00Z');
+  const laterCompleted = instant('2026-07-12T10:10:00Z');
+
+  it('rejects a second call to complete', () => {
+    const attempt = createAttempt();
+    attempt.complete({ completedAt });
+    const result = attempt.complete({ completedAt: laterCompleted });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('returns NORMALIZATION_ATTEMPT_NOT_RUNNING', () => {
+    const attempt = createAttempt();
+    attempt.complete({ completedAt });
+    const result = attempt.complete({ completedAt: laterCompleted });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: { code: 'NORMALIZATION_ATTEMPT_NOT_RUNNING' },
+    });
+  });
+
+  it('reports currentStatus completed', () => {
+    const attempt = createAttempt();
+    attempt.complete({ completedAt });
+    const result = attempt.complete({ completedAt: laterCompleted });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        details: { operation: 'complete', currentStatus: 'completed' },
+      },
+    });
+  });
+
+  it('does not replace the original completedAt', () => {
+    const attempt = createAttempt();
+    attempt.complete({ completedAt });
+    attempt.complete({ completedAt: laterCompleted });
+
+    expect(attempt.completedAt?.equals(completedAt)).toBe(true);
+  });
+});
+
+describe('NormalizationAttempt.complete — failed attempt', () => {
+  const failedAt = instant('2026-07-12T10:05:00Z');
+  const completedAt = instant('2026-07-12T10:10:00Z');
+
+  function restoreFailed(): NormalizationAttempt {
+    const result = NormalizationAttempt.restore({
+      normalizationAttemptId: fixtureNormalizationAttemptId,
+      playbookVersionId: fixturePlaybookVersionId,
+      status: 'failed',
+      startedAt,
+      completedAt: null,
+      failedAt,
+    });
+    if (!result.success) throw new Error('Unexpected restore failure');
+    return result.value;
+  }
+
+  it('rejects complete on failed attempt', () => {
+    const attempt = restoreFailed();
+    const result = attempt.complete({ completedAt });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('returns NORMALIZATION_ATTEMPT_NOT_RUNNING', () => {
+    const attempt = restoreFailed();
+    const result = attempt.complete({ completedAt });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: { code: 'NORMALIZATION_ATTEMPT_NOT_RUNNING' },
+    });
+  });
+
+  it('reports currentStatus failed', () => {
+    const attempt = restoreFailed();
+    const result = attempt.complete({ completedAt });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: {
+        details: { operation: 'complete', currentStatus: 'failed' },
+      },
+    });
+  });
+
+  it('preserves failed status', () => {
+    const attempt = restoreFailed();
+    attempt.complete({ completedAt });
+
+    expect(attempt.status).toBe('failed');
+  });
+
+  it('preserves failedAt', () => {
+    const attempt = restoreFailed();
+    attempt.complete({ completedAt });
+
+    expect(attempt.failedAt?.equals(failedAt)).toBe(true);
+  });
+
+  it('keeps completedAt as null', () => {
+    const attempt = restoreFailed();
+    attempt.complete({ completedAt });
+
+    expect(attempt.completedAt).toBeNull();
+  });
+});
+
+describe('NormalizationAttempt.complete — error immutability', () => {
+  it('error root object is frozen', () => {
+    const attempt = createAttempt();
+    const beforeStarted = instant('2026-07-12T09:00:00Z');
+    const result = attempt.complete({ completedAt: beforeStarted });
+
+    if (!result.success) {
+      expect(Object.isFrozen(result.error)).toBe(true);
+    }
+  });
+
+  it('error details are frozen', () => {
+    const attempt = createAttempt();
+    const beforeStarted = instant('2026-07-12T09:00:00Z');
+    const result = attempt.complete({ completedAt: beforeStarted });
+
+    if (!result.success) {
+      expect(Object.isFrozen(result.error.details)).toBe(true);
+    }
+  });
+});

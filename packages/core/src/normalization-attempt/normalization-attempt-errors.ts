@@ -31,3 +31,49 @@ export function stateInvalid(
     details: freezeDetails(details),
   });
 }
+
+import type { NormalizationAttemptStatus } from './normalization-attempt-status.js';
+
+export type NormalizationAttemptOperation = 'complete';
+
+export interface NormalizationAttemptNotRunningError {
+  readonly code: 'NORMALIZATION_ATTEMPT_NOT_RUNNING';
+  readonly message: string;
+  readonly details: {
+    readonly operation: NormalizationAttemptOperation;
+    readonly currentStatus: NormalizationAttemptStatus;
+  };
+}
+
+export interface NormalizationAttemptTimestampInvalidError {
+  readonly code: 'NORMALIZATION_ATTEMPT_TIMESTAMP_INVALID';
+  readonly message: string;
+  readonly details: {
+    readonly operation: NormalizationAttemptOperation;
+    readonly field: 'completedAt';
+    readonly reason: 'timestamp_before_started';
+  };
+}
+
+export type NormalizationAttemptTransitionError =
+  NormalizationAttemptNotRunningError | NormalizationAttemptTimestampInvalidError;
+
+export function notRunning(
+  details: NormalizationAttemptNotRunningError['details'],
+): NormalizationAttemptNotRunningError {
+  return Object.freeze({
+    code: 'NORMALIZATION_ATTEMPT_NOT_RUNNING' as const,
+    message: 'The normalization attempt must be running to perform this operation.',
+    details: freezeDetails(details),
+  });
+}
+
+export function timestampInvalid(
+  details: NormalizationAttemptTimestampInvalidError['details'],
+): NormalizationAttemptTimestampInvalidError {
+  return Object.freeze({
+    code: 'NORMALIZATION_ATTEMPT_TIMESTAMP_INVALID' as const,
+    message: 'The normalization attempt timestamp is invalid for this transition.',
+    details: freezeDetails(details),
+  });
+}

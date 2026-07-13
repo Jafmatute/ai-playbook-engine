@@ -16,14 +16,19 @@ export {
 export { Instant, type InstantError } from './instant.js';
 export {
   NormalizationAttempt,
+  type CompleteNormalizationAttemptInput,
   type CreateNormalizationAttemptInput,
   isNormalizationAttemptStatus,
   type NormalizationAttemptCreationError,
+  type NormalizationAttemptNotRunningError,
   type NormalizationAttemptRestorationError,
   type NormalizationAttemptSnapshot,
   type NormalizationAttemptStateInvalidError,
   type NormalizationAttemptStateInvalidReason,
   type NormalizationAttemptStatus,
+  type NormalizationAttemptTimestampInvalidError,
+  type NormalizationAttemptTransitionError,
+  type NormalizationAttemptOperation,
   type RestoreNormalizationAttemptInput,
 } from './normalization-attempt/index.js';
 export {
