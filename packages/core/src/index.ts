@@ -44,10 +44,18 @@ export {
 export { PlaybookName, type PlaybookNameError } from './playbook/playbook-name.js';
 export { playbookStatuses, type PlaybookStatus } from './playbook/playbook-status.js';
 export {
+  ContentChecksum,
+  type ContentChecksumAlgorithm,
+  type ContentChecksumError,
   normalizationStatuses,
   playbookVersionStatuses,
   type NormalizationStatus,
   type PlaybookVersionStatus,
+  ValidatorVersion,
+  type ValidatorVersionError,
+  ValidationSummary,
+  type ValidationSummaryError,
+  type ValidationSummarySnapshot,
   VersionLabel,
   type VersionLabelError,
   VersionSequence,
