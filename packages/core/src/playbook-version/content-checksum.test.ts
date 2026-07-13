@@ -84,6 +84,32 @@ describe('ContentChecksum', () => {
     });
   });
 
+  it('rejects internal space — 64 chars with space inside', () => {
+    const fixture = 'a'.repeat(32) + ' ' + 'a'.repeat(31);
+
+    expect(fixture).toHaveLength(64);
+    expect(ContentChecksum.create({ algorithm: 'sha256', value: fixture })).toMatchObject({
+      success: false,
+      error: {
+        code: 'CONTENT_CHECKSUM_INVALID',
+        details: { reason: 'invalid_format' },
+      },
+    });
+  });
+
+  it('rejects internal tab — 64 chars with tab inside', () => {
+    const fixture = 'a'.repeat(30) + '\t' + 'a'.repeat(33);
+
+    expect(fixture).toHaveLength(64);
+    expect(ContentChecksum.create({ algorithm: 'sha256', value: fixture })).toMatchObject({
+      success: false,
+      error: {
+        code: 'CONTENT_CHECKSUM_INVALID',
+        details: { reason: 'invalid_format' },
+      },
+    });
+  });
+
   it('rejects unknown algorithm', () => {
     expect(ContentChecksum.create({ algorithm: 'md5', value: hex64 })).toMatchObject({
       success: false,

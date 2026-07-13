@@ -245,8 +245,8 @@ describe('ValidationSummary', () => {
       }
     });
 
-    it('totalFindings cannot be supplied manually', () => {
-      const input = {
+    it('create rejects unknown key totalFindings', () => {
+      ValidationSummary.create({
         validationAttemptId: validId(),
         validatorVersion: validVersion(),
         completedAt: validInstant(),
@@ -255,12 +255,24 @@ describe('ValidationSummary', () => {
         warningCount: 0,
         informationCount: 0,
         blockingFindingCount: 0,
+        // @ts-expect-error totalFindings is not a valid input field
         totalFindings: 0,
-        publicationEligible: true,
-      };
+      });
+    });
 
-      expect('totalFindings' in input).toBe(true);
-      expect('publicationEligible' in input).toBe(true);
+    it('create rejects unknown key publicationEligible', () => {
+      ValidationSummary.create({
+        validationAttemptId: validId(),
+        validatorVersion: validVersion(),
+        completedAt: validInstant(),
+        validatedContentChecksum: validChecksum(),
+        errorCount: 0,
+        warningCount: 0,
+        informationCount: 0,
+        blockingFindingCount: 0,
+        // @ts-expect-error publicationEligible is not a valid input field
+        publicationEligible: true,
+      });
     });
   });
 
