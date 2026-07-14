@@ -32,3 +32,7 @@ export {
   type NormalizedTextInvalidReason,
 } from './normalized-text.js';
 export { NormalizedContent, type CreateNormalizedContentInput } from './normalized-content.js';
+export {
+  isKnowledgeItemValidationState,
+  type KnowledgeItemValidationState,
+} from './knowledge-item-validation-state.js';

@@ -88,6 +88,10 @@ export {
 } from './knowledge-item/index.js';
 export { NormalizedContent, type CreateNormalizedContentInput } from './knowledge-item/index.js';
 export {
+  isKnowledgeItemValidationState,
+  type KnowledgeItemValidationState,
+} from './knowledge-item/index.js';
+export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
   type WorkspaceCreationError,
