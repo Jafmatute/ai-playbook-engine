@@ -36,3 +36,17 @@ export {
   isKnowledgeItemValidationState,
   type KnowledgeItemValidationState,
 } from './knowledge-item-validation-state.js';
+export {
+  createKnowledgeItemAttributes,
+  isKnowledgeItemAttributes,
+  knowledgeItemAttributesMatchType,
+  type KnowledgeItemAttributes,
+  type SectionAttributes,
+  type MethodologyAttributes,
+  type WorkflowAttributes,
+  type PromptDefinitionAttributes,
+  type CriterionAttributes,
+  type DecisionMatrixAttributes,
+  type AuditDefinitionAttributes,
+  type ReferenceDocumentAttributes,
+} from './knowledge-item-attributes.js';

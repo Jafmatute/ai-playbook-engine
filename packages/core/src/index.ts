@@ -92,6 +92,20 @@ export {
   type KnowledgeItemValidationState,
 } from './knowledge-item/index.js';
 export {
+  createKnowledgeItemAttributes,
+  isKnowledgeItemAttributes,
+  knowledgeItemAttributesMatchType,
+  type KnowledgeItemAttributes,
+  type SectionAttributes,
+  type MethodologyAttributes,
+  type WorkflowAttributes,
+  type PromptDefinitionAttributes,
+  type CriterionAttributes,
+  type DecisionMatrixAttributes,
+  type AuditDefinitionAttributes,
+  type ReferenceDocumentAttributes,
+} from './knowledge-item/index.js';
+export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
   type WorkspaceCreationError,
