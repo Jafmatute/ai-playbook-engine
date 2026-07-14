@@ -50,3 +50,9 @@ export {
   type AuditDefinitionAttributes,
   type ReferenceDocumentAttributes,
 } from './knowledge-item-attributes.js';
+export { KnowledgeItem } from './knowledge-item.js';
+export type { CreateKnowledgeItemInput } from './knowledge-item-contracts.js';
+export type {
+  KnowledgeItemAttributesTypeMismatchError,
+  KnowledgeItemCreationError,
+} from './knowledge-item-errors.js';
