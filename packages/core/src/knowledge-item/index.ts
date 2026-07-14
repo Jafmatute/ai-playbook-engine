@@ -31,3 +31,4 @@ export {
   type NormalizedTextError,
   type NormalizedTextInvalidReason,
 } from './normalized-text.js';
+export { NormalizedContent, type CreateNormalizedContentInput } from './normalized-content.js';

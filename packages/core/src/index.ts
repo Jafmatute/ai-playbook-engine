@@ -86,6 +86,7 @@ export {
   type NormalizedTextError,
   type NormalizedTextInvalidReason,
 } from './knowledge-item/index.js';
+export { NormalizedContent, type CreateNormalizedContentInput } from './knowledge-item/index.js';
 export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
