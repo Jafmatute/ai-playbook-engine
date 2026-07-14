@@ -82,6 +82,11 @@ export {
   type SourceReferenceInvalidReason,
 } from './knowledge-item/index.js';
 export {
+  NormalizedText,
+  type NormalizedTextError,
+  type NormalizedTextInvalidReason,
+} from './knowledge-item/index.js';
+export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
   type WorkspaceCreationError,

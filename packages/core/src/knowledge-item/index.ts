@@ -26,3 +26,8 @@ export {
   type SourceReferenceField,
   type SourceReferenceInvalidReason,
 } from './source-reference.js';
+export {
+  NormalizedText,
+  type NormalizedTextError,
+  type NormalizedTextInvalidReason,
+} from './normalized-text.js';
