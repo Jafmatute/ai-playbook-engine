@@ -19,3 +19,10 @@ export {
   type DisplayOrderError,
   type DisplayOrderInvalidReason,
 } from './display-order.js';
+export {
+  SourceReference,
+  type CreateSourceReferenceInput,
+  type SourceReferenceError,
+  type SourceReferenceField,
+  type SourceReferenceInvalidReason,
+} from './source-reference.js';

@@ -75,6 +75,13 @@ export {
   type DisplayOrderInvalidReason,
 } from './knowledge-item/index.js';
 export {
+  SourceReference,
+  type CreateSourceReferenceInput,
+  type SourceReferenceError,
+  type SourceReferenceField,
+  type SourceReferenceInvalidReason,
+} from './knowledge-item/index.js';
+export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
   type WorkspaceCreationError,
