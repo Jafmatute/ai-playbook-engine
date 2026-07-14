@@ -10,10 +10,21 @@ import type { Instant } from '../instant.js';
 import type { ContentChecksum } from '../playbook-version/index.js';
 import type { DisplayOrder } from './display-order.js';
 import type { KnowledgeItemAttributes } from './knowledge-item-attributes.js';
-import { knowledgeItemAttributesMatchType } from './knowledge-item-attributes.js';
-import type { CreateKnowledgeItemInput, KnowledgeItemState } from './knowledge-item-contracts.js';
-import type { KnowledgeItemCreationError } from './knowledge-item-errors.js';
-import { attributesTypeMismatch } from './knowledge-item-errors.js';
+import {
+  isKnowledgeItemAttributes,
+  knowledgeItemAttributesMatchType,
+} from './knowledge-item-attributes.js';
+import type {
+  CreateKnowledgeItemInput,
+  RestoreKnowledgeItemInput,
+  KnowledgeItemState,
+} from './knowledge-item-contracts.js';
+import type {
+  KnowledgeItemCreationError,
+  KnowledgeItemRestorationError,
+} from './knowledge-item-errors.js';
+import { attributesTypeMismatch, restorationStateInvalid } from './knowledge-item-errors.js';
+import { isKnowledgeItemValidationState } from './knowledge-item-validation-state.js';
 import type { KnowledgeItemValidationState } from './knowledge-item-validation-state.js';
 import type { KnowledgeSlug } from './knowledge-slug.js';
 import type { KnowledgeTitle } from './knowledge-title.js';
@@ -59,6 +70,56 @@ export class KnowledgeItem {
         displayOrder: input.displayOrder,
         contentChecksum: input.contentChecksum,
         validationState: 'pending',
+        createdAt: input.createdAt,
+      }),
+    );
+  }
+
+  static restore(
+    input: RestoreKnowledgeItemInput,
+  ): Result<KnowledgeItem, KnowledgeItemRestorationError> {
+    if (!isKnowledgeItemAttributes(input.attributes)) {
+      return err(restorationStateInvalid({ field: 'attributes', reason: 'invalid_attributes' }));
+    }
+
+    if (!knowledgeItemAttributesMatchType(input.attributes, input.type)) {
+      return err(
+        restorationStateInvalid({
+          field: 'attributes',
+          reason: 'attributes_type_mismatch',
+          knowledgeType: input.type,
+          attributesType: input.attributes.type,
+        }),
+      );
+    }
+
+    if (!isKnowledgeItemValidationState(input.validationState)) {
+      return err(
+        restorationStateInvalid({
+          field: 'validationState',
+          reason: 'unknown_validation_state',
+          currentValue: input.validationState,
+        }),
+      );
+    }
+
+    return ok(
+      new KnowledgeItem({
+        knowledgeItemId: input.knowledgeItemId,
+        workspaceId: input.workspaceId,
+        playbookId: input.playbookId,
+        playbookVersionId: input.playbookVersionId,
+        type: input.type,
+        sourceStableKey: input.sourceStableKey,
+        title: input.title,
+        slug: input.slug,
+        content: input.content,
+        attributes: input.attributes,
+        sourceReference: input.sourceReference,
+        parentKnowledgeItemId: input.parentKnowledgeItemId,
+        displayOrder: input.displayOrder,
+        contentChecksum: input.contentChecksum,
+        validationState: input.validationState,
         createdAt: input.createdAt,
       }),
     );

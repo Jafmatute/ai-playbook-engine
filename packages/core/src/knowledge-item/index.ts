@@ -51,8 +51,15 @@ export {
   type ReferenceDocumentAttributes,
 } from './knowledge-item-attributes.js';
 export { KnowledgeItem } from './knowledge-item.js';
-export type { CreateKnowledgeItemInput } from './knowledge-item-contracts.js';
+export type {
+  CreateKnowledgeItemInput,
+  RestoreKnowledgeItemInput,
+} from './knowledge-item-contracts.js';
 export type {
   KnowledgeItemAttributesTypeMismatchError,
   KnowledgeItemCreationError,
+  KnowledgeItemRestorationError,
+  KnowledgeItemRestorationInvalidField,
+  KnowledgeItemRestorationInvalidReason,
+  KnowledgeItemRestorationStateInvalidError,
 } from './knowledge-item-errors.js';
