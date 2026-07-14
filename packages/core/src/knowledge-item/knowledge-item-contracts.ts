@@ -54,6 +54,42 @@ export interface RestoreKnowledgeItemInput {
   readonly createdAt: Instant;
 }
 
+export interface KnowledgeItemAttributesSnapshot {
+  readonly type: KnowledgeType;
+}
+
+export interface SourceReferenceSnapshot {
+  readonly provider: string;
+  readonly objectType: string;
+  readonly externalId: string;
+}
+
+export interface NormalizedContentSnapshot {
+  readonly text: string;
+}
+
+export interface KnowledgeItemSnapshot {
+  readonly knowledgeItemId: string;
+  readonly workspaceId: string;
+  readonly playbookId: string;
+  readonly playbookVersionId: string;
+  readonly type: KnowledgeType;
+  readonly sourceStableKey: string;
+  readonly title: string;
+  readonly slug: string | null;
+  readonly content: NormalizedContentSnapshot;
+  readonly attributes: KnowledgeItemAttributesSnapshot;
+  readonly sourceReference: SourceReferenceSnapshot;
+  readonly parentKnowledgeItemId: string | null;
+  readonly displayOrder: number;
+  readonly contentChecksum: {
+    readonly algorithm: string;
+    readonly value: string;
+  };
+  readonly validationState: KnowledgeItemValidationState;
+  readonly createdAt: string;
+}
+
 export interface CreateKnowledgeItemInput {
   readonly knowledgeItemId: KnowledgeItemId;
   readonly workspaceId: WorkspaceId;

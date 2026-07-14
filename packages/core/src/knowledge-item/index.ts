@@ -53,7 +53,11 @@ export {
 export { KnowledgeItem } from './knowledge-item.js';
 export type {
   CreateKnowledgeItemInput,
+  KnowledgeItemSnapshot,
+  KnowledgeItemAttributesSnapshot,
   RestoreKnowledgeItemInput,
+  SourceReferenceSnapshot,
+  NormalizedContentSnapshot,
 } from './knowledge-item-contracts.js';
 export type {
   KnowledgeItemAttributesTypeMismatchError,

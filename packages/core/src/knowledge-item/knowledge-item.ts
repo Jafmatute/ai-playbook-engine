@@ -16,6 +16,7 @@ import {
 } from './knowledge-item-attributes.js';
 import type {
   CreateKnowledgeItemInput,
+  KnowledgeItemSnapshot,
   RestoreKnowledgeItemInput,
   KnowledgeItemState,
 } from './knowledge-item-contracts.js';
@@ -187,5 +188,37 @@ export class KnowledgeItem {
 
   get createdAt(): Instant {
     return this.#state.createdAt;
+  }
+
+  toSnapshot(): KnowledgeItemSnapshot {
+    return Object.freeze({
+      knowledgeItemId: this.#state.knowledgeItemId,
+      workspaceId: this.#state.workspaceId,
+      playbookId: this.#state.playbookId,
+      playbookVersionId: this.#state.playbookVersionId,
+      type: this.#state.type,
+      sourceStableKey: this.#state.sourceStableKey.value,
+      title: this.#state.title.value,
+      slug: this.#state.slug?.value ?? null,
+      content: Object.freeze({
+        text: this.#state.content.text.value,
+      }),
+      attributes: Object.freeze({
+        type: this.#state.attributes.type,
+      }),
+      sourceReference: Object.freeze({
+        provider: this.#state.sourceReference.provider,
+        objectType: this.#state.sourceReference.objectType,
+        externalId: this.#state.sourceReference.externalId,
+      }),
+      parentKnowledgeItemId: this.#state.parentKnowledgeItemId,
+      displayOrder: this.#state.displayOrder.value,
+      contentChecksum: Object.freeze({
+        algorithm: this.#state.contentChecksum.algorithm,
+        value: this.#state.contentChecksum.value,
+      }),
+      validationState: this.#state.validationState,
+      createdAt: this.#state.createdAt.toString(),
+    });
   }
 }
