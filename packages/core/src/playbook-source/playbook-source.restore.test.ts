@@ -64,6 +64,8 @@ function restoreInput(overrides?: Partial<RestorePlaybookSourceInput>): RestoreP
     createdAt: fixtureCreatedAt,
     lastSuccessfulSynchronizationRunId: null,
     lastSuccessfulSynchronizationAt: null,
+    lastFailedSynchronizationRunId: null,
+    lastFailedSynchronizationAt: null,
     ...overrides,
   };
 }

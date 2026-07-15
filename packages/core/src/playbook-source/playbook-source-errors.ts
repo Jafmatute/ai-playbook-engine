@@ -18,7 +18,11 @@ export type PlaybookSourceStateInvalidReason =
   | 'UNKNOWN_PLAYBOOK_SOURCE_STATUS'
   | 'SUCCESSFUL_RUN_ID_REQUIRES_TIMESTAMP'
   | 'SUCCESSFUL_TIMESTAMP_REQUIRES_RUN_ID'
-  | 'SUCCESSFUL_TIMESTAMP_BEFORE_CREATED_AT';
+  | 'SUCCESSFUL_TIMESTAMP_BEFORE_CREATED_AT'
+  | 'FAILED_RUN_ID_REQUIRES_TIMESTAMP'
+  | 'FAILED_TIMESTAMP_REQUIRES_RUN_ID'
+  | 'FAILED_TIMESTAMP_BEFORE_CREATED_AT'
+  | 'SAME_RUN_RECORDED_AS_SUCCESS_AND_FAILURE';
 
 export interface PlaybookSourceStateInvalidError {
   readonly code: 'PLAYBOOK_SOURCE_STATE_INVALID';
@@ -30,13 +34,16 @@ export interface PlaybookSourceStateInvalidError {
 
 export type PlaybookSourceRestorationError = PlaybookSourceStateInvalidError;
 
-export type PlaybookSourceSynchronizationMetadataField = 'lastSuccessfulSynchronization';
+export type PlaybookSourceSynchronizationMetadataField =
+  'lastSuccessfulSynchronization' | 'lastFailedSynchronization';
 
 export type PlaybookSourceSynchronizationMetadataInvalidReason =
   | 'unchanged'
   | 'run_timestamp_conflict'
   | 'timestamp_before_created'
   | 'timestamp_before_last_success'
+  | 'timestamp_before_last_failure'
+  | 'run_outcome_conflict'
   | 'run_id_without_timestamp'
   | 'timestamp_without_run_id';
 

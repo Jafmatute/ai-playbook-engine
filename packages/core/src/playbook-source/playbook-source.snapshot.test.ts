@@ -146,6 +146,8 @@ describe('PlaybookSource.toSnapshot — restored', () => {
       createdAt: fixtureCreatedAt,
       lastSuccessfulSynchronizationRunId: null,
       lastSuccessfulSynchronizationAt: null,
+      lastFailedSynchronizationRunId: null,
+      lastFailedSynchronizationAt: null,
     };
     const result = PlaybookSource.restore(input);
     if (!result.success) throw new Error('Fixture must be valid.');

@@ -31,6 +31,8 @@ export interface RestorePlaybookSourceInput {
   readonly createdAt: Instant;
   readonly lastSuccessfulSynchronizationRunId: SynchronizationRunId | null;
   readonly lastSuccessfulSynchronizationAt: Instant | null;
+  readonly lastFailedSynchronizationRunId: SynchronizationRunId | null;
+  readonly lastFailedSynchronizationAt: Instant | null;
 }
 
 export interface UpdatePlaybookSourceExternalRootReferenceInput {
@@ -46,6 +48,11 @@ export interface RecordSuccessfulPlaybookSourceSynchronizationInput {
   readonly succeededAt: Instant;
 }
 
+export interface RecordFailedPlaybookSourceSynchronizationInput {
+  readonly synchronizationRunId: SynchronizationRunId;
+  readonly failedAt: Instant;
+}
+
 export interface PlaybookSourceSnapshot {
   readonly playbookSourceId: string;
   readonly workspaceId: string;
@@ -57,6 +64,8 @@ export interface PlaybookSourceSnapshot {
   readonly createdAt: string;
   readonly lastSuccessfulSynchronizationRunId: string | null;
   readonly lastSuccessfulSynchronizationAt: string | null;
+  readonly lastFailedSynchronizationRunId: string | null;
+  readonly lastFailedSynchronizationAt: string | null;
 }
 
 export interface PlaybookSourceState {
@@ -70,4 +79,6 @@ export interface PlaybookSourceState {
   readonly createdAt: Instant;
   readonly lastSuccessfulSynchronizationRunId: SynchronizationRunId | null;
   readonly lastSuccessfulSynchronizationAt: Instant | null;
+  readonly lastFailedSynchronizationRunId: SynchronizationRunId | null;
+  readonly lastFailedSynchronizationAt: Instant | null;
 }

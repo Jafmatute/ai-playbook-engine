@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { parsePlaybookId, parsePlaybookSourceId, parseSynchronizationRunId, parseWorkspaceId } from '../identifiers.js';
+import {
+  parsePlaybookId,
+  parsePlaybookSourceId,
+  parseSynchronizationRunId,
+  parseWorkspaceId,
+} from '../identifiers.js';
 import { Instant } from '../instant.js';
 import {
   PlaybookSource,
@@ -86,6 +91,8 @@ function restoreInput(overrides?: Partial<RestorePlaybookSourceInput>): RestoreP
     createdAt: fixtureCreatedAt,
     lastSuccessfulSynchronizationRunId: null,
     lastSuccessfulSynchronizationAt: null,
+    lastFailedSynchronizationRunId: null,
+    lastFailedSynchronizationAt: null,
     ...overrides,
   };
 }
@@ -187,8 +194,14 @@ describe('PlaybookSource.recordSuccessfulSynchronization — from disabled', () 
 describe('PlaybookSource.recordSuccessfulSynchronization — replacement', () => {
   it('replaces with a later run', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunB, succeededAt: fixtureT2 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunB,
+      succeededAt: fixtureT2,
+    });
 
     expect(source.lastSuccessfulSynchronizationRunId).toBe(fixtureRunB);
     expect(source.lastSuccessfulSynchronizationAt).toBe(fixtureT2);
@@ -202,8 +215,14 @@ describe('PlaybookSource.recordSuccessfulSynchronization — replacement', () =>
 describe('PlaybookSource.recordSuccessfulSynchronization — same timestamp, different run', () => {
   it('accepts a different run at the same instant', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
-    const result = source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunB, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
+    const result = source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunB,
+      succeededAt: fixtureT1,
+    });
 
     expect(result.success).toBe(true);
     expect(source.lastSuccessfulSynchronizationRunId).toBe(fixtureRunB);
@@ -255,8 +274,14 @@ describe('PlaybookSource.recordSuccessfulSynchronization — timestamp before cr
 describe('PlaybookSource.recordSuccessfulSynchronization — timestamp before last success', () => {
   it('rejects succeededAt before lastSuccessfulSynchronizationAt', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT2 });
-    const result = source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunB, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT2,
+    });
+    const result = source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunB,
+      succeededAt: fixtureT1,
+    });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -272,8 +297,14 @@ describe('PlaybookSource.recordSuccessfulSynchronization — timestamp before la
 
   it('preserves previous metadata after rejection', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT2 });
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunB, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT2,
+    });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunB,
+      succeededAt: fixtureT1,
+    });
 
     expect(source.lastSuccessfulSynchronizationRunId).toBe(fixtureRunA);
     expect(source.lastSuccessfulSynchronizationAt).toBe(fixtureT2);
@@ -287,8 +318,14 @@ describe('PlaybookSource.recordSuccessfulSynchronization — timestamp before la
 describe('PlaybookSource.recordSuccessfulSynchronization — unchanged', () => {
   it('rejects the same run and timestamp', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
-    const result = source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
+    const result = source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -310,8 +347,14 @@ describe('PlaybookSource.recordSuccessfulSynchronization — unchanged', () => {
 describe('PlaybookSource.recordSuccessfulSynchronization — run_timestamp_conflict', () => {
   it('rejects the same run with a different timestamp', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
-    const result = source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT2 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
+    const result = source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT2,
+    });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -327,8 +370,14 @@ describe('PlaybookSource.recordSuccessfulSynchronization — run_timestamp_confl
 
   it('preserves original metadata after conflict', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT2 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT2,
+    });
 
     expect(source.lastSuccessfulSynchronizationRunId).toBe(fixtureRunA);
     expect(source.lastSuccessfulSynchronizationAt).toBe(fixtureT1);
@@ -342,56 +391,80 @@ describe('PlaybookSource.recordSuccessfulSynchronization — run_timestamp_confl
 describe('PlaybookSource.recordSuccessfulSynchronization — preserves aggregate', () => {
   it('preserves id', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
 
     expect(source.id).toBe(fixturePsId);
   });
 
   it('preserves workspaceId', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
 
     expect(source.workspaceId).toBe(fixtureWsId);
   });
 
   it('preserves playbookId', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
 
     expect(source.playbookId).toBe(fixturePbId);
   });
 
   it('preserves type', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
 
     expect(source.type).toBe('notion');
   });
 
   it('preserves status', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
 
     expect(source.status).toBe('enabled');
   });
 
   it('preserves externalRootReference', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
 
     expect(source.externalRootReference).toBe(fixtureRootRef);
   });
 
   it('preserves configurationReference', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
 
     expect(source.configurationReference).toBe(fixtureConfigRef);
   });
 
   it('preserves createdAt', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
 
     expect(source.createdAt).toBe(fixtureCreatedAt);
   });
@@ -498,7 +571,10 @@ describe('PlaybookSource.restore — invalid synchronization metadata', () => {
 describe('PlaybookSource.recordSuccessfulSynchronization — immutability', () => {
   it('entity is frozen after recording', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
 
     expect(Object.isFrozen(source)).toBe(true);
   });
@@ -529,7 +605,10 @@ describe('PlaybookSource.recordSuccessfulSynchronization — immutability', () =
 
   it('snapshot is frozen', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
     const snapshot = source.toSnapshot();
 
     expect(Object.isFrozen(snapshot)).toBe(true);
@@ -543,7 +622,10 @@ describe('PlaybookSource.recordSuccessfulSynchronization — immutability', () =
 describe('PlaybookSource.recordSuccessfulSynchronization — snapshot updated', () => {
   it('serializes run id as string', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
     const snapshot = source.toSnapshot();
 
     expect(snapshot.lastSuccessfulSynchronizationRunId).toBe(fixtureRunA);
@@ -551,7 +633,10 @@ describe('PlaybookSource.recordSuccessfulSynchronization — snapshot updated', 
 
   it('serializes timestamp as ISO string', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
     const snapshot = source.toSnapshot();
 
     expect(snapshot.lastSuccessfulSynchronizationAt).toBe('2026-07-12T11:00:00.000Z');

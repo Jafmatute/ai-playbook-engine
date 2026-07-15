@@ -21,6 +21,7 @@ export type {
   UpdatePlaybookSourceExternalRootReferenceInput,
   UpdatePlaybookSourceConfigurationReferenceInput,
   RecordSuccessfulPlaybookSourceSynchronizationInput,
+  RecordFailedPlaybookSourceSynchronizationInput,
 } from './playbook-source-contracts.js';
 export type {
   PlaybookSourceTransitionError,

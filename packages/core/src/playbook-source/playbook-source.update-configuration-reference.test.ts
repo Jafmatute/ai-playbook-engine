@@ -61,6 +61,8 @@ const fixtureRestoreInput = {
   createdAt: fixtureCreatedAt,
   lastSuccessfulSynchronizationRunId: null,
   lastSuccessfulSynchronizationAt: null,
+  lastFailedSynchronizationRunId: null,
+  lastFailedSynchronizationAt: null,
 };
 
 function createSource(): PlaybookSource {

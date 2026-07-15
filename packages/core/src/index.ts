@@ -193,6 +193,7 @@ export {
   type UpdatePlaybookSourceExternalRootReferenceInput,
   type UpdatePlaybookSourceConfigurationReferenceInput,
   type RecordSuccessfulPlaybookSourceSynchronizationInput,
+  type RecordFailedPlaybookSourceSynchronizationInput,
   type PlaybookSourceSynchronizationMetadataError,
   type PlaybookSourceSynchronizationMetadataField,
   type PlaybookSourceSynchronizationMetadataInvalidError,

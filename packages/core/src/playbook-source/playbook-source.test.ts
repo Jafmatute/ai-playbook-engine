@@ -213,24 +213,4 @@ describe('PlaybookSource — immutability', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// API no prematura
-// ---------------------------------------------------------------------------
 
-describe('PlaybookSource — no premature API', () => {
-  const source = PlaybookSource.create({
-    playbookSourceId: fixturePsId,
-    workspaceId: fixtureWsId,
-    playbookId: fixturePbId,
-    type: 'notion',
-    externalRootReference: fixtureRootRef,
-    configurationReference: fixtureConfigRef,
-    createdAt: fixtureCreatedAt,
-  });
-
-  it('does not expose recordFailedSynchronization', () => {
-    expect(
-      (source as unknown as Record<string, unknown>).recordFailedSynchronization,
-    ).toBeUndefined();
-  });
-});

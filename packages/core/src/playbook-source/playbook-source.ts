@@ -19,6 +19,7 @@ import type {
   UpdatePlaybookSourceExternalRootReferenceInput,
   UpdatePlaybookSourceConfigurationReferenceInput,
   RecordSuccessfulPlaybookSourceSynchronizationInput,
+  RecordFailedPlaybookSourceSynchronizationInput,
 } from './playbook-source-contracts.js';
 import type {
   PlaybookSourceTransitionError,
@@ -53,6 +54,8 @@ export class PlaybookSource {
       createdAt: input.createdAt,
       lastSuccessfulSynchronizationRunId: null,
       lastSuccessfulSynchronizationAt: null,
+      lastFailedSynchronizationRunId: null,
+      lastFailedSynchronizationAt: null,
     });
   }
 
@@ -88,6 +91,35 @@ export class PlaybookSource {
       return err(stateInvalid('SUCCESSFUL_TIMESTAMP_BEFORE_CREATED_AT'));
     }
 
+    if (
+      input.lastFailedSynchronizationRunId !== null &&
+      input.lastFailedSynchronizationAt === null
+    ) {
+      return err(stateInvalid('FAILED_RUN_ID_REQUIRES_TIMESTAMP'));
+    }
+
+    if (
+      input.lastFailedSynchronizationRunId === null &&
+      input.lastFailedSynchronizationAt !== null
+    ) {
+      return err(stateInvalid('FAILED_TIMESTAMP_REQUIRES_RUN_ID'));
+    }
+
+    if (
+      input.lastFailedSynchronizationAt !== null &&
+      input.lastFailedSynchronizationAt.compare(input.createdAt) < 0
+    ) {
+      return err(stateInvalid('FAILED_TIMESTAMP_BEFORE_CREATED_AT'));
+    }
+
+    if (
+      input.lastSuccessfulSynchronizationRunId !== null &&
+      input.lastFailedSynchronizationRunId !== null &&
+      input.lastSuccessfulSynchronizationRunId === input.lastFailedSynchronizationRunId
+    ) {
+      return err(stateInvalid('SAME_RUN_RECORDED_AS_SUCCESS_AND_FAILURE'));
+    }
+
     return ok(
       new PlaybookSource({
         playbookSourceId: input.playbookSourceId,
@@ -100,6 +132,8 @@ export class PlaybookSource {
         createdAt: input.createdAt,
         lastSuccessfulSynchronizationRunId: input.lastSuccessfulSynchronizationRunId,
         lastSuccessfulSynchronizationAt: input.lastSuccessfulSynchronizationAt,
+        lastFailedSynchronizationRunId: input.lastFailedSynchronizationRunId,
+        lastFailedSynchronizationAt: input.lastFailedSynchronizationAt,
       }),
     );
   }
@@ -155,6 +189,8 @@ export class PlaybookSource {
       lastSuccessfulSynchronizationRunId: this.#state.lastSuccessfulSynchronizationRunId,
       lastSuccessfulSynchronizationAt:
         this.#state.lastSuccessfulSynchronizationAt?.toString() ?? null,
+      lastFailedSynchronizationRunId: this.#state.lastFailedSynchronizationRunId,
+      lastFailedSynchronizationAt: this.#state.lastFailedSynchronizationAt?.toString() ?? null,
     });
   }
 
@@ -211,6 +247,18 @@ export class PlaybookSource {
     }
 
     if (
+      this.#state.lastFailedSynchronizationRunId !== null &&
+      this.#state.lastFailedSynchronizationRunId === input.synchronizationRunId
+    ) {
+      return err(
+        synchronizationMetadataInvalid({
+          field: 'lastSuccessfulSynchronization',
+          reason: 'run_outcome_conflict',
+        }),
+      );
+    }
+
+    if (
       this.#state.lastSuccessfulSynchronizationRunId !== null &&
       this.#state.lastSuccessfulSynchronizationAt !== null
     ) {
@@ -246,6 +294,71 @@ export class PlaybookSource {
       ...this.#state,
       lastSuccessfulSynchronizationRunId: input.synchronizationRunId,
       lastSuccessfulSynchronizationAt: input.succeededAt,
+    });
+
+    return ok(undefined);
+  }
+
+  recordFailedSynchronization(
+    input: RecordFailedPlaybookSourceSynchronizationInput,
+  ): Result<void, PlaybookSourceSynchronizationMetadataError> {
+    if (input.failedAt.compare(this.#state.createdAt) < 0) {
+      return err(
+        synchronizationMetadataInvalid({
+          field: 'lastFailedSynchronization',
+          reason: 'timestamp_before_created',
+        }),
+      );
+    }
+
+    if (
+      this.#state.lastSuccessfulSynchronizationRunId !== null &&
+      this.#state.lastSuccessfulSynchronizationRunId === input.synchronizationRunId
+    ) {
+      return err(
+        synchronizationMetadataInvalid({
+          field: 'lastFailedSynchronization',
+          reason: 'run_outcome_conflict',
+        }),
+      );
+    }
+
+    if (
+      this.#state.lastFailedSynchronizationRunId !== null &&
+      this.#state.lastFailedSynchronizationAt !== null
+    ) {
+      if (this.#state.lastFailedSynchronizationRunId === input.synchronizationRunId) {
+        if (this.#state.lastFailedSynchronizationAt.equals(input.failedAt)) {
+          return err(
+            synchronizationMetadataInvalid({
+              field: 'lastFailedSynchronization',
+              reason: 'unchanged',
+            }),
+          );
+        }
+
+        return err(
+          synchronizationMetadataInvalid({
+            field: 'lastFailedSynchronization',
+            reason: 'run_timestamp_conflict',
+          }),
+        );
+      }
+
+      if (input.failedAt.compare(this.#state.lastFailedSynchronizationAt) < 0) {
+        return err(
+          synchronizationMetadataInvalid({
+            field: 'lastFailedSynchronization',
+            reason: 'timestamp_before_last_failure',
+          }),
+        );
+      }
+    }
+
+    this.#state = Object.freeze({
+      ...this.#state,
+      lastFailedSynchronizationRunId: input.synchronizationRunId,
+      lastFailedSynchronizationAt: input.failedAt,
     });
 
     return ok(undefined);
@@ -289,5 +402,13 @@ export class PlaybookSource {
 
   get lastSuccessfulSynchronizationAt(): Instant | null {
     return this.#state.lastSuccessfulSynchronizationAt;
+  }
+
+  get lastFailedSynchronizationRunId(): SynchronizationRunId | null {
+    return this.#state.lastFailedSynchronizationRunId;
+  }
+
+  get lastFailedSynchronizationAt(): Instant | null {
+    return this.#state.lastFailedSynchronizationAt;
   }
 }
