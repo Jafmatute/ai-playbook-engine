@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { parsePlaybookId, parsePlaybookSourceId, parseSynchronizationRunId, parseWorkspaceId } from '../identifiers.js';
+import {
+  parsePlaybookId,
+  parsePlaybookSourceId,
+  parseSynchronizationRunId,
+  parseWorkspaceId,
+} from '../identifiers.js';
 import { Instant } from '../instant.js';
 import {
   PlaybookSource,
@@ -197,7 +202,10 @@ describe('PlaybookSource.recordFailedSynchronization — same timestamp, differe
   it('accepts a different run at the same instant', () => {
     const source = createSource();
     source.recordFailedSynchronization({ synchronizationRunId: fixtureRunA, failedAt: fixtureT1 });
-    const result = source.recordFailedSynchronization({ synchronizationRunId: fixtureRunB, failedAt: fixtureT1 });
+    const result = source.recordFailedSynchronization({
+      synchronizationRunId: fixtureRunB,
+      failedAt: fixtureT1,
+    });
 
     expect(result.success).toBe(true);
     expect(source.lastFailedSynchronizationRunId).toBe(fixtureRunB);
@@ -249,7 +257,10 @@ describe('PlaybookSource.recordFailedSynchronization — timestamp before last f
   it('rejects failedAt before lastFailedSynchronizationAt', () => {
     const source = createSource();
     source.recordFailedSynchronization({ synchronizationRunId: fixtureRunA, failedAt: fixtureT2 });
-    const result = source.recordFailedSynchronization({ synchronizationRunId: fixtureRunB, failedAt: fixtureT1 });
+    const result = source.recordFailedSynchronization({
+      synchronizationRunId: fixtureRunB,
+      failedAt: fixtureT1,
+    });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -281,7 +292,10 @@ describe('PlaybookSource.recordFailedSynchronization — unchanged', () => {
   it('rejects the same run and timestamp', () => {
     const source = createSource();
     source.recordFailedSynchronization({ synchronizationRunId: fixtureRunA, failedAt: fixtureT1 });
-    const result = source.recordFailedSynchronization({ synchronizationRunId: fixtureRunA, failedAt: fixtureT1 });
+    const result = source.recordFailedSynchronization({
+      synchronizationRunId: fixtureRunA,
+      failedAt: fixtureT1,
+    });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -304,7 +318,10 @@ describe('PlaybookSource.recordFailedSynchronization — run_timestamp_conflict'
   it('rejects the same run with a different timestamp', () => {
     const source = createSource();
     source.recordFailedSynchronization({ synchronizationRunId: fixtureRunA, failedAt: fixtureT1 });
-    const result = source.recordFailedSynchronization({ synchronizationRunId: fixtureRunA, failedAt: fixtureT2 });
+    const result = source.recordFailedSynchronization({
+      synchronizationRunId: fixtureRunA,
+      failedAt: fixtureT2,
+    });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -335,8 +352,14 @@ describe('PlaybookSource.recordFailedSynchronization — run_timestamp_conflict'
 describe('PlaybookSource.recordFailedSynchronization — run_outcome_conflict with success', () => {
   it('rejects recording a failure for a run already recorded as success', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
-    const result = source.recordFailedSynchronization({ synchronizationRunId: fixtureRunA, failedAt: fixtureT2 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
+    const result = source.recordFailedSynchronization({
+      synchronizationRunId: fixtureRunA,
+      failedAt: fixtureT2,
+    });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -352,7 +375,10 @@ describe('PlaybookSource.recordFailedSynchronization — run_outcome_conflict wi
 
   it('preserves successful metadata after conflict', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
     source.recordFailedSynchronization({ synchronizationRunId: fixtureRunA, failedAt: fixtureT2 });
 
     expect(source.lastSuccessfulSynchronizationRunId).toBe(fixtureRunA);
@@ -367,7 +393,10 @@ describe('PlaybookSource.recordFailedSynchronization — run_outcome_conflict wi
 describe('PlaybookSource.recordFailedSynchronization — independent success and failure', () => {
   it('allows different runs for success and failure', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT2 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT2,
+    });
     source.recordFailedSynchronization({ synchronizationRunId: fixtureRunB, failedAt: fixtureT1 });
 
     expect(source.lastSuccessfulSynchronizationRunId).toBe(fixtureRunA);
@@ -385,7 +414,10 @@ describe('PlaybookSource.recordSuccessfulSynchronization — run_outcome_conflic
   it('rejects recording success for a run already recorded as failure', () => {
     const source = createSource();
     source.recordFailedSynchronization({ synchronizationRunId: fixtureRunA, failedAt: fixtureT1 });
-    const result = source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT2 });
+    const result = source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT2,
+    });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -402,7 +434,10 @@ describe('PlaybookSource.recordSuccessfulSynchronization — run_outcome_conflic
   it('preserves failed metadata after conflict', () => {
     const source = createSource();
     source.recordFailedSynchronization({ synchronizationRunId: fixtureRunA, failedAt: fixtureT1 });
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT2 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT2,
+    });
 
     expect(source.lastFailedSynchronizationRunId).toBe(fixtureRunA);
     expect(source.lastSuccessfulSynchronizationRunId).toBeNull();
@@ -472,7 +507,10 @@ describe('PlaybookSource.recordFailedSynchronization — preserves aggregate', (
 
   it('preserves successful metadata', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunC, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunC,
+      succeededAt: fixtureT1,
+    });
     source.recordFailedSynchronization({ synchronizationRunId: fixtureRunA, failedAt: fixtureT2 });
 
     expect(source.lastSuccessfulSynchronizationRunId).toBe(fixtureRunC);
@@ -605,7 +643,10 @@ describe('PlaybookSource.restore — invalid failure metadata', () => {
 describe('PlaybookSource.recordFailedSynchronization — snapshot', () => {
   it('serializes all metadata fields as primitives', () => {
     const source = createSource();
-    source.recordSuccessfulSynchronization({ synchronizationRunId: fixtureRunA, succeededAt: fixtureT1 });
+    source.recordSuccessfulSynchronization({
+      synchronizationRunId: fixtureRunA,
+      succeededAt: fixtureT1,
+    });
     source.recordFailedSynchronization({ synchronizationRunId: fixtureRunB, failedAt: fixtureT2 });
 
     const snapshot = source.toSnapshot();

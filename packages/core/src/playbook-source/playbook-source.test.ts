@@ -212,5 +212,3 @@ describe('PlaybookSource — immutability', () => {
     expect(Object.isFrozen(source)).toBe(true);
   });
 });
-
-
