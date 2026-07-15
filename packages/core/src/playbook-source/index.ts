@@ -6,3 +6,9 @@ export {
   type PlaybookSourceExternalRootReferenceField,
   type PlaybookSourceExternalRootReferenceInvalidReason,
 } from './playbook-source-external-root-reference.js';
+export {
+  PlaybookSourceConfigurationReference,
+  type PlaybookSourceConfigurationReferenceError,
+  type PlaybookSourceConfigurationReferenceField,
+  type PlaybookSourceConfigurationReferenceInvalidReason,
+} from './playbook-source-configuration-reference.js';
