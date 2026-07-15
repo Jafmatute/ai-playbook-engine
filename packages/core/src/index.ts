@@ -177,6 +177,9 @@ export {
   type PlaybookSourceExternalRootReferenceInvalidReason,
   type PlaybookSourceState,
   type PlaybookSourceStatus,
+  type PlaybookSourceTransitionError,
+  type PlaybookSourceTransitionNotAllowedError,
+  type PlaybookSourceTransitionOperation,
   type PlaybookSourceType,
 } from './playbook-source/index.js';
 export {

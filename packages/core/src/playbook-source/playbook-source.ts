@@ -1,3 +1,5 @@
+import { err, ok, type Result } from '@ai-playbook-engine/shared';
+
 import type { Instant } from '../instant.js';
 import type { PlaybookSourceId, PlaybookId, WorkspaceId } from '../identifiers.js';
 import type { PlaybookSourceType } from './playbook-source-type.js';
@@ -8,9 +10,11 @@ import type {
   CreatePlaybookSourceInput,
   PlaybookSourceState,
 } from './playbook-source-contracts.js';
+import type { PlaybookSourceTransitionError } from './playbook-source-errors.js';
+import { transitionNotAllowed } from './playbook-source-errors.js';
 
 export class PlaybookSource {
-  readonly #state: PlaybookSourceState;
+  #state: PlaybookSourceState;
 
   private constructor(state: PlaybookSourceState) {
     this.#state = Object.freeze({ ...state });
@@ -28,6 +32,25 @@ export class PlaybookSource {
       configurationReference: input.configurationReference,
       createdAt: input.createdAt,
     });
+  }
+
+  disable(): Result<void, PlaybookSourceTransitionError> {
+    if (this.#state.status !== 'enabled') {
+      return err(
+        transitionNotAllowed({
+          operation: 'disable',
+          currentStatus: this.#state.status,
+          expectedStatus: 'enabled',
+        }),
+      );
+    }
+
+    this.#state = Object.freeze({
+      ...this.#state,
+      status: 'disabled',
+    });
+
+    return ok(undefined);
   }
 
   get id(): PlaybookSourceId {

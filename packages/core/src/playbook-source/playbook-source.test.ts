@@ -232,10 +232,6 @@ describe('PlaybookSource — no premature API', () => {
     expect((source as unknown as Record<string, unknown>).enable).toBeUndefined();
   });
 
-  it('does not expose disable', () => {
-    expect((source as unknown as Record<string, unknown>).disable).toBeUndefined();
-  });
-
   it('does not expose restore', () => {
     expect((PlaybookSource as unknown as Record<string, unknown>).restore).toBeUndefined();
   });
