@@ -445,7 +445,4 @@ describe('KnowledgeRelationship — no premature API', () => {
     }
   });
 
-  it('does not expose restore', () => {
-    expect((KnowledgeRelationship as unknown as Record<string, unknown>).restore).toBeUndefined();
-  });
 });

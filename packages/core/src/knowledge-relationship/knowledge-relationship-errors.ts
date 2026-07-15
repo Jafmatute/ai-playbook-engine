@@ -21,3 +21,34 @@ export function selfReference(
     details: Object.freeze({ ...details }),
   });
 }
+
+export type KnowledgeRelationshipRestorationInvalidField =
+  'type' | 'sourceKnowledgeItemId' | 'targetKnowledgeItemId';
+
+export type KnowledgeRelationshipRestorationInvalidReason =
+  'unknown_relationship_type' | 'self_reference';
+
+export interface KnowledgeRelationshipRestorationStateInvalidError {
+  readonly code: 'KNOWLEDGE_RELATIONSHIP_RESTORATION_STATE_INVALID';
+  readonly message: string;
+  readonly details: {
+    readonly field: KnowledgeRelationshipRestorationInvalidField;
+    readonly reason: KnowledgeRelationshipRestorationInvalidReason;
+    readonly currentValue?: string;
+    readonly knowledgeItemId?: KnowledgeItemId;
+    readonly relationshipType?: KnowledgeRelationshipType;
+  };
+}
+
+export type KnowledgeRelationshipRestorationError =
+  KnowledgeRelationshipRestorationStateInvalidError;
+
+export function restorationStateInvalid(
+  details: KnowledgeRelationshipRestorationStateInvalidError['details'],
+): KnowledgeRelationshipRestorationStateInvalidError {
+  return Object.freeze({
+    code: 'KNOWLEDGE_RELATIONSHIP_RESTORATION_STATE_INVALID' as const,
+    message: 'The restored knowledge relationship state is invalid.',
+    details: Object.freeze({ ...details }),
+  });
+}

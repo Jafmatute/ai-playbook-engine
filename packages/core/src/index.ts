@@ -123,8 +123,13 @@ export {
   isKnowledgeRelationshipType,
   type CreateKnowledgeRelationshipInput,
   type KnowledgeRelationshipCreationError,
+  type KnowledgeRelationshipRestorationError,
+  type KnowledgeRelationshipRestorationInvalidField,
+  type KnowledgeRelationshipRestorationInvalidReason,
+  type KnowledgeRelationshipRestorationStateInvalidError,
   type KnowledgeRelationshipSelfReferenceError,
   type KnowledgeRelationshipType,
+  type RestoreKnowledgeRelationshipInput,
 } from './knowledge-relationship/index.js';
 export {
   Workspace,

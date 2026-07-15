@@ -13,6 +13,16 @@ export interface CreateKnowledgeRelationshipInput {
   readonly createdAt: Instant;
 }
 
+export interface RestoreKnowledgeRelationshipInput {
+  readonly workspaceId: WorkspaceId;
+  readonly playbookVersionId: PlaybookVersionId;
+  readonly sourceKnowledgeItemId: KnowledgeItemId;
+  readonly targetKnowledgeItemId: KnowledgeItemId;
+  readonly type: string;
+  readonly sourceReference: SourceReference | null;
+  readonly createdAt: Instant;
+}
+
 export interface KnowledgeRelationshipState {
   readonly workspaceId: WorkspaceId;
   readonly playbookVersionId: PlaybookVersionId;
