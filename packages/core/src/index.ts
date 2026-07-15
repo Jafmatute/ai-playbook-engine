@@ -229,6 +229,14 @@ export {
 export { PlaybookName, type PlaybookNameError } from './playbook/playbook-name.js';
 export { playbookStatuses, type PlaybookStatus } from './playbook/playbook-status.js';
 export {
+  SourceSchemaVersion,
+  sourceSchemaVersionMaximumLength,
+  type SourceSchemaVersionError,
+  type SourceSchemaVersionRequiredError,
+  type SourceSchemaVersionInvalidError,
+  type SourceSchemaVersionInvalidReason,
+} from './source-schema-version.js';
+export {
   synchronizationSnapshotStorageFormats,
   isSynchronizationSnapshotStorageFormat,
   parseSynchronizationSnapshotStorageFormat,
