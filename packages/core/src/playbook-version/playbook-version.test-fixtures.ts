@@ -104,7 +104,8 @@ export function normalizationSchemaVersion(
 export function contentChecksum(
   value = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
 ): ContentChecksum {
-  const result = ContentChecksumClass.create({ algorithm: 'sha256', value });
+  const input = value.startsWith('sha256:') ? value : `sha256:${value}`;
+  const result = ContentChecksumClass.create(input);
   if (!result.success) throw new Error('Expected a valid content checksum fixture.');
   return result.value;
 }

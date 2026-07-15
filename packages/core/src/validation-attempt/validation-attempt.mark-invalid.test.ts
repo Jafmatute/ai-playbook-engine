@@ -34,7 +34,7 @@ const startedAt = instant('2026-07-12T10:00:00Z');
 function contentChecksum(
   value = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
 ): ContentChecksum {
-  const result = ContentChecksum.create({ algorithm: 'sha256', value });
+  const result = ContentChecksum.create(`sha256:${value}`);
   if (!result.success) throw new Error('Invalid content checksum fixture.');
   return result.value;
 }

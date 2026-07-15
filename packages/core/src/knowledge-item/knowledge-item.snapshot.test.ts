@@ -56,7 +56,7 @@ function instant(value: string): Instant {
 function contentChecksum(
   value = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
 ): ContentChecksum {
-  const result = ContentChecksum.create({ algorithm: 'sha256', value });
+  const result = ContentChecksum.create(`sha256:${value}`);
   if (!result.success) throw new Error('Invalid ContentChecksum fixture.');
   return result.value;
 }
@@ -255,7 +255,7 @@ describe('KnowledgeItem.toSnapshot — complete snapshot', () => {
   it('includes contentChecksum with algorithm and value', () => {
     expect(snapshot.contentChecksum).toEqual({
       algorithm: 'sha256',
-      value: '9999999999abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      value: 'sha256:9999999999abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     });
   });
 

@@ -18,7 +18,7 @@ function validId(): ValidationAttemptId {
 }
 
 function validChecksum(): ContentChecksum {
-  const result = ContentChecksum.create({ algorithm: 'sha256', value: 'a'.repeat(64) });
+  const result = ContentChecksum.create(`sha256:${'a'.repeat(64)}`);
   if (!result.success) throw new Error('Fixture checksum must be valid.');
   return result.value;
 }
@@ -294,7 +294,7 @@ describe('ValidationSummary', () => {
         expect(snapshot.completedAt).toBe('2026-07-12T21:00:00.000Z');
         expect(snapshot.validatedContentChecksum).toEqual({
           algorithm: 'sha256',
-          value: 'a'.repeat(64),
+          value: `sha256:${'a'.repeat(64)}`,
         });
         expect(snapshot.totalFindings).toBe(6);
         expect(snapshot.errorCount).toBe(2);

@@ -13,7 +13,8 @@ export { normalizationStatuses, type NormalizationStatus } from './normalization
 export {
   ContentChecksum,
   type ContentChecksumAlgorithm,
-  type ContentChecksumError,
+  type ContentChecksumInvalidError,
+  type ContentChecksumInvalidReason,
 } from './content-checksum.js';
 export {
   ValidatorVersion,

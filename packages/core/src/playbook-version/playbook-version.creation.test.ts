@@ -94,7 +94,7 @@ describe('PlaybookVersion creation', () => {
     const result = createDraft();
     expect(result.sourceContentChecksum.algorithm).toBe('sha256');
     expect(result.sourceContentChecksum.value).toBe(
-      'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
+      'sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
     );
   });
 

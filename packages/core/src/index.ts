@@ -231,7 +231,8 @@ export { playbookStatuses, type PlaybookStatus } from './playbook/playbook-statu
 export {
   ContentChecksum,
   type ContentChecksumAlgorithm,
-  type ContentChecksumError,
+  type ContentChecksumInvalidError,
+  type ContentChecksumInvalidReason,
   normalizationStatuses,
   NormalizationSchemaVersion,
   type NormalizationSchemaVersionError,

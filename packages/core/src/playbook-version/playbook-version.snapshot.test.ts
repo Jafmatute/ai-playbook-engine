@@ -40,7 +40,7 @@ describe('PlaybookVersion snapshot', () => {
     const snapshot = result.toSnapshot();
     expect(snapshot.sourceContentChecksum).toEqual({
       algorithm: 'sha256',
-      value: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
+      value: 'sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
     });
   });
 

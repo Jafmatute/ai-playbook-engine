@@ -55,7 +55,7 @@ function instant(value: string): Instant {
 function contentChecksum(
   value = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
 ): ContentChecksum {
-  const result = ContentChecksum.create({ algorithm: 'sha256', value });
+  const result = ContentChecksum.create(`sha256:${value}`);
   if (!result.success) throw new Error('Invalid ContentChecksum fixture.');
   return result.value;
 }
