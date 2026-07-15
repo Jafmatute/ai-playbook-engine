@@ -140,7 +140,12 @@ export {
   SynchronizationRun,
   isSynchronizationRunStatus,
   type CreateSynchronizationRunInput,
+  type StartSynchronizationRunInput,
   type SynchronizationRunStatus,
+  type SynchronizationRunTimestampInvalidError,
+  type SynchronizationRunTransitionError,
+  type SynchronizationRunTransitionNotAllowedError,
+  type SynchronizationRunTransitionOperation,
 } from './synchronization-run/index.js';
 export {
   Workspace,

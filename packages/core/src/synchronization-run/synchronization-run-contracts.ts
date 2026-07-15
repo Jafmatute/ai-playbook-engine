@@ -16,6 +16,10 @@ export interface CreateSynchronizationRunInput {
   readonly createdAt: Instant;
 }
 
+export interface StartSynchronizationRunInput {
+  readonly startedAt: Instant;
+}
+
 export interface SynchronizationRunState {
   readonly synchronizationRunId: SynchronizationRunId;
   readonly workspaceId: WorkspaceId;

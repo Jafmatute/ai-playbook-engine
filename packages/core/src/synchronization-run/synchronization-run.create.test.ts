@@ -145,12 +145,6 @@ describe('SynchronizationRun — immutability', () => {
 // ---------------------------------------------------------------------------
 
 describe('SynchronizationRun — no premature API', () => {
-  it('does not expose start', () => {
-    const run = SynchronizationRun.create(validInput());
-
-    expect((run as unknown as Record<string, unknown>).start).toBeUndefined();
-  });
-
   it('does not expose complete', () => {
     const run = SynchronizationRun.create(validInput());
 

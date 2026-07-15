@@ -1,3 +1,5 @@
+import { err, ok, type Result } from '@ai-playbook-engine/shared';
+
 import type { Instant } from '../instant.js';
 import type {
   PlaybookId,
@@ -8,12 +10,15 @@ import type {
 } from '../identifiers.js';
 import type {
   CreateSynchronizationRunInput,
+  StartSynchronizationRunInput,
   SynchronizationRunState,
 } from './synchronization-run-contracts.js';
 import type { SynchronizationRunStatus } from './synchronization-run-status.js';
+import type { SynchronizationRunTransitionError } from './synchronization-run-errors.js';
+import { transitionNotAllowed, timestampInvalid } from './synchronization-run-errors.js';
 
 export class SynchronizationRun {
-  readonly #state: SynchronizationRunState;
+  #state: SynchronizationRunState;
 
   private constructor(state: SynchronizationRunState) {
     this.#state = Object.freeze({ ...state });
@@ -32,6 +37,38 @@ export class SynchronizationRun {
       completedAt: null,
       synchronizationSnapshotId: null,
     });
+  }
+
+  start(input: StartSynchronizationRunInput): Result<void, SynchronizationRunTransitionError> {
+    if (this.#state.status !== 'pending') {
+      return err(
+        transitionNotAllowed({
+          operation: 'start',
+          currentStatus: this.#state.status,
+          expectedStatus: 'pending',
+        }),
+      );
+    }
+
+    if (input.startedAt.compare(this.#state.createdAt) < 0) {
+      return err(
+        timestampInvalid({
+          operation: 'start',
+          field: 'startedAt',
+          reason: 'timestamp_before_created',
+        }),
+      );
+    }
+
+    this.#state = Object.freeze({
+      ...this.#state,
+      status: 'running',
+      startedAt: input.startedAt,
+      completedAt: null,
+      synchronizationSnapshotId: null,
+    });
+
+    return ok(undefined);
   }
 
   get id(): SynchronizationRunId {
