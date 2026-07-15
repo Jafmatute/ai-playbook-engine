@@ -5,6 +5,7 @@ export {
 export { SynchronizationRun } from './synchronization-run.js';
 export type {
   CreateSynchronizationRunInput,
+  FailSynchronizationRunInput,
   StartSynchronizationRunInput,
 } from './synchronization-run-contracts.js';
 export type {

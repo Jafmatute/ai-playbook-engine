@@ -7,6 +7,7 @@ import type {
 import type { Instant } from '../instant.js';
 import type { SynchronizationRunStatus } from './synchronization-run-status.js';
 import type { SynchronizationSnapshotId } from '../identifiers.js';
+import type { SynchronizationFailure } from './synchronization-failure.js';
 
 export interface CreateSynchronizationRunInput {
   readonly synchronizationRunId: SynchronizationRunId;
@@ -20,6 +21,11 @@ export interface StartSynchronizationRunInput {
   readonly startedAt: Instant;
 }
 
+export interface FailSynchronizationRunInput {
+  readonly failedAt: Instant;
+  readonly failure: SynchronizationFailure;
+}
+
 export interface SynchronizationRunState {
   readonly synchronizationRunId: SynchronizationRunId;
   readonly workspaceId: WorkspaceId;
@@ -30,4 +36,5 @@ export interface SynchronizationRunState {
   readonly startedAt: Instant | null;
   readonly completedAt: Instant | null;
   readonly synchronizationSnapshotId: SynchronizationSnapshotId | null;
+  readonly failure: SynchronizationFailure | null;
 }

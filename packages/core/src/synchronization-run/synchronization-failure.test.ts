@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  SynchronizationFailure,
-  type CreateSynchronizationFailureInput,
-} from '../index.js';
+import { SynchronizationFailure, type CreateSynchronizationFailureInput } from '../index.js';
 
 function validInput(
   overrides?: Partial<CreateSynchronizationFailureInput>,

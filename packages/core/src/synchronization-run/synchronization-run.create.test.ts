@@ -123,6 +123,10 @@ describe('SynchronizationRun — initial state', () => {
     expect(run.synchronizationSnapshotId).toBeNull();
   });
 
+  it('starts with failure null', () => {
+    expect(run.failure).toBeNull();
+  });
+
   it('preserves createdAt', () => {
     expect(run.createdAt.equals(fixtureCreatedAt)).toBe(true);
   });
@@ -149,12 +153,6 @@ describe('SynchronizationRun — no premature API', () => {
     const run = SynchronizationRun.create(validInput());
 
     expect((run as unknown as Record<string, unknown>).complete).toBeUndefined();
-  });
-
-  it('does not expose fail', () => {
-    const run = SynchronizationRun.create(validInput());
-
-    expect((run as unknown as Record<string, unknown>).fail).toBeUndefined();
   });
 
   it('does not expose restore', () => {

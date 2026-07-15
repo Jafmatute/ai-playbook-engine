@@ -98,6 +98,13 @@ describe('SynchronizationRun.start — valid transition', () => {
 
     expect(run.synchronizationSnapshotId).toBeNull();
   });
+
+  it('keeps failure null', () => {
+    const run = SynchronizationRun.create(createInput());
+    run.start({ startedAt: fixtureStartedAt });
+
+    expect(run.failure).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

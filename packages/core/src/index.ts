@@ -140,6 +140,7 @@ export {
   SynchronizationRun,
   isSynchronizationRunStatus,
   type CreateSynchronizationRunInput,
+  type FailSynchronizationRunInput,
   type StartSynchronizationRunInput,
   type SynchronizationRunStatus,
   type SynchronizationRunTimestampInvalidError,

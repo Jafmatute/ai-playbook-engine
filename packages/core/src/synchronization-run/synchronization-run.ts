@@ -10,10 +10,12 @@ import type {
 } from '../identifiers.js';
 import type {
   CreateSynchronizationRunInput,
+  FailSynchronizationRunInput,
   StartSynchronizationRunInput,
   SynchronizationRunState,
 } from './synchronization-run-contracts.js';
 import type { SynchronizationRunStatus } from './synchronization-run-status.js';
+import type { SynchronizationFailure } from './synchronization-failure.js';
 import type { SynchronizationRunTransitionError } from './synchronization-run-errors.js';
 import { transitionNotAllowed, timestampInvalid } from './synchronization-run-errors.js';
 
@@ -36,6 +38,7 @@ export class SynchronizationRun {
       startedAt: null,
       completedAt: null,
       synchronizationSnapshotId: null,
+      failure: null,
     });
   }
 
@@ -66,6 +69,41 @@ export class SynchronizationRun {
       startedAt: input.startedAt,
       completedAt: null,
       synchronizationSnapshotId: null,
+      failure: null,
+    });
+
+    return ok(undefined);
+  }
+
+  fail(input: FailSynchronizationRunInput): Result<void, SynchronizationRunTransitionError> {
+    if (this.#state.status !== 'running') {
+      return err(
+        transitionNotAllowed({
+          operation: 'fail',
+          currentStatus: this.#state.status,
+          expectedStatus: 'running',
+        }),
+      );
+    }
+
+    const currentStartedAt = this.#state.startedAt;
+
+    if (currentStartedAt !== null && input.failedAt.compare(currentStartedAt) < 0) {
+      return err(
+        timestampInvalid({
+          operation: 'fail',
+          field: 'failedAt',
+          reason: 'timestamp_before_started',
+        }),
+      );
+    }
+
+    this.#state = Object.freeze({
+      ...this.#state,
+      status: 'failed',
+      completedAt: input.failedAt,
+      synchronizationSnapshotId: null,
+      failure: input.failure,
     });
 
     return ok(undefined);
@@ -105,5 +143,9 @@ export class SynchronizationRun {
 
   get synchronizationSnapshotId(): SynchronizationSnapshotId | null {
     return this.#state.synchronizationSnapshotId;
+  }
+
+  get failure(): SynchronizationFailure | null {
+    return this.#state.failure;
   }
 }
