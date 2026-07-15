@@ -229,6 +229,11 @@ export {
 export { PlaybookName, type PlaybookNameError } from './playbook/playbook-name.js';
 export { playbookStatuses, type PlaybookStatus } from './playbook/playbook-status.js';
 export {
+  StorageReference,
+  type StorageReferenceInvalidError,
+  type StorageReferenceInvalidReason,
+} from './storage-reference.js';
+export {
   ContentChecksum,
   type ContentChecksumAlgorithm,
   type ContentChecksumInvalidError,
