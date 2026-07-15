@@ -165,6 +165,10 @@ export {
 export {
   isPlaybookSourceStatus,
   isPlaybookSourceType,
+  PlaybookSourceExternalRootReference,
+  type PlaybookSourceExternalRootReferenceError,
+  type PlaybookSourceExternalRootReferenceField,
+  type PlaybookSourceExternalRootReferenceInvalidReason,
   type PlaybookSourceStatus,
   type PlaybookSourceType,
 } from './playbook-source/index.js';
