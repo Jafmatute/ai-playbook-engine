@@ -119,7 +119,11 @@ export {
   type ReferenceDocumentAttributes,
 } from './knowledge-item/index.js';
 export {
+  KnowledgeRelationship,
   isKnowledgeRelationshipType,
+  type CreateKnowledgeRelationshipInput,
+  type KnowledgeRelationshipCreationError,
+  type KnowledgeRelationshipSelfReferenceError,
   type KnowledgeRelationshipType,
 } from './knowledge-relationship/index.js';
 export {
