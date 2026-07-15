@@ -163,6 +163,10 @@ export {
   isSynchronizationFailureStage,
 } from './synchronization-run/index.js';
 export {
+  SynchronizationSnapshot,
+  type CreateSynchronizationSnapshotInput,
+} from './synchronization-snapshot/index.js';
+export {
   isPlaybookSourceStatus,
   isPlaybookSourceType,
   PlaybookSource,
