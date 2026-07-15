@@ -5,6 +5,7 @@ export {
 export { KnowledgeRelationship } from './knowledge-relationship.js';
 export type {
   CreateKnowledgeRelationshipInput,
+  KnowledgeRelationshipSnapshot,
   RestoreKnowledgeRelationshipInput,
 } from './knowledge-relationship-contracts.js';
 export type {

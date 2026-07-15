@@ -2,10 +2,11 @@ import { err, ok, type Result } from '@ai-playbook-engine/shared';
 
 import type { Instant } from '../instant.js';
 import type { KnowledgeItemId, PlaybookVersionId, WorkspaceId } from '../identifiers.js';
-import type { SourceReference } from '../knowledge-item/index.js';
+import type { SourceReference, SourceReferenceSnapshot } from '../knowledge-item/index.js';
 import { isKnowledgeRelationshipType } from './knowledge-relationship-type.js';
 import type {
   CreateKnowledgeRelationshipInput,
+  KnowledgeRelationshipSnapshot,
   KnowledgeRelationshipState,
   RestoreKnowledgeRelationshipInput,
 } from './knowledge-relationship-contracts.js';
@@ -112,5 +113,26 @@ export class KnowledgeRelationship {
 
   get createdAt(): Instant {
     return this.#state.createdAt;
+  }
+
+  toSnapshot(): KnowledgeRelationshipSnapshot {
+    const sourceReference: SourceReferenceSnapshot | null =
+      this.#state.sourceReference === null
+        ? null
+        : Object.freeze({
+            provider: this.#state.sourceReference.provider,
+            objectType: this.#state.sourceReference.objectType,
+            externalId: this.#state.sourceReference.externalId,
+          });
+
+    return Object.freeze({
+      workspaceId: this.#state.workspaceId,
+      playbookVersionId: this.#state.playbookVersionId,
+      sourceKnowledgeItemId: this.#state.sourceKnowledgeItemId,
+      targetKnowledgeItemId: this.#state.targetKnowledgeItemId,
+      type: this.#state.type,
+      sourceReference,
+      createdAt: this.#state.createdAt.toString(),
+    });
   }
 }

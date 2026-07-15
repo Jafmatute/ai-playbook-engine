@@ -123,6 +123,7 @@ export {
   isKnowledgeRelationshipType,
   type CreateKnowledgeRelationshipInput,
   type KnowledgeRelationshipCreationError,
+  type KnowledgeRelationshipSnapshot,
   type KnowledgeRelationshipRestorationError,
   type KnowledgeRelationshipRestorationInvalidField,
   type KnowledgeRelationshipRestorationInvalidReason,

@@ -1,6 +1,6 @@
 import type { KnowledgeItemId, PlaybookVersionId, WorkspaceId } from '../identifiers.js';
 import type { Instant } from '../instant.js';
-import type { SourceReference } from '../knowledge-item/index.js';
+import type { SourceReference, SourceReferenceSnapshot } from '../knowledge-item/index.js';
 import type { KnowledgeRelationshipType } from './knowledge-relationship-type.js';
 
 export interface CreateKnowledgeRelationshipInput {
@@ -21,6 +21,16 @@ export interface RestoreKnowledgeRelationshipInput {
   readonly type: string;
   readonly sourceReference: SourceReference | null;
   readonly createdAt: Instant;
+}
+
+export interface KnowledgeRelationshipSnapshot {
+  readonly workspaceId: string;
+  readonly playbookVersionId: string;
+  readonly sourceKnowledgeItemId: string;
+  readonly targetKnowledgeItemId: string;
+  readonly type: KnowledgeRelationshipType;
+  readonly sourceReference: SourceReferenceSnapshot | null;
+  readonly createdAt: string;
 }
 
 export interface KnowledgeRelationshipState {

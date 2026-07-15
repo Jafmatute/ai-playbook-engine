@@ -429,20 +429,4 @@ describe('KnowledgeRelationship — no premature API', () => {
     }
   });
 
-  it('does not expose toSnapshot', () => {
-    const result = KnowledgeRelationship.create({
-      workspaceId: fixtureWsId,
-      playbookVersionId: fixturePvId,
-      sourceKnowledgeItemId: fixtureSourceId,
-      targetKnowledgeItemId: fixtureTargetId,
-      type: 'references',
-      sourceReference: null,
-      createdAt: fixtureCreatedAt,
-    });
-
-    if (result.success) {
-      expect((result.value as unknown as Record<string, unknown>).toSnapshot).toBeUndefined();
-    }
-  });
-
 });
