@@ -137,7 +137,9 @@ export {
   type RestoreKnowledgeRelationshipInput,
 } from './knowledge-relationship/index.js';
 export {
+  SynchronizationRun,
   isSynchronizationRunStatus,
+  type CreateSynchronizationRunInput,
   type SynchronizationRunStatus,
 } from './synchronization-run/index.js';
 export {
