@@ -36,6 +36,21 @@ export function transitionNotAllowed(
   });
 }
 
+export type PlaybookSourceUpdateField = 'externalRootReference';
+
+export type PlaybookSourceUpdateInvalidReason = 'unchanged';
+
+export interface PlaybookSourceUpdateInvalidError {
+  readonly code: 'PLAYBOOK_SOURCE_UPDATE_INVALID';
+  readonly message: string;
+  readonly details: {
+    readonly field: PlaybookSourceUpdateField;
+    readonly reason: PlaybookSourceUpdateInvalidReason;
+  };
+}
+
+export type PlaybookSourceUpdateError = PlaybookSourceUpdateInvalidError;
+
 export function stateInvalid(
   reason: PlaybookSourceStateInvalidReason,
 ): PlaybookSourceStateInvalidError {
@@ -43,5 +58,15 @@ export function stateInvalid(
     code: 'PLAYBOOK_SOURCE_STATE_INVALID' as const,
     message: 'The playbook source state is invalid.',
     details: Object.freeze({ reason }),
+  });
+}
+
+export function updateInvalid(
+  details: PlaybookSourceUpdateInvalidError['details'],
+): PlaybookSourceUpdateInvalidError {
+  return Object.freeze({
+    code: 'PLAYBOOK_SOURCE_UPDATE_INVALID' as const,
+    message: 'The playbook source update is invalid.',
+    details: Object.freeze({ ...details }),
   });
 }

@@ -11,12 +11,14 @@ import type {
   PlaybookSourceState,
   RestorePlaybookSourceInput,
   PlaybookSourceSnapshot,
+  UpdatePlaybookSourceExternalRootReferenceInput,
 } from './playbook-source-contracts.js';
 import type {
   PlaybookSourceTransitionError,
   PlaybookSourceRestorationError,
+  PlaybookSourceUpdateError,
 } from './playbook-source-errors.js';
-import { transitionNotAllowed, stateInvalid } from './playbook-source-errors.js';
+import { transitionNotAllowed, stateInvalid, updateInvalid } from './playbook-source-errors.js';
 
 export class PlaybookSource {
   #state: PlaybookSourceState;
@@ -113,6 +115,26 @@ export class PlaybookSource {
       configurationReference: this.#state.configurationReference.toString(),
       createdAt: this.#state.createdAt.toString(),
     });
+  }
+
+  updateExternalRootReference(
+    input: UpdatePlaybookSourceExternalRootReferenceInput,
+  ): Result<void, PlaybookSourceUpdateError> {
+    if (this.#state.externalRootReference.equals(input.externalRootReference)) {
+      return err(
+        updateInvalid({
+          field: 'externalRootReference',
+          reason: 'unchanged',
+        }),
+      );
+    }
+
+    this.#state = Object.freeze({
+      ...this.#state,
+      externalRootReference: input.externalRootReference,
+    });
+
+    return ok(undefined);
   }
 
   get id(): PlaybookSourceId {

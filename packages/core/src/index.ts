@@ -186,6 +186,11 @@ export {
   type PlaybookSourceRestorationError,
   type PlaybookSourceStateInvalidError,
   type PlaybookSourceStateInvalidReason,
+  type PlaybookSourceUpdateError,
+  type PlaybookSourceUpdateField,
+  type PlaybookSourceUpdateInvalidError,
+  type PlaybookSourceUpdateInvalidReason,
+  type UpdatePlaybookSourceExternalRootReferenceInput,
 } from './playbook-source/index.js';
 export {
   Workspace,

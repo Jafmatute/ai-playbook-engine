@@ -18,6 +18,7 @@ export type {
   PlaybookSourceState,
   PlaybookSourceSnapshot,
   RestorePlaybookSourceInput,
+  UpdatePlaybookSourceExternalRootReferenceInput,
 } from './playbook-source-contracts.js';
 export type {
   PlaybookSourceTransitionError,
@@ -26,4 +27,8 @@ export type {
   PlaybookSourceRestorationError,
   PlaybookSourceStateInvalidError,
   PlaybookSourceStateInvalidReason,
+  PlaybookSourceUpdateError,
+  PlaybookSourceUpdateField,
+  PlaybookSourceUpdateInvalidError,
+  PlaybookSourceUpdateInvalidReason,
 } from './playbook-source-errors.js';
