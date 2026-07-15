@@ -143,4 +143,3 @@ describe('SynchronizationRun — immutability', () => {
     expect(Object.isFrozen(run)).toBe(true);
   });
 });
-

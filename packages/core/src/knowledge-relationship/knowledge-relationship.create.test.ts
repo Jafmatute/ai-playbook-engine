@@ -428,5 +428,4 @@ describe('KnowledgeRelationship — no premature API', () => {
       expect((result.value as unknown as Record<string, unknown>).replaceTarget).toBeUndefined();
     }
   });
-
 });
