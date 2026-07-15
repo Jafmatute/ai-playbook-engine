@@ -228,10 +228,6 @@ describe('PlaybookSource — no premature API', () => {
     createdAt: fixtureCreatedAt,
   });
 
-  it('does not expose enable', () => {
-    expect((source as unknown as Record<string, unknown>).enable).toBeUndefined();
-  });
-
   it('does not expose restore', () => {
     expect((PlaybookSource as unknown as Record<string, unknown>).restore).toBeUndefined();
   });

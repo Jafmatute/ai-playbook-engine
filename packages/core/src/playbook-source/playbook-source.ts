@@ -53,6 +53,25 @@ export class PlaybookSource {
     return ok(undefined);
   }
 
+  enable(): Result<void, PlaybookSourceTransitionError> {
+    if (this.#state.status !== 'disabled') {
+      return err(
+        transitionNotAllowed({
+          operation: 'enable',
+          currentStatus: this.#state.status,
+          expectedStatus: 'disabled',
+        }),
+      );
+    }
+
+    this.#state = Object.freeze({
+      ...this.#state,
+      status: 'enabled',
+    });
+
+    return ok(undefined);
+  }
+
   get id(): PlaybookSourceId {
     return this.#state.playbookSourceId;
   }

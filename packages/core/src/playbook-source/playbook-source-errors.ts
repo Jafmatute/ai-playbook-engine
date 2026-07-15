@@ -1,6 +1,6 @@
 import type { PlaybookSourceStatus } from './playbook-source-status.js';
 
-export type PlaybookSourceTransitionOperation = 'disable';
+export type PlaybookSourceTransitionOperation = 'disable' | 'enable';
 
 export interface PlaybookSourceTransitionNotAllowedError {
   readonly code: 'PLAYBOOK_SOURCE_TRANSITION_NOT_ALLOWED';
@@ -8,7 +8,7 @@ export interface PlaybookSourceTransitionNotAllowedError {
   readonly details: {
     readonly operation: PlaybookSourceTransitionOperation;
     readonly currentStatus: PlaybookSourceStatus;
-    readonly expectedStatus: 'enabled';
+    readonly expectedStatus: PlaybookSourceStatus;
   };
 }
 
