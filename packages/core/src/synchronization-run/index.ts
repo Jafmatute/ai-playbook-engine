@@ -13,3 +13,14 @@ export type {
   SynchronizationRunTransitionNotAllowedError,
   SynchronizationRunTransitionOperation,
 } from './synchronization-run-errors.js';
+export {
+  isSynchronizationFailureStage,
+  type SynchronizationFailureStage,
+} from './synchronization-failure-stage.js';
+export {
+  SynchronizationFailure,
+  type CreateSynchronizationFailureInput,
+  type SynchronizationFailureError,
+  type SynchronizationFailureField,
+  type SynchronizationFailureInvalidReason,
+} from './synchronization-failure.js';

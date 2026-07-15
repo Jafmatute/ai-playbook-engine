@@ -146,6 +146,13 @@ export {
   type SynchronizationRunTransitionError,
   type SynchronizationRunTransitionNotAllowedError,
   type SynchronizationRunTransitionOperation,
+  type CreateSynchronizationFailureInput,
+  type SynchronizationFailureError,
+  type SynchronizationFailureField,
+  type SynchronizationFailureInvalidReason,
+  type SynchronizationFailureStage,
+  SynchronizationFailure,
+  isSynchronizationFailureStage,
 } from './synchronization-run/index.js';
 export {
   Workspace,
