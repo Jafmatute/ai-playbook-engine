@@ -135,6 +135,10 @@ export {
   type RestoreKnowledgeRelationshipInput,
 } from './knowledge-relationship/index.js';
 export {
+  isSynchronizationRunStatus,
+  type SynchronizationRunStatus,
+} from './synchronization-run/index.js';
+export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
   type WorkspaceCreationError,
