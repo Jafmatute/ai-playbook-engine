@@ -191,6 +191,7 @@ export {
   type PlaybookSourceUpdateInvalidError,
   type PlaybookSourceUpdateInvalidReason,
   type UpdatePlaybookSourceExternalRootReferenceInput,
+  type UpdatePlaybookSourceConfigurationReferenceInput,
 } from './playbook-source/index.js';
 export {
   Workspace,

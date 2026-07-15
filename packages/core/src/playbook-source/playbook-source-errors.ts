@@ -36,7 +36,7 @@ export function transitionNotAllowed(
   });
 }
 
-export type PlaybookSourceUpdateField = 'externalRootReference';
+export type PlaybookSourceUpdateField = 'externalRootReference' | 'configurationReference';
 
 export type PlaybookSourceUpdateInvalidReason = 'unchanged';
 

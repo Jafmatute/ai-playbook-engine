@@ -12,6 +12,7 @@ import type {
   RestorePlaybookSourceInput,
   PlaybookSourceSnapshot,
   UpdatePlaybookSourceExternalRootReferenceInput,
+  UpdatePlaybookSourceConfigurationReferenceInput,
 } from './playbook-source-contracts.js';
 import type {
   PlaybookSourceTransitionError,
@@ -132,6 +133,26 @@ export class PlaybookSource {
     this.#state = Object.freeze({
       ...this.#state,
       externalRootReference: input.externalRootReference,
+    });
+
+    return ok(undefined);
+  }
+
+  updateConfigurationReference(
+    input: UpdatePlaybookSourceConfigurationReferenceInput,
+  ): Result<void, PlaybookSourceUpdateError> {
+    if (this.#state.configurationReference.equals(input.configurationReference)) {
+      return err(
+        updateInvalid({
+          field: 'configurationReference',
+          reason: 'unchanged',
+        }),
+      );
+    }
+
+    this.#state = Object.freeze({
+      ...this.#state,
+      configurationReference: input.configurationReference,
     });
 
     return ok(undefined);

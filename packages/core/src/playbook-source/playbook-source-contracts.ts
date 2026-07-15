@@ -30,6 +30,10 @@ export interface UpdatePlaybookSourceExternalRootReferenceInput {
   readonly externalRootReference: PlaybookSourceExternalRootReference;
 }
 
+export interface UpdatePlaybookSourceConfigurationReferenceInput {
+  readonly configurationReference: PlaybookSourceConfigurationReference;
+}
+
 export interface PlaybookSourceSnapshot {
   readonly playbookSourceId: string;
   readonly workspaceId: string;

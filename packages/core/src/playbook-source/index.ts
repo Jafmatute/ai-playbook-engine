@@ -19,6 +19,7 @@ export type {
   PlaybookSourceSnapshot,
   RestorePlaybookSourceInput,
   UpdatePlaybookSourceExternalRootReferenceInput,
+  UpdatePlaybookSourceConfigurationReferenceInput,
 } from './playbook-source-contracts.js';
 export type {
   PlaybookSourceTransitionError,
