@@ -181,6 +181,10 @@ export {
   type PlaybookSourceTransitionNotAllowedError,
   type PlaybookSourceTransitionOperation,
   type PlaybookSourceType,
+  type RestorePlaybookSourceInput,
+  type PlaybookSourceRestorationError,
+  type PlaybookSourceStateInvalidError,
+  type PlaybookSourceStateInvalidReason,
 } from './playbook-source/index.js';
 export {
   Workspace,

@@ -9,9 +9,13 @@ import type { PlaybookSourceConfigurationReference } from './playbook-source-con
 import type {
   CreatePlaybookSourceInput,
   PlaybookSourceState,
+  RestorePlaybookSourceInput,
 } from './playbook-source-contracts.js';
-import type { PlaybookSourceTransitionError } from './playbook-source-errors.js';
-import { transitionNotAllowed } from './playbook-source-errors.js';
+import type {
+  PlaybookSourceTransitionError,
+  PlaybookSourceRestorationError,
+} from './playbook-source-errors.js';
+import { transitionNotAllowed, stateInvalid } from './playbook-source-errors.js';
 
 export class PlaybookSource {
   #state: PlaybookSourceState;
@@ -32,6 +36,31 @@ export class PlaybookSource {
       configurationReference: input.configurationReference,
       createdAt: input.createdAt,
     });
+  }
+
+  static restore(
+    input: RestorePlaybookSourceInput,
+  ): Result<PlaybookSource, PlaybookSourceRestorationError> {
+    switch (input.status) {
+      case 'enabled':
+      case 'disabled':
+        break;
+      default:
+        return err(stateInvalid('UNKNOWN_PLAYBOOK_SOURCE_STATUS'));
+    }
+
+    return ok(
+      new PlaybookSource({
+        playbookSourceId: input.playbookSourceId,
+        workspaceId: input.workspaceId,
+        playbookId: input.playbookId,
+        type: input.type,
+        status: input.status,
+        externalRootReference: input.externalRootReference,
+        configurationReference: input.configurationReference,
+        createdAt: input.createdAt,
+      }),
+    );
   }
 
   disable(): Result<void, PlaybookSourceTransitionError> {

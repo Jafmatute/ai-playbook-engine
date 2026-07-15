@@ -16,9 +16,13 @@ export { PlaybookSource } from './playbook-source.js';
 export type {
   CreatePlaybookSourceInput,
   PlaybookSourceState,
+  RestorePlaybookSourceInput,
 } from './playbook-source-contracts.js';
 export type {
   PlaybookSourceTransitionError,
   PlaybookSourceTransitionNotAllowedError,
   PlaybookSourceTransitionOperation,
+  PlaybookSourceRestorationError,
+  PlaybookSourceStateInvalidError,
+  PlaybookSourceStateInvalidReason,
 } from './playbook-source-errors.js';
