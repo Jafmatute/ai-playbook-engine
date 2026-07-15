@@ -4,6 +4,7 @@ export {
 } from './synchronization-run-status.js';
 export { SynchronizationRun } from './synchronization-run.js';
 export type {
+  CompleteSynchronizationRunInput,
   CreateSynchronizationRunInput,
   FailSynchronizationRunInput,
   StartSynchronizationRunInput,

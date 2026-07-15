@@ -26,6 +26,11 @@ export interface FailSynchronizationRunInput {
   readonly failure: SynchronizationFailure;
 }
 
+export interface CompleteSynchronizationRunInput {
+  readonly completedAt: Instant;
+  readonly synchronizationSnapshotId: SynchronizationSnapshotId;
+}
+
 export interface SynchronizationRunState {
   readonly synchronizationRunId: SynchronizationRunId;
   readonly workspaceId: WorkspaceId;

@@ -1,6 +1,6 @@
 import type { SynchronizationRunStatus } from './synchronization-run-status.js';
 
-export type SynchronizationRunTransitionOperation = 'start' | 'fail';
+export type SynchronizationRunTransitionOperation = 'start' | 'fail' | 'complete';
 
 export interface SynchronizationRunTransitionNotAllowedError {
   readonly code: 'SYNCHRONIZATION_RUN_TRANSITION_NOT_ALLOWED';
@@ -17,7 +17,7 @@ export interface SynchronizationRunTimestampInvalidError {
   readonly message: string;
   readonly details: {
     readonly operation: SynchronizationRunTransitionOperation;
-    readonly field: 'startedAt' | 'failedAt';
+    readonly field: 'startedAt' | 'failedAt' | 'completedAt';
     readonly reason: 'timestamp_before_created' | 'timestamp_before_started';
   };
 }

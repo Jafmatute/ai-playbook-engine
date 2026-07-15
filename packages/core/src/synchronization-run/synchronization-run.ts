@@ -9,6 +9,7 @@ import type {
   WorkspaceId,
 } from '../identifiers.js';
 import type {
+  CompleteSynchronizationRunInput,
   CreateSynchronizationRunInput,
   FailSynchronizationRunInput,
   StartSynchronizationRunInput,
@@ -104,6 +105,42 @@ export class SynchronizationRun {
       completedAt: input.failedAt,
       synchronizationSnapshotId: null,
       failure: input.failure,
+    });
+
+    return ok(undefined);
+  }
+
+  complete(
+    input: CompleteSynchronizationRunInput,
+  ): Result<void, SynchronizationRunTransitionError> {
+    if (this.#state.status !== 'running') {
+      return err(
+        transitionNotAllowed({
+          operation: 'complete',
+          currentStatus: this.#state.status,
+          expectedStatus: 'running',
+        }),
+      );
+    }
+
+    const currentStartedAt = this.#state.startedAt;
+
+    if (currentStartedAt !== null && input.completedAt.compare(currentStartedAt) < 0) {
+      return err(
+        timestampInvalid({
+          operation: 'complete',
+          field: 'completedAt',
+          reason: 'timestamp_before_started',
+        }),
+      );
+    }
+
+    this.#state = Object.freeze({
+      ...this.#state,
+      status: 'completed',
+      completedAt: input.completedAt,
+      synchronizationSnapshotId: input.synchronizationSnapshotId,
+      failure: null,
     });
 
     return ok(undefined);

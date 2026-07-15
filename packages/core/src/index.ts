@@ -139,6 +139,7 @@ export {
 export {
   SynchronizationRun,
   isSynchronizationRunStatus,
+  type CompleteSynchronizationRunInput,
   type CreateSynchronizationRunInput,
   type FailSynchronizationRunInput,
   type StartSynchronizationRunInput,
