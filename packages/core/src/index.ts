@@ -229,6 +229,13 @@ export {
 export { PlaybookName, type PlaybookNameError } from './playbook/playbook-name.js';
 export { playbookStatuses, type PlaybookStatus } from './playbook/playbook-status.js';
 export {
+  synchronizationSnapshotStorageFormats,
+  isSynchronizationSnapshotStorageFormat,
+  parseSynchronizationSnapshotStorageFormat,
+  type SynchronizationSnapshotStorageFormat,
+  type SynchronizationSnapshotStorageFormatInvalidError,
+} from './synchronization-snapshot-storage-format.js';
+export {
   StorageReference,
   type StorageReferenceInvalidError,
   type StorageReferenceInvalidReason,
