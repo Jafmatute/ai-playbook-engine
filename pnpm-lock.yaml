@@ -36,6 +36,15 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@26.1.1)(vite@8.1.4(@types/node@26.1.1))
 
+  packages/application:
+    dependencies:
+      '@ai-playbook-engine/core':
+        specifier: workspace:*
+        version: link:../core
+      '@ai-playbook-engine/shared':
+        specifier: workspace:*
+        version: link:../shared
+
   packages/config:
     dependencies:
       '@ai-playbook-engine/shared':
