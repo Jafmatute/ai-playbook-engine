@@ -213,12 +213,6 @@ describe('SynchronizationSnapshot — no cloning of Value Objects', () => {
 });
 
 describe('SynchronizationSnapshot — API mínima', () => {
-  it('does not have toSnapshot yet', () => {
-    const snapshot = SynchronizationSnapshot.create(validInput());
-
-    expect((snapshot as unknown as Record<string, unknown>).toSnapshot).toBeUndefined();
-  });
-
   it('does not have updateStorageReference yet', () => {
     const snapshot = SynchronizationSnapshot.create(validInput());
 

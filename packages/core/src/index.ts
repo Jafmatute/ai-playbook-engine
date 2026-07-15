@@ -166,6 +166,7 @@ export {
   SynchronizationSnapshot,
   type CreateSynchronizationSnapshotInput,
   type RestoreSynchronizationSnapshotInput,
+  type SynchronizationSnapshotSnapshot,
   type SynchronizationSnapshotRestorationError,
   type SynchronizationSnapshotStateInvalidError,
   type SynchronizationSnapshotStateInvalidReason,

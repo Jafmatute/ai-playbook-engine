@@ -15,6 +15,7 @@ import type { ParserCompatibilityVersion } from '../parser-compatibility-version
 import type {
   CreateSynchronizationSnapshotInput,
   RestoreSynchronizationSnapshotInput,
+  SynchronizationSnapshotSnapshot,
   SynchronizationSnapshotState,
 } from './synchronization-snapshot-contracts.js';
 import {
@@ -106,5 +107,20 @@ export class SynchronizationSnapshot {
 
   get createdAt(): Instant {
     return this.#state.createdAt;
+  }
+
+  toSnapshot(): SynchronizationSnapshotSnapshot {
+    return Object.freeze({
+      synchronizationSnapshotId: this.#state.synchronizationSnapshotId,
+      workspaceId: this.#state.workspaceId,
+      playbookSourceId: this.#state.playbookSourceId,
+      synchronizationRunId: this.#state.synchronizationRunId,
+      contentChecksum: this.#state.contentChecksum.toString(),
+      storageReference: this.#state.storageReference.toString(),
+      storageFormat: this.#state.storageFormat,
+      sourceSchemaVersion: this.#state.sourceSchemaVersion.toString(),
+      parserCompatibilityVersion: this.#state.parserCompatibilityVersion.toString(),
+      createdAt: this.#state.createdAt.toString(),
+    });
   }
 }

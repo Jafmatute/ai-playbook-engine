@@ -11,6 +11,19 @@ import type { SynchronizationSnapshotStorageFormat } from '../synchronization-sn
 import type { SourceSchemaVersion } from '../source-schema-version.js';
 import type { ParserCompatibilityVersion } from '../parser-compatibility-version.js';
 
+export interface SynchronizationSnapshotSnapshot {
+  readonly synchronizationSnapshotId: string;
+  readonly workspaceId: string;
+  readonly playbookSourceId: string;
+  readonly synchronizationRunId: string;
+  readonly contentChecksum: string;
+  readonly storageReference: string;
+  readonly storageFormat: SynchronizationSnapshotStorageFormat;
+  readonly sourceSchemaVersion: string;
+  readonly parserCompatibilityVersion: string;
+  readonly createdAt: string;
+}
+
 export interface RestoreSynchronizationSnapshotInput {
   readonly synchronizationSnapshotId: SynchronizationSnapshotId;
   readonly workspaceId: WorkspaceId;
