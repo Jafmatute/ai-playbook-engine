@@ -12,3 +12,8 @@ export {
   type PlaybookSourceConfigurationReferenceField,
   type PlaybookSourceConfigurationReferenceInvalidReason,
 } from './playbook-source-configuration-reference.js';
+export { PlaybookSource } from './playbook-source.js';
+export type {
+  CreatePlaybookSourceInput,
+  PlaybookSourceState,
+} from './playbook-source-contracts.js';
