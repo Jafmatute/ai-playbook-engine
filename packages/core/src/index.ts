@@ -119,6 +119,10 @@ export {
   type ReferenceDocumentAttributes,
 } from './knowledge-item/index.js';
 export {
+  isKnowledgeRelationshipType,
+  type KnowledgeRelationshipType,
+} from './knowledge-relationship/index.js';
+export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
   type WorkspaceCreationError,
