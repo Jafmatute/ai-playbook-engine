@@ -165,6 +165,10 @@ export {
 export {
   SynchronizationSnapshot,
   type CreateSynchronizationSnapshotInput,
+  type RestoreSynchronizationSnapshotInput,
+  type SynchronizationSnapshotRestorationError,
+  type SynchronizationSnapshotStateInvalidError,
+  type SynchronizationSnapshotStateInvalidReason,
 } from './synchronization-snapshot/index.js';
 export {
   isPlaybookSourceStatus,
