@@ -162,6 +162,7 @@ export {
   SynchronizationFailure,
   isSynchronizationFailureStage,
 } from './synchronization-run/index.js';
+export { isPlaybookSourceStatus, type PlaybookSourceStatus } from './playbook-source/index.js';
 export {
   Workspace,
   type WorkspaceAlreadyArchivedError,
