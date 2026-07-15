@@ -20,6 +20,7 @@ export type {
   RestorePlaybookSourceInput,
   UpdatePlaybookSourceExternalRootReferenceInput,
   UpdatePlaybookSourceConfigurationReferenceInput,
+  RecordSuccessfulPlaybookSourceSynchronizationInput,
 } from './playbook-source-contracts.js';
 export type {
   PlaybookSourceTransitionError,
@@ -32,4 +33,8 @@ export type {
   PlaybookSourceUpdateField,
   PlaybookSourceUpdateInvalidError,
   PlaybookSourceUpdateInvalidReason,
+  PlaybookSourceSynchronizationMetadataError,
+  PlaybookSourceSynchronizationMetadataField,
+  PlaybookSourceSynchronizationMetadataInvalidError,
+  PlaybookSourceSynchronizationMetadataInvalidReason,
 } from './playbook-source-errors.js';

@@ -228,12 +228,6 @@ describe('PlaybookSource — no premature API', () => {
     createdAt: fixtureCreatedAt,
   });
 
-  it('does not expose recordSuccessfulSynchronization', () => {
-    expect(
-      (source as unknown as Record<string, unknown>).recordSuccessfulSynchronization,
-    ).toBeUndefined();
-  });
-
   it('does not expose recordFailedSynchronization', () => {
     expect(
       (source as unknown as Record<string, unknown>).recordFailedSynchronization,

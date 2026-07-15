@@ -59,6 +59,8 @@ const fixtureRestoreInput = {
   externalRootReference: fixtureRootRef,
   configurationReference: fixtureConfigRef,
   createdAt: fixtureCreatedAt,
+  lastSuccessfulSynchronizationRunId: null,
+  lastSuccessfulSynchronizationAt: null,
 };
 
 function createSource(): PlaybookSource {

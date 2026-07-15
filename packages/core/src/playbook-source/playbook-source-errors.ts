@@ -14,7 +14,11 @@ export interface PlaybookSourceTransitionNotAllowedError {
 
 export type PlaybookSourceTransitionError = PlaybookSourceTransitionNotAllowedError;
 
-export type PlaybookSourceStateInvalidReason = 'UNKNOWN_PLAYBOOK_SOURCE_STATUS';
+export type PlaybookSourceStateInvalidReason =
+  | 'UNKNOWN_PLAYBOOK_SOURCE_STATUS'
+  | 'SUCCESSFUL_RUN_ID_REQUIRES_TIMESTAMP'
+  | 'SUCCESSFUL_TIMESTAMP_REQUIRES_RUN_ID'
+  | 'SUCCESSFUL_TIMESTAMP_BEFORE_CREATED_AT';
 
 export interface PlaybookSourceStateInvalidError {
   readonly code: 'PLAYBOOK_SOURCE_STATE_INVALID';
@@ -25,6 +29,28 @@ export interface PlaybookSourceStateInvalidError {
 }
 
 export type PlaybookSourceRestorationError = PlaybookSourceStateInvalidError;
+
+export type PlaybookSourceSynchronizationMetadataField = 'lastSuccessfulSynchronization';
+
+export type PlaybookSourceSynchronizationMetadataInvalidReason =
+  | 'unchanged'
+  | 'run_timestamp_conflict'
+  | 'timestamp_before_created'
+  | 'timestamp_before_last_success'
+  | 'run_id_without_timestamp'
+  | 'timestamp_without_run_id';
+
+export interface PlaybookSourceSynchronizationMetadataInvalidError {
+  readonly code: 'PLAYBOOK_SOURCE_SYNCHRONIZATION_METADATA_INVALID';
+  readonly message: string;
+  readonly details: {
+    readonly field: PlaybookSourceSynchronizationMetadataField;
+    readonly reason: PlaybookSourceSynchronizationMetadataInvalidReason;
+  };
+}
+
+export type PlaybookSourceSynchronizationMetadataError =
+  PlaybookSourceSynchronizationMetadataInvalidError;
 
 export function transitionNotAllowed(
   details: PlaybookSourceTransitionNotAllowedError['details'],
@@ -67,6 +93,16 @@ export function updateInvalid(
   return Object.freeze({
     code: 'PLAYBOOK_SOURCE_UPDATE_INVALID' as const,
     message: 'The playbook source update is invalid.',
+    details: Object.freeze({ ...details }),
+  });
+}
+
+export function synchronizationMetadataInvalid(
+  details: PlaybookSourceSynchronizationMetadataInvalidError['details'],
+): PlaybookSourceSynchronizationMetadataInvalidError {
+  return Object.freeze({
+    code: 'PLAYBOOK_SOURCE_SYNCHRONIZATION_METADATA_INVALID' as const,
+    message: 'The playbook source synchronization metadata is invalid.',
     details: Object.freeze({ ...details }),
   });
 }

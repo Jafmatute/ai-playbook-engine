@@ -192,6 +192,11 @@ export {
   type PlaybookSourceUpdateInvalidReason,
   type UpdatePlaybookSourceExternalRootReferenceInput,
   type UpdatePlaybookSourceConfigurationReferenceInput,
+  type RecordSuccessfulPlaybookSourceSynchronizationInput,
+  type PlaybookSourceSynchronizationMetadataError,
+  type PlaybookSourceSynchronizationMetadataField,
+  type PlaybookSourceSynchronizationMetadataInvalidError,
+  type PlaybookSourceSynchronizationMetadataInvalidReason,
 } from './playbook-source/index.js';
 export {
   Workspace,

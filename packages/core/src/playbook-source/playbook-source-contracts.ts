@@ -1,4 +1,9 @@
-import type { PlaybookId, PlaybookSourceId, WorkspaceId } from '../identifiers.js';
+import type {
+  PlaybookId,
+  PlaybookSourceId,
+  SynchronizationRunId,
+  WorkspaceId,
+} from '../identifiers.js';
 import type { Instant } from '../instant.js';
 import type { PlaybookSourceType } from './playbook-source-type.js';
 import type { PlaybookSourceStatus } from './playbook-source-status.js';
@@ -24,6 +29,8 @@ export interface RestorePlaybookSourceInput {
   readonly externalRootReference: PlaybookSourceExternalRootReference;
   readonly configurationReference: PlaybookSourceConfigurationReference;
   readonly createdAt: Instant;
+  readonly lastSuccessfulSynchronizationRunId: SynchronizationRunId | null;
+  readonly lastSuccessfulSynchronizationAt: Instant | null;
 }
 
 export interface UpdatePlaybookSourceExternalRootReferenceInput {
@@ -32,6 +39,11 @@ export interface UpdatePlaybookSourceExternalRootReferenceInput {
 
 export interface UpdatePlaybookSourceConfigurationReferenceInput {
   readonly configurationReference: PlaybookSourceConfigurationReference;
+}
+
+export interface RecordSuccessfulPlaybookSourceSynchronizationInput {
+  readonly synchronizationRunId: SynchronizationRunId;
+  readonly succeededAt: Instant;
 }
 
 export interface PlaybookSourceSnapshot {
@@ -43,6 +55,8 @@ export interface PlaybookSourceSnapshot {
   readonly externalRootReference: string;
   readonly configurationReference: string;
   readonly createdAt: string;
+  readonly lastSuccessfulSynchronizationRunId: string | null;
+  readonly lastSuccessfulSynchronizationAt: string | null;
 }
 
 export interface PlaybookSourceState {
@@ -54,4 +68,6 @@ export interface PlaybookSourceState {
   readonly externalRootReference: PlaybookSourceExternalRootReference;
   readonly configurationReference: PlaybookSourceConfigurationReference;
   readonly createdAt: Instant;
+  readonly lastSuccessfulSynchronizationRunId: SynchronizationRunId | null;
+  readonly lastSuccessfulSynchronizationAt: Instant | null;
 }

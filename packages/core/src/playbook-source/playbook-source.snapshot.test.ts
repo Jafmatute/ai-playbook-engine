@@ -144,6 +144,8 @@ describe('PlaybookSource.toSnapshot — restored', () => {
       externalRootReference: fixtureRootRef,
       configurationReference: fixtureConfigRef,
       createdAt: fixtureCreatedAt,
+      lastSuccessfulSynchronizationRunId: null,
+      lastSuccessfulSynchronizationAt: null,
     };
     const result = PlaybookSource.restore(input);
     if (!result.success) throw new Error('Fixture must be valid.');

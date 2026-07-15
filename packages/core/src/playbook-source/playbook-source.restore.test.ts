@@ -62,6 +62,8 @@ function restoreInput(overrides?: Partial<RestorePlaybookSourceInput>): RestoreP
     externalRootReference: fixtureRootRef,
     configurationReference: fixtureConfigRef,
     createdAt: fixtureCreatedAt,
+    lastSuccessfulSynchronizationRunId: null,
+    lastSuccessfulSynchronizationAt: null,
     ...overrides,
   };
 }
