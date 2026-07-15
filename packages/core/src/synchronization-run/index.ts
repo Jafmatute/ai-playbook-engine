@@ -9,6 +9,8 @@ export type {
   FailSynchronizationRunInput,
   RestoreSynchronizationRunInput,
   StartSynchronizationRunInput,
+  SynchronizationFailureSnapshot,
+  SynchronizationRunSnapshot,
 } from './synchronization-run-contracts.js';
 export type {
   SynchronizationRunRestorationError,

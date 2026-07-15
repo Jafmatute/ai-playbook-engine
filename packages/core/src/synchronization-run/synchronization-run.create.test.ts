@@ -144,14 +144,3 @@ describe('SynchronizationRun — immutability', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Ausencia de API prematura
-// ---------------------------------------------------------------------------
-
-describe('SynchronizationRun — no premature API', () => {
-  it('does not expose toSnapshot', () => {
-    const run = SynchronizationRun.create(validInput());
-
-    expect((run as unknown as Record<string, unknown>).toSnapshot).toBeUndefined();
-  });
-});

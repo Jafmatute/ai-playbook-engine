@@ -156,7 +156,9 @@ export {
   type SynchronizationFailureError,
   type SynchronizationFailureField,
   type SynchronizationFailureInvalidReason,
+  type SynchronizationFailureSnapshot,
   type SynchronizationFailureStage,
+  type SynchronizationRunSnapshot,
   SynchronizationFailure,
   isSynchronizationFailureStage,
 } from './synchronization-run/index.js';

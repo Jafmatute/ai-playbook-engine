@@ -14,10 +14,12 @@ import type {
   FailSynchronizationRunInput,
   RestoreSynchronizationRunInput,
   StartSynchronizationRunInput,
+  SynchronizationRunSnapshot,
   SynchronizationRunState,
 } from './synchronization-run-contracts.js';
 import type { SynchronizationRunStatus } from './synchronization-run-status.js';
 import type { SynchronizationFailure } from './synchronization-failure.js';
+import type { SynchronizationFailureSnapshot } from './synchronization-run-contracts.js';
 import type {
   SynchronizationRunRestorationError,
   SynchronizationRunTransitionError,
@@ -267,5 +269,31 @@ export class SynchronizationRun {
 
   get failure(): SynchronizationFailure | null {
     return this.#state.failure;
+  }
+
+  toSnapshot(): SynchronizationRunSnapshot {
+    const failureSnapshot: SynchronizationFailureSnapshot | null =
+      this.#state.failure === null
+        ? null
+        : Object.freeze({
+            code: this.#state.failure.code,
+            message: this.#state.failure.message,
+            stage: this.#state.failure.stage,
+            retryable: this.#state.failure.retryable,
+            externalReference: this.#state.failure.externalReference,
+          });
+
+    return Object.freeze({
+      synchronizationRunId: this.#state.synchronizationRunId,
+      workspaceId: this.#state.workspaceId,
+      playbookId: this.#state.playbookId,
+      playbookSourceId: this.#state.playbookSourceId,
+      status: this.#state.status,
+      createdAt: this.#state.createdAt.toString(),
+      startedAt: this.#state.startedAt?.toString() ?? null,
+      completedAt: this.#state.completedAt?.toString() ?? null,
+      synchronizationSnapshotId: this.#state.synchronizationSnapshotId,
+      failure: failureSnapshot,
+    });
   }
 }
