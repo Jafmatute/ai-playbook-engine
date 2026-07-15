@@ -4,11 +4,13 @@ import {
   parseKnowledgeItemId,
   parseNormalizationAttemptId,
   parsePlaybookId,
+  parseSynchronizationRunId,
   parseSynchronizationSnapshotId,
   parseValidationAttemptId,
   parseWorkspaceId,
   type PlaybookId,
   type PlaybookVersionId,
+  type SynchronizationSnapshotId,
   type WorkspaceId,
 } from './index.js';
 import * as core from './index.js';
@@ -207,6 +209,56 @@ describe('KnowledgeItemId', () => {
 
   it('error details are frozen', () => {
     const result = parseKnowledgeItemId('invalid');
+    if (!result.success) {
+      expect(Object.isFrozen(result.error.details)).toBe(true);
+    }
+  });
+});
+
+describe('SynchronizationRunId', () => {
+  it('parses a valid UUID and normalizes lowercase', () => {
+    const result = parseSynchronizationRunId(uuid.toUpperCase());
+
+    expect(result).toEqual({ success: true, value: uuid });
+  });
+
+  it.each(['', ` ${uuid}`, `${uuid} `, 'not-a-uuid', 'de305d5475b4431badb2eb6b9e546014'])(
+    'rejects invalid input: %s',
+    (rawValue) => {
+      const result = parseSynchronizationRunId(rawValue);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatchObject({
+          code: 'INVALID_IDENTIFIER',
+          details: { expectedType: 'synchronization_run_id' },
+        });
+      }
+    },
+  );
+
+  it('is incompatible with SynchronizationSnapshotId at compile time', () => {
+    const result = parseSynchronizationRunId(uuid);
+    if (!result.success) throw new Error('Fixture must be valid.');
+
+    const acceptsSnapshotId = (_value: SynchronizationSnapshotId): void => undefined;
+    // @ts-expect-error SynchronizationRunId must not be assignable to SynchronizationSnapshotId.
+    acceptsSnapshotId(result.value);
+  });
+
+  it('does not export an unsafe constructor', () => {
+    expect('createSynchronizationRunId' in core).toBe(false);
+  });
+
+  it('error root is frozen', () => {
+    const result = parseSynchronizationRunId('invalid');
+    if (!result.success) {
+      expect(Object.isFrozen(result.error)).toBe(true);
+    }
+  });
+
+  it('error details are frozen', () => {
+    const result = parseSynchronizationRunId('invalid');
     if (!result.success) {
       expect(Object.isFrozen(result.error.details)).toBe(true);
     }
