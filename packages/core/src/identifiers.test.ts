@@ -4,12 +4,14 @@ import {
   parseKnowledgeItemId,
   parseNormalizationAttemptId,
   parsePlaybookId,
+  parsePlaybookSourceId,
   parseSynchronizationRunId,
   parseSynchronizationSnapshotId,
   parseValidationAttemptId,
   parseWorkspaceId,
   type PlaybookId,
   type PlaybookVersionId,
+  type SynchronizationRunId,
   type SynchronizationSnapshotId,
   type WorkspaceId,
 } from './index.js';
@@ -259,6 +261,67 @@ describe('SynchronizationRunId', () => {
 
   it('error details are frozen', () => {
     const result = parseSynchronizationRunId('invalid');
+    if (!result.success) {
+      expect(Object.isFrozen(result.error.details)).toBe(true);
+    }
+  });
+});
+
+describe('PlaybookSourceId', () => {
+  const uuid = 'de305d54-75b4-431b-adb2-eb6b9e546014';
+
+  it('parses a valid UUID and normalizes lowercase', () => {
+    const result = parsePlaybookSourceId(uuid.toUpperCase());
+
+    expect(result).toEqual({ success: true, value: uuid });
+  });
+
+  it.each(['', ` ${uuid}`, `${uuid} `, 'not-a-uuid', 'de305d5475b4431badb2eb6b9e546014'])(
+    'rejects invalid input: %s',
+    (rawValue) => {
+      const result = parsePlaybookSourceId(rawValue);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatchObject({
+          code: 'INVALID_IDENTIFIER',
+          details: { expectedType: 'playbook_source_id' },
+        });
+      }
+    },
+  );
+
+  it('is incompatible with PlaybookId at compile time', () => {
+    const result = parsePlaybookSourceId(uuid);
+    if (!result.success) throw new Error('Fixture must be valid.');
+
+    const acceptsPlaybookId = (_value: PlaybookId): void => undefined;
+    // @ts-expect-error PlaybookSourceId must not be assignable to PlaybookId.
+    acceptsPlaybookId(result.value);
+  });
+
+  it('is incompatible with SynchronizationRunId at compile time', () => {
+    const result = parsePlaybookSourceId(uuid);
+    if (!result.success) throw new Error('Fixture must be valid.');
+
+    const acceptsRunId = (_value: SynchronizationRunId): void => undefined;
+    // @ts-expect-error PlaybookSourceId must not be assignable to SynchronizationRunId.
+    acceptsRunId(result.value);
+  });
+
+  it('does not export an unsafe constructor', () => {
+    expect('createPlaybookSourceId' in core).toBe(false);
+  });
+
+  it('error root is frozen', () => {
+    const result = parsePlaybookSourceId('invalid');
+    if (!result.success) {
+      expect(Object.isFrozen(result.error)).toBe(true);
+    }
+  });
+
+  it('error details are frozen', () => {
+    const result = parsePlaybookSourceId('invalid');
     if (!result.success) {
       expect(Object.isFrozen(result.error.details)).toBe(true);
     }

@@ -8,6 +8,7 @@ declare const normalizationAttemptIdBrand: unique symbol;
 declare const validationAttemptIdBrand: unique symbol;
 declare const knowledgeItemIdBrand: unique symbol;
 declare const synchronizationRunIdBrand: unique symbol;
+declare const playbookSourceIdBrand: unique symbol;
 declare const canonicalUuidBrand: unique symbol;
 
 type CanonicalUuid = string & {
@@ -46,6 +47,10 @@ export type SynchronizationRunId = CanonicalUuid & {
   readonly [synchronizationRunIdBrand]: true;
 };
 
+export type PlaybookSourceId = CanonicalUuid & {
+  readonly [playbookSourceIdBrand]: true;
+};
+
 export interface IdentifierError {
   readonly code: 'INVALID_IDENTIFIER';
   readonly message: string;
@@ -58,7 +63,8 @@ export interface IdentifierError {
       | 'normalization_attempt_id'
       | 'validation_attempt_id'
       | 'knowledge_item_id'
-      | 'synchronization_run_id';
+      | 'synchronization_run_id'
+      | 'playbook_source_id';
   };
 }
 
@@ -115,6 +121,11 @@ export function parseSynchronizationRunId(
   return parsed.success ? ok(createSynchronizationRunId(parsed.value)) : parsed;
 }
 
+export function parsePlaybookSourceId(rawValue: string): Result<PlaybookSourceId, IdentifierError> {
+  const parsed = parseIdentifier(rawValue, 'playbook_source_id');
+  return parsed.success ? ok(createPlaybookSourceId(parsed.value)) : parsed;
+}
+
 function parseIdentifier(
   rawValue: string,
   expectedType: IdentifierError['details']['expectedType'],
@@ -160,6 +171,10 @@ function createKnowledgeItemId(value: CanonicalUuid): KnowledgeItemId {
 
 function createSynchronizationRunId(value: CanonicalUuid): SynchronizationRunId {
   return value as SynchronizationRunId;
+}
+
+function createPlaybookSourceId(value: CanonicalUuid): PlaybookSourceId {
+  return value as PlaybookSourceId;
 }
 
 function invalidIdentifier(
