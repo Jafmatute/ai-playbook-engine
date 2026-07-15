@@ -7,9 +7,13 @@ export type {
   CompleteSynchronizationRunInput,
   CreateSynchronizationRunInput,
   FailSynchronizationRunInput,
+  RestoreSynchronizationRunInput,
   StartSynchronizationRunInput,
 } from './synchronization-run-contracts.js';
 export type {
+  SynchronizationRunRestorationError,
+  SynchronizationRunStateInvalidError,
+  SynchronizationRunStateInvalidReason,
   SynchronizationRunTimestampInvalidError,
   SynchronizationRunTransitionError,
   SynchronizationRunTransitionNotAllowedError,

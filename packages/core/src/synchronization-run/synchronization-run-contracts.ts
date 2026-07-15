@@ -31,6 +31,19 @@ export interface CompleteSynchronizationRunInput {
   readonly synchronizationSnapshotId: SynchronizationSnapshotId;
 }
 
+export interface RestoreSynchronizationRunInput {
+  readonly synchronizationRunId: SynchronizationRunId;
+  readonly workspaceId: WorkspaceId;
+  readonly playbookId: PlaybookId;
+  readonly playbookSourceId: PlaybookSourceId;
+  readonly status: SynchronizationRunStatus;
+  readonly createdAt: Instant;
+  readonly startedAt: Instant | null;
+  readonly completedAt: Instant | null;
+  readonly synchronizationSnapshotId: SynchronizationSnapshotId | null;
+  readonly failure: SynchronizationFailure | null;
+}
+
 export interface SynchronizationRunState {
   readonly synchronizationRunId: SynchronizationRunId;
   readonly workspaceId: WorkspaceId;

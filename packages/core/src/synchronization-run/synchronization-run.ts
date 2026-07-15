@@ -12,13 +12,21 @@ import type {
   CompleteSynchronizationRunInput,
   CreateSynchronizationRunInput,
   FailSynchronizationRunInput,
+  RestoreSynchronizationRunInput,
   StartSynchronizationRunInput,
   SynchronizationRunState,
 } from './synchronization-run-contracts.js';
 import type { SynchronizationRunStatus } from './synchronization-run-status.js';
 import type { SynchronizationFailure } from './synchronization-failure.js';
-import type { SynchronizationRunTransitionError } from './synchronization-run-errors.js';
-import { transitionNotAllowed, timestampInvalid } from './synchronization-run-errors.js';
+import type {
+  SynchronizationRunRestorationError,
+  SynchronizationRunTransitionError,
+} from './synchronization-run-errors.js';
+import {
+  stateInvalid,
+  transitionNotAllowed,
+  timestampInvalid,
+} from './synchronization-run-errors.js';
 
 export class SynchronizationRun {
   #state: SynchronizationRunState;
@@ -41,6 +49,81 @@ export class SynchronizationRun {
       synchronizationSnapshotId: null,
       failure: null,
     });
+  }
+
+  static restore(
+    input: RestoreSynchronizationRunInput,
+  ): Result<SynchronizationRun, SynchronizationRunRestorationError> {
+    switch (input.status) {
+      case 'pending': {
+        if (input.startedAt !== null)
+          return err(stateInvalid('PENDING_RUN_CANNOT_HAVE_STARTED_AT'));
+        if (input.completedAt !== null)
+          return err(stateInvalid('PENDING_RUN_CANNOT_HAVE_COMPLETED_AT'));
+        if (input.synchronizationSnapshotId !== null)
+          return err(stateInvalid('PENDING_RUN_CANNOT_HAVE_SNAPSHOT'));
+        if (input.failure !== null) return err(stateInvalid('PENDING_RUN_CANNOT_HAVE_FAILURE'));
+        break;
+      }
+
+      case 'running': {
+        if (input.startedAt === null) return err(stateInvalid('RUNNING_RUN_REQUIRES_STARTED_AT'));
+        if (input.completedAt !== null)
+          return err(stateInvalid('RUNNING_RUN_CANNOT_HAVE_COMPLETED_AT'));
+        if (input.synchronizationSnapshotId !== null)
+          return err(stateInvalid('RUNNING_RUN_CANNOT_HAVE_SNAPSHOT'));
+        if (input.failure !== null) return err(stateInvalid('RUNNING_RUN_CANNOT_HAVE_FAILURE'));
+        if (input.startedAt.compare(input.createdAt) < 0)
+          return err(stateInvalid('STARTED_AT_BEFORE_CREATED_AT'));
+        break;
+      }
+
+      case 'completed': {
+        if (input.startedAt === null) return err(stateInvalid('COMPLETED_RUN_REQUIRES_STARTED_AT'));
+        if (input.completedAt === null)
+          return err(stateInvalid('COMPLETED_RUN_REQUIRES_COMPLETED_AT'));
+        if (input.synchronizationSnapshotId === null)
+          return err(stateInvalid('COMPLETED_RUN_REQUIRES_SNAPSHOT'));
+        if (input.failure !== null) return err(stateInvalid('COMPLETED_RUN_CANNOT_HAVE_FAILURE'));
+        if (input.startedAt.compare(input.createdAt) < 0)
+          return err(stateInvalid('STARTED_AT_BEFORE_CREATED_AT'));
+        if (input.completedAt.compare(input.startedAt) < 0)
+          return err(stateInvalid('COMPLETED_AT_BEFORE_STARTED_AT'));
+        break;
+      }
+
+      case 'failed': {
+        if (input.startedAt === null) return err(stateInvalid('FAILED_RUN_REQUIRES_STARTED_AT'));
+        if (input.completedAt === null)
+          return err(stateInvalid('FAILED_RUN_REQUIRES_COMPLETED_AT'));
+        if (input.synchronizationSnapshotId !== null)
+          return err(stateInvalid('FAILED_RUN_CANNOT_HAVE_SNAPSHOT'));
+        if (input.failure === null) return err(stateInvalid('FAILED_RUN_REQUIRES_FAILURE'));
+        if (input.startedAt.compare(input.createdAt) < 0)
+          return err(stateInvalid('STARTED_AT_BEFORE_CREATED_AT'));
+        if (input.completedAt.compare(input.startedAt) < 0)
+          return err(stateInvalid('COMPLETED_AT_BEFORE_STARTED_AT'));
+        break;
+      }
+
+      default:
+        return err(stateInvalid('UNKNOWN_SYNCHRONIZATION_RUN_STATUS'));
+    }
+
+    return ok(
+      new SynchronizationRun({
+        synchronizationRunId: input.synchronizationRunId,
+        workspaceId: input.workspaceId,
+        playbookId: input.playbookId,
+        playbookSourceId: input.playbookSourceId,
+        status: input.status,
+        createdAt: input.createdAt,
+        startedAt: input.startedAt,
+        completedAt: input.completedAt,
+        synchronizationSnapshotId: input.synchronizationSnapshotId,
+        failure: input.failure,
+      }),
+    );
   }
 
   start(input: StartSynchronizationRunInput): Result<void, SynchronizationRunTransitionError> {

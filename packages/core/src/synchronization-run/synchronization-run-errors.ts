@@ -44,3 +44,44 @@ export function timestampInvalid(
     details: Object.freeze({ ...details }),
   });
 }
+
+export type SynchronizationRunStateInvalidReason =
+  | 'PENDING_RUN_CANNOT_HAVE_STARTED_AT'
+  | 'PENDING_RUN_CANNOT_HAVE_COMPLETED_AT'
+  | 'PENDING_RUN_CANNOT_HAVE_SNAPSHOT'
+  | 'PENDING_RUN_CANNOT_HAVE_FAILURE'
+  | 'RUNNING_RUN_REQUIRES_STARTED_AT'
+  | 'RUNNING_RUN_CANNOT_HAVE_COMPLETED_AT'
+  | 'RUNNING_RUN_CANNOT_HAVE_SNAPSHOT'
+  | 'RUNNING_RUN_CANNOT_HAVE_FAILURE'
+  | 'COMPLETED_RUN_REQUIRES_STARTED_AT'
+  | 'COMPLETED_RUN_REQUIRES_COMPLETED_AT'
+  | 'COMPLETED_RUN_REQUIRES_SNAPSHOT'
+  | 'COMPLETED_RUN_CANNOT_HAVE_FAILURE'
+  | 'FAILED_RUN_REQUIRES_STARTED_AT'
+  | 'FAILED_RUN_REQUIRES_COMPLETED_AT'
+  | 'FAILED_RUN_CANNOT_HAVE_SNAPSHOT'
+  | 'FAILED_RUN_REQUIRES_FAILURE'
+  | 'STARTED_AT_BEFORE_CREATED_AT'
+  | 'COMPLETED_AT_BEFORE_STARTED_AT'
+  | 'UNKNOWN_SYNCHRONIZATION_RUN_STATUS';
+
+export interface SynchronizationRunStateInvalidError {
+  readonly code: 'SYNCHRONIZATION_RUN_STATE_INVALID';
+  readonly message: string;
+  readonly details: {
+    readonly reason: SynchronizationRunStateInvalidReason;
+  };
+}
+
+export type SynchronizationRunRestorationError = SynchronizationRunStateInvalidError;
+
+export function stateInvalid(
+  reason: SynchronizationRunStateInvalidReason,
+): SynchronizationRunStateInvalidError {
+  return Object.freeze({
+    code: 'SYNCHRONIZATION_RUN_STATE_INVALID' as const,
+    message: 'The synchronization run state is invalid.',
+    details: Object.freeze({ reason }),
+  });
+}
