@@ -237,6 +237,14 @@ export {
   type SourceSchemaVersionInvalidReason,
 } from './source-schema-version.js';
 export {
+  ParserCompatibilityVersion,
+  parserCompatibilityVersionMaximumLength,
+  type ParserCompatibilityVersionError,
+  type ParserCompatibilityVersionRequiredError,
+  type ParserCompatibilityVersionInvalidError,
+  type ParserCompatibilityVersionInvalidReason,
+} from './parser-compatibility-version.js';
+export {
   synchronizationSnapshotStorageFormats,
   isSynchronizationSnapshotStorageFormat,
   parseSynchronizationSnapshotStorageFormat,
