@@ -177,6 +177,7 @@ export {
   type PlaybookSourceExternalRootReferenceInvalidReason,
   type PlaybookSourceState,
   type PlaybookSourceStatus,
+  type PlaybookSourceSnapshot,
   type PlaybookSourceTransitionError,
   type PlaybookSourceTransitionNotAllowedError,
   type PlaybookSourceTransitionOperation,

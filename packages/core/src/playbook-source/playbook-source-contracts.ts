@@ -26,6 +26,17 @@ export interface RestorePlaybookSourceInput {
   readonly createdAt: Instant;
 }
 
+export interface PlaybookSourceSnapshot {
+  readonly playbookSourceId: string;
+  readonly workspaceId: string;
+  readonly playbookId: string;
+  readonly type: PlaybookSourceType;
+  readonly status: PlaybookSourceStatus;
+  readonly externalRootReference: string;
+  readonly configurationReference: string;
+  readonly createdAt: string;
+}
+
 export interface PlaybookSourceState {
   readonly playbookSourceId: PlaybookSourceId;
   readonly workspaceId: WorkspaceId;

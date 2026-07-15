@@ -228,10 +228,6 @@ describe('PlaybookSource — no premature API', () => {
     createdAt: fixtureCreatedAt,
   });
 
-  it('does not expose toSnapshot', () => {
-    expect((source as unknown as Record<string, unknown>).toSnapshot).toBeUndefined();
-  });
-
   it('does not expose updateExternalRootReference', () => {
     expect(
       (source as unknown as Record<string, unknown>).updateExternalRootReference,

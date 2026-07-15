@@ -10,6 +10,7 @@ import type {
   CreatePlaybookSourceInput,
   PlaybookSourceState,
   RestorePlaybookSourceInput,
+  PlaybookSourceSnapshot,
 } from './playbook-source-contracts.js';
 import type {
   PlaybookSourceTransitionError,
@@ -99,6 +100,19 @@ export class PlaybookSource {
     });
 
     return ok(undefined);
+  }
+
+  toSnapshot(): PlaybookSourceSnapshot {
+    return Object.freeze({
+      playbookSourceId: this.#state.playbookSourceId,
+      workspaceId: this.#state.workspaceId,
+      playbookId: this.#state.playbookId,
+      type: this.#state.type,
+      status: this.#state.status,
+      externalRootReference: this.#state.externalRootReference.toString(),
+      configurationReference: this.#state.configurationReference.toString(),
+      createdAt: this.#state.createdAt.toString(),
+    });
   }
 
   get id(): PlaybookSourceId {

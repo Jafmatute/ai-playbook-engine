@@ -16,6 +16,7 @@ export { PlaybookSource } from './playbook-source.js';
 export type {
   CreatePlaybookSourceInput,
   PlaybookSourceState,
+  PlaybookSourceSnapshot,
   RestorePlaybookSourceInput,
 } from './playbook-source-contracts.js';
 export type {
