@@ -5,7 +5,8 @@ export type PersistenceOperation =
   | 'workspace.hasAnyWorkspace'
   | 'playbook.findById'
   | 'playbookSource.findById'
-  | 'synchronizationRun.findById';
+  | 'synchronizationRun.findById'
+  | 'playbookVersion.findById';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;

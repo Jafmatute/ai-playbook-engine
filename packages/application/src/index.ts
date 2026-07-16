@@ -6,3 +6,4 @@ export type { WorkspaceRepository } from './workspace/index.js';
 export type { PlaybookRepository } from './playbook/index.js';
 export type { PlaybookSourceRepository } from './playbook-source/index.js';
 export type { SynchronizationRunRepository } from './synchronization-run/index.js';
+export type { PlaybookVersionRepository } from './playbook-version/index.js';
