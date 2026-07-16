@@ -9,6 +9,7 @@ const operations = [
   'playbookSource.findById',
   'synchronizationRun.findById',
   'playbookVersion.findById',
+  'synchronizationSnapshot.findById',
 ] as const;
 
 describe('persistenceOperationFailed', () => {
