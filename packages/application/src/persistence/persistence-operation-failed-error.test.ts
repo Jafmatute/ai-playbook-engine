@@ -10,6 +10,7 @@ const operations = [
   'synchronizationRun.findById',
   'playbookVersion.findById',
   'synchronizationSnapshot.findById',
+  'normalizationAttempt.findById',
 ] as const;
 
 describe('persistenceOperationFailed', () => {
