@@ -7,4 +7,6 @@ export interface WorkspaceRepository {
   findById(
     workspaceId: WorkspaceId,
   ): Promise<Result<Workspace | null, PersistenceOperationFailedError>>;
+
+  hasAnyWorkspace(): Promise<Result<boolean, PersistenceOperationFailedError>>;
 }

@@ -11,19 +11,25 @@ import {
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
 import type { WorkspaceRepository } from './workspace-repository.js';
 
+type FindByIdStubResult =
+  | { readonly kind: 'workspace'; readonly workspace: Workspace }
+  | { readonly kind: 'null' }
+  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
+
+type HasAnyWorkspaceStubResult =
+  | { readonly kind: 'exists'; readonly value: boolean }
+  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
+
 class StubWorkspaceRepository implements WorkspaceRepository {
-  readonly #result:
-    | { readonly kind: 'workspace'; readonly workspace: Workspace }
-    | { readonly kind: 'null' }
-    | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
+  readonly #findByIdResult: FindByIdStubResult;
+  readonly #hasAnyWorkspaceResult: HasAnyWorkspaceStubResult;
 
   private constructor(
-    result:
-      | { readonly kind: 'workspace'; readonly workspace: Workspace }
-      | { readonly kind: 'null' }
-      | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError },
+    findByIdResult: FindByIdStubResult,
+    hasAnyWorkspaceResult: HasAnyWorkspaceStubResult = { kind: 'exists', value: false },
   ) {
-    this.#result = result;
+    this.#findByIdResult = findByIdResult;
+    this.#hasAnyWorkspaceResult = hasAnyWorkspaceResult;
   }
 
   static returningWorkspace(workspace: Workspace): StubWorkspaceRepository {
@@ -38,18 +44,39 @@ class StubWorkspaceRepository implements WorkspaceRepository {
     return new StubWorkspaceRepository({ kind: 'error', error });
   }
 
+  static returningHasAnyWorkspace(value: boolean): StubWorkspaceRepository {
+    return new StubWorkspaceRepository({ kind: 'null' }, { kind: 'exists', value });
+  }
+
+  static returningHasAnyWorkspaceError(
+    error: PersistenceOperationFailedError,
+  ): StubWorkspaceRepository {
+    return new StubWorkspaceRepository({ kind: 'null' }, { kind: 'error', error });
+  }
+
   async findById(
     _workspaceId: WorkspaceId,
   ): Promise<Result<Workspace | null, PersistenceOperationFailedError>> {
-    switch (this.#result.kind) {
+    switch (this.#findByIdResult.kind) {
       case 'workspace': {
-        return ok(this.#result.workspace);
+        return ok(this.#findByIdResult.workspace);
       }
       case 'null': {
         return ok(null);
       }
       case 'error': {
-        return err(this.#result.error);
+        return err(this.#findByIdResult.error);
+      }
+    }
+  }
+
+  async hasAnyWorkspace(): Promise<Result<boolean, PersistenceOperationFailedError>> {
+    switch (this.#hasAnyWorkspaceResult.kind) {
+      case 'exists': {
+        return ok(this.#hasAnyWorkspaceResult.value);
+      }
+      case 'error': {
+        return err(this.#hasAnyWorkspaceResult.error);
       }
     }
   }
@@ -137,6 +164,64 @@ describe('WorkspaceRepository', () => {
 
       expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
       expect(result.error.details.operation).toBe('workspace.findById');
+    });
+  });
+
+  describe('hasAnyWorkspace — exists', () => {
+    it('returns a successful Result with true', async () => {
+      const repository = StubWorkspaceRepository.returningHasAnyWorkspace(true);
+
+      const result = await repository.hasAnyWorkspace();
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(true);
+    });
+  });
+
+  describe('hasAnyWorkspace — absent', () => {
+    it('returns a successful Result with false', async () => {
+      const repository = StubWorkspaceRepository.returningHasAnyWorkspace(false);
+
+      const result = await repository.hasAnyWorkspace();
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(false);
+    });
+  });
+
+  describe('hasAnyWorkspace — persistence failure', () => {
+    it('returns a failed Result with PersistenceOperationFailedError', async () => {
+      const error = persistenceOperationFailed('workspace.hasAnyWorkspace');
+      const repository = StubWorkspaceRepository.returningHasAnyWorkspaceError(error);
+
+      const result = await repository.hasAnyWorkspace();
+
+      expect(result.success).toBe(false);
+      if (result.success) {
+        return;
+      }
+
+      expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+      expect(result.error.details.operation).toBe('workspace.hasAnyWorkspace');
+    });
+  });
+
+  describe('hasAnyWorkspace — does not require an identifier', () => {
+    it('accepts zero arguments', async () => {
+      const repository = StubWorkspaceRepository.returningHasAnyWorkspace(false);
+
+      const result = await repository.hasAnyWorkspace();
+
+      expect(result.success).toBe(true);
+      void result;
     });
   });
 
