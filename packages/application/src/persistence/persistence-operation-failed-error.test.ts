@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { PERSISTENCE_OPERATION_FAILED, persistenceOperationFailed } from './index.js';
 
-const operations = ['workspace.findById', 'workspace.hasAnyWorkspace'] as const;
+const operations = [
+  'workspace.findById',
+  'workspace.hasAnyWorkspace',
+  'playbook.findById',
+] as const;
 
 describe('persistenceOperationFailed', () => {
   for (const operation of operations) {

@@ -1,6 +1,7 @@
 export const PERSISTENCE_OPERATION_FAILED = 'PERSISTENCE_OPERATION_FAILED' as const;
 
-export type PersistenceOperation = 'workspace.findById' | 'workspace.hasAnyWorkspace';
+export type PersistenceOperation =
+  'workspace.findById' | 'workspace.hasAnyWorkspace' | 'playbook.findById';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;
