@@ -12,6 +12,7 @@ const operations = [
   'synchronizationSnapshot.findById',
   'normalizationAttempt.findById',
   'knowledgeItem.findById',
+  'validationAttempt.findById',
 ] as const;
 
 describe('persistenceOperationFailed', () => {
