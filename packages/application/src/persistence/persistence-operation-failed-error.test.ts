@@ -7,6 +7,7 @@ const operations = [
   'workspace.hasAnyWorkspace',
   'playbook.findById',
   'playbookSource.findById',
+  'synchronizationRun.findById',
 ] as const;
 
 describe('persistenceOperationFailed', () => {
