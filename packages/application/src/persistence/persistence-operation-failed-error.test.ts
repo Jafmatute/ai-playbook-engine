@@ -6,6 +6,7 @@ const operations = [
   'workspace.findById',
   'workspace.hasAnyWorkspace',
   'playbook.findById',
+  'playbookSource.findById',
 ] as const;
 
 describe('persistenceOperationFailed', () => {

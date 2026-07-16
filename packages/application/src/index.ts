@@ -4,3 +4,4 @@ export { PERSISTENCE_OPERATION_FAILED, persistenceOperationFailed } from './pers
 export type { PersistenceOperation, PersistenceOperationFailedError } from './persistence/index.js';
 export type { WorkspaceRepository } from './workspace/index.js';
 export type { PlaybookRepository } from './playbook/index.js';
+export type { PlaybookSourceRepository } from './playbook-source/index.js';
