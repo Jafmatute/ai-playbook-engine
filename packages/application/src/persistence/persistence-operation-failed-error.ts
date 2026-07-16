@@ -1,0 +1,23 @@
+export const PERSISTENCE_OPERATION_FAILED = 'PERSISTENCE_OPERATION_FAILED' as const;
+
+export type PersistenceOperation = 'workspace.findById';
+
+export interface PersistenceOperationFailedError {
+  readonly code: typeof PERSISTENCE_OPERATION_FAILED;
+  readonly message: string;
+  readonly details: Readonly<{
+    readonly operation: PersistenceOperation;
+  }>;
+}
+
+export function persistenceOperationFailed(
+  operation: PersistenceOperation,
+): PersistenceOperationFailedError {
+  return Object.freeze({
+    code: PERSISTENCE_OPERATION_FAILED,
+    message: 'Persistence operation failed.',
+    details: Object.freeze({
+      operation,
+    }),
+  });
+}
