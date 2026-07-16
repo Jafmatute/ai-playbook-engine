@@ -13,6 +13,7 @@ const operations = [
   'normalizationAttempt.findById',
   'knowledgeItem.findById',
   'validationAttempt.findById',
+  'playbookSource.findEnabledByPlaybookId',
 ] as const;
 
 describe('persistenceOperationFailed', () => {

@@ -10,7 +10,8 @@ export type PersistenceOperation =
   | 'synchronizationSnapshot.findById'
   | 'normalizationAttempt.findById'
   | 'knowledgeItem.findById'
-  | 'validationAttempt.findById';
+  | 'validationAttempt.findById'
+  | 'playbookSource.findEnabledByPlaybookId';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;
