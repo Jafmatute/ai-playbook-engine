@@ -9,3 +9,4 @@ export type { SynchronizationRunRepository } from './synchronization-run/index.j
 export type { PlaybookVersionRepository } from './playbook-version/index.js';
 export type { SynchronizationSnapshotRepository } from './synchronization-snapshot/index.js';
 export type { NormalizationAttemptRepository } from './normalization-attempt/index.js';
+export type { KnowledgeItemRepository } from './knowledge-item/index.js';
