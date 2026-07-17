@@ -17,6 +17,7 @@ const operations = [
   'playbook.findByNormalizedName',
   'synchronizationRun.findActiveByPlaybookSourceId',
   'synchronizationSnapshot.findBySynchronizationRunId',
+  'synchronizationSnapshot.findLatestByPlaybookSourceId',
 ] as const;
 
 describe('persistenceOperationFailed', () => {

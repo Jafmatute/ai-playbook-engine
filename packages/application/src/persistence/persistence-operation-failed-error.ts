@@ -14,7 +14,8 @@ export type PersistenceOperation =
   | 'playbookSource.findEnabledByPlaybookId'
   | 'playbook.findByNormalizedName'
   | 'synchronizationRun.findActiveByPlaybookSourceId'
-  | 'synchronizationSnapshot.findBySynchronizationRunId';
+  | 'synchronizationSnapshot.findBySynchronizationRunId'
+  | 'synchronizationSnapshot.findLatestByPlaybookSourceId';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;

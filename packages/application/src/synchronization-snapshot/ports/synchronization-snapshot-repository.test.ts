@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type {
+  PlaybookSourceId,
   SynchronizationRunId,
   SynchronizationSnapshotId,
   WorkspaceId,
@@ -47,17 +48,34 @@ type FindBySynchronizationRunIdCall = Readonly<{
   synchronizationRunId: SynchronizationRunId;
 }>;
 
+type FindLatestByPlaybookSourceIdStubResult =
+  | {
+      readonly kind: 'synchronizationSnapshot';
+      readonly synchronizationSnapshot: SynchronizationSnapshot;
+    }
+  | { readonly kind: 'null' }
+  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
+
+type FindLatestByPlaybookSourceIdCall = Readonly<{
+  workspaceId: WorkspaceId;
+  playbookSourceId: PlaybookSourceId;
+}>;
+
 class StubSynchronizationSnapshotRepository implements SynchronizationSnapshotRepository {
   readonly #findByIdResult: FindByIdStubResult;
   readonly #findBySynchronizationRunIdResult: FindBySynchronizationRunIdStubResult;
+  readonly #findLatestByPlaybookSourceIdResult: FindLatestByPlaybookSourceIdStubResult;
   #findBySynchronizationRunIdCall: FindBySynchronizationRunIdCall | null = null;
+  #findLatestByPlaybookSourceIdCall: FindLatestByPlaybookSourceIdCall | null = null;
 
   private constructor(
     findByIdResult: FindByIdStubResult,
     findBySynchronizationRunIdResult: FindBySynchronizationRunIdStubResult = { kind: 'null' },
+    findLatestByPlaybookSourceIdResult: FindLatestByPlaybookSourceIdStubResult = { kind: 'null' },
   ) {
     this.#findByIdResult = findByIdResult;
     this.#findBySynchronizationRunIdResult = findBySynchronizationRunIdResult;
+    this.#findLatestByPlaybookSourceIdResult = findLatestByPlaybookSourceIdResult;
   }
 
   static returningSynchronizationSnapshot(
@@ -96,6 +114,34 @@ class StubSynchronizationSnapshotRepository implements SynchronizationSnapshotRe
     error: PersistenceOperationFailedError,
   ): StubSynchronizationSnapshotRepository {
     return new StubSynchronizationSnapshotRepository({ kind: 'null' }, { kind: 'error', error });
+  }
+
+  static returningLatestSynchronizationSnapshot(
+    synchronizationSnapshot: SynchronizationSnapshot,
+  ): StubSynchronizationSnapshotRepository {
+    return new StubSynchronizationSnapshotRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'synchronizationSnapshot', synchronizationSnapshot },
+    );
+  }
+
+  static returningNoLatestSynchronizationSnapshot(): StubSynchronizationSnapshotRepository {
+    return new StubSynchronizationSnapshotRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'null' },
+    );
+  }
+
+  static returningFindLatestByPlaybookSourceIdError(
+    error: PersistenceOperationFailedError,
+  ): StubSynchronizationSnapshotRepository {
+    return new StubSynchronizationSnapshotRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'error', error },
+    );
   }
 
   get findBySynchronizationRunIdCall(): FindBySynchronizationRunIdCall | null {
@@ -137,6 +183,32 @@ class StubSynchronizationSnapshotRepository implements SynchronizationSnapshotRe
       }
       case 'error': {
         return err(this.#findBySynchronizationRunIdResult.error);
+      }
+    }
+  }
+
+  get findLatestByPlaybookSourceIdCall(): FindLatestByPlaybookSourceIdCall | null {
+    return this.#findLatestByPlaybookSourceIdCall;
+  }
+
+  async findLatestByPlaybookSourceId(
+    workspaceId: WorkspaceId,
+    playbookSourceId: PlaybookSourceId,
+  ): Promise<Result<SynchronizationSnapshot | null, PersistenceOperationFailedError>> {
+    this.#findLatestByPlaybookSourceIdCall = Object.freeze({
+      workspaceId,
+      playbookSourceId,
+    });
+
+    switch (this.#findLatestByPlaybookSourceIdResult.kind) {
+      case 'synchronizationSnapshot': {
+        return ok(this.#findLatestByPlaybookSourceIdResult.synchronizationSnapshot);
+      }
+      case 'null': {
+        return ok(null);
+      }
+      case 'error': {
+        return err(this.#findLatestByPlaybookSourceIdResult.error);
       }
     }
   }
@@ -525,6 +597,195 @@ describe('SynchronizationSnapshotRepository', () => {
         wsId,
         srId,
       ) => repository.findBySynchronizationRunId(wsId, srId);
+
+      void _acceptsTypedIds;
+    });
+  });
+
+  describe('findLatestByPlaybookSourceId — found', () => {
+    it('returns the latest SynchronizationSnapshot for the source', async () => {
+      const olderSnapshot = createValidSynchronizationSnapshot();
+      const latestSnapshot = createValidSynchronizationSnapshot();
+      const repository =
+        StubSynchronizationSnapshotRepository.returningLatestSynchronizationSnapshot(
+          latestSnapshot,
+        );
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      const result = await repository.findLatestByPlaybookSourceId(
+        workspaceId.value,
+        latestSnapshot.playbookSourceId,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(latestSnapshot);
+      expect(result.value).not.toBe(olderSnapshot);
+    });
+  });
+
+  describe('findLatestByPlaybookSourceId — no snapshots', () => {
+    it('returns a successful Result with null', async () => {
+      const repository =
+        StubSynchronizationSnapshotRepository.returningNoLatestSynchronizationSnapshot();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findLatestByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestByPlaybookSourceId — source does not exist', () => {
+    it('returns a successful Result with null', async () => {
+      const repository =
+        StubSynchronizationSnapshotRepository.returningNoLatestSynchronizationSnapshot();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000006');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findLatestByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestByPlaybookSourceId — wrong workspace', () => {
+    it('returns a successful Result with null when the source belongs to a different workspace', async () => {
+      const repository =
+        StubSynchronizationSnapshotRepository.returningNoLatestSynchronizationSnapshot();
+      const workspaceA = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceA.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const workspaceB = parseWorkspaceId('00000000-0000-0000-0000-000000000005');
+      if (!workspaceB.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findLatestByPlaybookSourceId(
+        workspaceB.value,
+        playbookSourceId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestByPlaybookSourceId — persistence failure', () => {
+    it('returns a failed Result with PersistenceOperationFailedError', async () => {
+      const error = persistenceOperationFailed(
+        'synchronizationSnapshot.findLatestByPlaybookSourceId',
+      );
+      const repository =
+        StubSynchronizationSnapshotRepository.returningFindLatestByPlaybookSourceIdError(error);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findLatestByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+      );
+
+      expect(result.success).toBe(false);
+      if (result.success) {
+        return;
+      }
+
+      expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+      expect(result.error.details.operation).toBe(
+        'synchronizationSnapshot.findLatestByPlaybookSourceId',
+      );
+    });
+  });
+
+  describe('findLatestByPlaybookSourceId — captures arguments', () => {
+    it('captures the exact workspaceId and playbookSourceId', async () => {
+      const repository =
+        StubSynchronizationSnapshotRepository.returningNoLatestSynchronizationSnapshot();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      await repository.findLatestByPlaybookSourceId(workspaceId.value, playbookSourceId.value);
+
+      const call = repository.findLatestByPlaybookSourceIdCall;
+      expect(call).not.toBeNull();
+      expect(call!.workspaceId).toBe(workspaceId.value);
+      expect(call!.playbookSourceId).toBe(playbookSourceId.value);
+      expect(Object.isFrozen(call)).toBe(true);
+    });
+  });
+
+  describe('findLatestByPlaybookSourceId — accepts typed IDs', () => {
+    it('compiles with WorkspaceId and PlaybookSourceId parameter types', () => {
+      const synchronizationSnapshot = createValidSynchronizationSnapshot();
+      const repository =
+        StubSynchronizationSnapshotRepository.returningLatestSynchronizationSnapshot(
+          synchronizationSnapshot,
+        );
+
+      const _acceptsTypedIds: (
+        workspaceId: WorkspaceId,
+        playbookSourceId: PlaybookSourceId,
+      ) => Promise<Result<SynchronizationSnapshot | null, PersistenceOperationFailedError>> = (
+        wsId,
+        psId,
+      ) => repository.findLatestByPlaybookSourceId(wsId, psId);
 
       void _acceptsTypedIds;
     });
