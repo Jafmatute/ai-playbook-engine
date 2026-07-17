@@ -13,7 +13,8 @@ export type PersistenceOperation =
   | 'validationAttempt.findById'
   | 'playbookSource.findEnabledByPlaybookId'
   | 'playbook.findByNormalizedName'
-  | 'synchronizationRun.findActiveByPlaybookSourceId';
+  | 'synchronizationRun.findActiveByPlaybookSourceId'
+  | 'synchronizationSnapshot.findBySynchronizationRunId';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;

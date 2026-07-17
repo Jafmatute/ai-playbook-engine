@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import type { SynchronizationSnapshotId, WorkspaceId } from '@ai-playbook-engine/core';
+import type {
+  SynchronizationRunId,
+  SynchronizationSnapshotId,
+  WorkspaceId,
+} from '@ai-playbook-engine/core';
 import {
   ContentChecksum,
   Instant,
@@ -30,11 +34,30 @@ type FindByIdStubResult =
   | { readonly kind: 'null' }
   | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
 
-class StubSynchronizationSnapshotRepository implements SynchronizationSnapshotRepository {
-  readonly #result: FindByIdStubResult;
+type FindBySynchronizationRunIdStubResult =
+  | {
+      readonly kind: 'synchronizationSnapshot';
+      readonly synchronizationSnapshot: SynchronizationSnapshot;
+    }
+  | { readonly kind: 'null' }
+  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
 
-  private constructor(result: FindByIdStubResult) {
-    this.#result = result;
+type FindBySynchronizationRunIdCall = Readonly<{
+  workspaceId: WorkspaceId;
+  synchronizationRunId: SynchronizationRunId;
+}>;
+
+class StubSynchronizationSnapshotRepository implements SynchronizationSnapshotRepository {
+  readonly #findByIdResult: FindByIdStubResult;
+  readonly #findBySynchronizationRunIdResult: FindBySynchronizationRunIdStubResult;
+  #findBySynchronizationRunIdCall: FindBySynchronizationRunIdCall | null = null;
+
+  private constructor(
+    findByIdResult: FindByIdStubResult,
+    findBySynchronizationRunIdResult: FindBySynchronizationRunIdStubResult = { kind: 'null' },
+  ) {
+    this.#findByIdResult = findByIdResult;
+    this.#findBySynchronizationRunIdResult = findBySynchronizationRunIdResult;
   }
 
   static returningSynchronizationSnapshot(
@@ -56,19 +79,64 @@ class StubSynchronizationSnapshotRepository implements SynchronizationSnapshotRe
     return new StubSynchronizationSnapshotRepository({ kind: 'error', error });
   }
 
+  static returningSynchronizationSnapshotByRunId(
+    synchronizationSnapshot: SynchronizationSnapshot,
+  ): StubSynchronizationSnapshotRepository {
+    return new StubSynchronizationSnapshotRepository(
+      { kind: 'null' },
+      { kind: 'synchronizationSnapshot', synchronizationSnapshot },
+    );
+  }
+
+  static returningNoSynchronizationSnapshotByRunId(): StubSynchronizationSnapshotRepository {
+    return new StubSynchronizationSnapshotRepository({ kind: 'null' }, { kind: 'null' });
+  }
+
+  static returningFindBySynchronizationRunIdError(
+    error: PersistenceOperationFailedError,
+  ): StubSynchronizationSnapshotRepository {
+    return new StubSynchronizationSnapshotRepository({ kind: 'null' }, { kind: 'error', error });
+  }
+
+  get findBySynchronizationRunIdCall(): FindBySynchronizationRunIdCall | null {
+    return this.#findBySynchronizationRunIdCall;
+  }
+
   async findById(
     _workspaceId: WorkspaceId,
     _synchronizationSnapshotId: SynchronizationSnapshotId,
   ): Promise<Result<SynchronizationSnapshot | null, PersistenceOperationFailedError>> {
-    switch (this.#result.kind) {
+    switch (this.#findByIdResult.kind) {
       case 'synchronizationSnapshot': {
-        return ok(this.#result.synchronizationSnapshot);
+        return ok(this.#findByIdResult.synchronizationSnapshot);
       }
       case 'null': {
         return ok(null);
       }
       case 'error': {
-        return err(this.#result.error);
+        return err(this.#findByIdResult.error);
+      }
+    }
+  }
+
+  async findBySynchronizationRunId(
+    workspaceId: WorkspaceId,
+    synchronizationRunId: SynchronizationRunId,
+  ): Promise<Result<SynchronizationSnapshot | null, PersistenceOperationFailedError>> {
+    this.#findBySynchronizationRunIdCall = Object.freeze({
+      workspaceId,
+      synchronizationRunId,
+    });
+
+    switch (this.#findBySynchronizationRunIdResult.kind) {
+      case 'synchronizationSnapshot': {
+        return ok(this.#findBySynchronizationRunIdResult.synchronizationSnapshot);
+      }
+      case 'null': {
+        return ok(null);
+      }
+      case 'error': {
+        return err(this.#findBySynchronizationRunIdResult.error);
       }
     }
   }
@@ -260,6 +328,203 @@ describe('SynchronizationSnapshotRepository', () => {
         wsId,
         ssId,
       ) => repository.findById(wsId, ssId);
+
+      void _acceptsTypedIds;
+    });
+  });
+
+  describe('findBySynchronizationRunId — found', () => {
+    it('returns a successful Result with the SynchronizationSnapshot instance', async () => {
+      const synchronizationSnapshot = createValidSynchronizationSnapshot();
+      const repository =
+        StubSynchronizationSnapshotRepository.returningSynchronizationSnapshotByRunId(
+          synchronizationSnapshot,
+        );
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      const result = await repository.findBySynchronizationRunId(
+        workspaceId.value,
+        synchronizationSnapshot.synchronizationRunId,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(synchronizationSnapshot);
+    });
+  });
+
+  describe('findBySynchronizationRunId — no snapshot for run', () => {
+    it('returns a successful Result with null', async () => {
+      const repository =
+        StubSynchronizationSnapshotRepository.returningNoSynchronizationSnapshotByRunId();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const synchronizationRunId = parseSynchronizationRunId(
+        '00000000-0000-0000-0000-000000000004',
+      );
+      if (!synchronizationRunId.success) {
+        throw new Error('Expected a valid synchronization run ID fixture.');
+      }
+
+      const result = await repository.findBySynchronizationRunId(
+        workspaceId.value,
+        synchronizationRunId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findBySynchronizationRunId — run does not exist', () => {
+    it('returns a successful Result with null', async () => {
+      const repository =
+        StubSynchronizationSnapshotRepository.returningNoSynchronizationSnapshotByRunId();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const synchronizationRunId = parseSynchronizationRunId(
+        '00000000-0000-0000-0000-000000000006',
+      );
+      if (!synchronizationRunId.success) {
+        throw new Error('Expected a valid synchronization run ID fixture.');
+      }
+
+      const result = await repository.findBySynchronizationRunId(
+        workspaceId.value,
+        synchronizationRunId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findBySynchronizationRunId — wrong workspace', () => {
+    it('returns a successful Result with null when the run belongs to a different workspace', async () => {
+      const repository =
+        StubSynchronizationSnapshotRepository.returningNoSynchronizationSnapshotByRunId();
+      const workspaceA = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceA.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const workspaceB = parseWorkspaceId('00000000-0000-0000-0000-000000000005');
+      if (!workspaceB.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const synchronizationRunId = parseSynchronizationRunId(
+        '00000000-0000-0000-0000-000000000004',
+      );
+      if (!synchronizationRunId.success) {
+        throw new Error('Expected a valid synchronization run ID fixture.');
+      }
+
+      const result = await repository.findBySynchronizationRunId(
+        workspaceB.value,
+        synchronizationRunId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findBySynchronizationRunId — persistence failure', () => {
+    it('returns a failed Result with PersistenceOperationFailedError', async () => {
+      const error = persistenceOperationFailed(
+        'synchronizationSnapshot.findBySynchronizationRunId',
+      );
+      const repository =
+        StubSynchronizationSnapshotRepository.returningFindBySynchronizationRunIdError(error);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const synchronizationRunId = parseSynchronizationRunId(
+        '00000000-0000-0000-0000-000000000004',
+      );
+      if (!synchronizationRunId.success) {
+        throw new Error('Expected a valid synchronization run ID fixture.');
+      }
+
+      const result = await repository.findBySynchronizationRunId(
+        workspaceId.value,
+        synchronizationRunId.value,
+      );
+
+      expect(result.success).toBe(false);
+      if (result.success) {
+        return;
+      }
+
+      expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+      expect(result.error.details.operation).toBe(
+        'synchronizationSnapshot.findBySynchronizationRunId',
+      );
+    });
+  });
+
+  describe('findBySynchronizationRunId — captures arguments', () => {
+    it('captures the exact workspaceId and synchronizationRunId', async () => {
+      const repository =
+        StubSynchronizationSnapshotRepository.returningNoSynchronizationSnapshotByRunId();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const synchronizationRunId = parseSynchronizationRunId(
+        '00000000-0000-0000-0000-000000000004',
+      );
+      if (!synchronizationRunId.success) {
+        throw new Error('Expected a valid synchronization run ID fixture.');
+      }
+
+      await repository.findBySynchronizationRunId(workspaceId.value, synchronizationRunId.value);
+
+      const call = repository.findBySynchronizationRunIdCall;
+      expect(call).not.toBeNull();
+      expect(call!.workspaceId).toBe(workspaceId.value);
+      expect(call!.synchronizationRunId).toBe(synchronizationRunId.value);
+      expect(Object.isFrozen(call)).toBe(true);
+    });
+  });
+
+  describe('findBySynchronizationRunId — accepts typed IDs', () => {
+    it('compiles with WorkspaceId and SynchronizationRunId parameter types', () => {
+      const synchronizationSnapshot = createValidSynchronizationSnapshot();
+      const repository =
+        StubSynchronizationSnapshotRepository.returningSynchronizationSnapshotByRunId(
+          synchronizationSnapshot,
+        );
+
+      const _acceptsTypedIds: (
+        workspaceId: WorkspaceId,
+        synchronizationRunId: SynchronizationRunId,
+      ) => Promise<Result<SynchronizationSnapshot | null, PersistenceOperationFailedError>> = (
+        wsId,
+        srId,
+      ) => repository.findBySynchronizationRunId(wsId, srId);
 
       void _acceptsTypedIds;
     });
