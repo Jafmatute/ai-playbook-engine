@@ -214,10 +214,22 @@ class StubSynchronizationSnapshotRepository implements SynchronizationSnapshotRe
   }
 }
 
-function createValidSynchronizationSnapshot(): SynchronizationSnapshot {
-  const synchronizationSnapshotIdResult = parseSynchronizationSnapshotId(
-    '00000000-0000-0000-0000-000000000001',
-  );
+interface SynchronizationSnapshotFixtureOptions {
+  readonly synchronizationSnapshotId: string;
+  readonly synchronizationRunId: string;
+  readonly createdAt: string;
+  readonly storageReference: string;
+}
+
+function createValidSynchronizationSnapshot(
+  options?: Partial<SynchronizationSnapshotFixtureOptions>,
+): SynchronizationSnapshot {
+  const snapshotId = options?.synchronizationSnapshotId ?? '00000000-0000-0000-0000-000000000001';
+  const runId = options?.synchronizationRunId ?? '00000000-0000-0000-0000-000000000004';
+  const createdAt = options?.createdAt ?? '2026-07-15T10:00:00.000Z';
+  const storageRef = options?.storageReference ?? 'ss://path/to/snapshot';
+
+  const synchronizationSnapshotIdResult = parseSynchronizationSnapshotId(snapshotId);
   if (!synchronizationSnapshotIdResult.success) {
     throw new Error('Expected a valid synchronization snapshot ID fixture.');
   }
@@ -232,9 +244,7 @@ function createValidSynchronizationSnapshot(): SynchronizationSnapshot {
     throw new Error('Expected a valid playbook source ID fixture.');
   }
 
-  const synchronizationRunIdResult = parseSynchronizationRunId(
-    '00000000-0000-0000-0000-000000000004',
-  );
+  const synchronizationRunIdResult = parseSynchronizationRunId(runId);
   if (!synchronizationRunIdResult.success) {
     throw new Error('Expected a valid synchronization run ID fixture.');
   }
@@ -246,7 +256,7 @@ function createValidSynchronizationSnapshot(): SynchronizationSnapshot {
     throw new Error('Expected a valid content checksum fixture.');
   }
 
-  const storageReferenceResult = StorageReference.create('ss://path/to/snapshot');
+  const storageReferenceResult = StorageReference.create(storageRef);
   if (!storageReferenceResult.success) {
     throw new Error('Expected a valid storage reference fixture.');
   }
@@ -261,7 +271,7 @@ function createValidSynchronizationSnapshot(): SynchronizationSnapshot {
     throw new Error('Expected a valid parser compatibility version fixture.');
   }
 
-  const createdAtResult = Instant.parse('2026-07-15T10:00:00.000Z');
+  const createdAtResult = Instant.parse(createdAt);
   if (!createdAtResult.success) {
     throw new Error('Expected a valid instant fixture.');
   }
@@ -604,8 +614,20 @@ describe('SynchronizationSnapshotRepository', () => {
 
   describe('findLatestByPlaybookSourceId — found', () => {
     it('returns the latest SynchronizationSnapshot for the source', async () => {
-      const olderSnapshot = createValidSynchronizationSnapshot();
-      const latestSnapshot = createValidSynchronizationSnapshot();
+      const olderSnapshot = createValidSynchronizationSnapshot({
+        synchronizationSnapshotId: '00000000-0000-0000-0000-000000000001',
+        synchronizationRunId: '00000000-0000-0000-0000-000000000004',
+        createdAt: '2026-07-15T10:00:00.000Z',
+        storageReference: 'ss://path/to/older-snapshot',
+      });
+
+      const latestSnapshot = createValidSynchronizationSnapshot({
+        synchronizationSnapshotId: '00000000-0000-0000-0000-000000000006',
+        synchronizationRunId: '00000000-0000-0000-0000-000000000005',
+        createdAt: '2026-07-15T11:00:00.000Z',
+        storageReference: 'ss://path/to/latest-snapshot',
+      });
+
       const repository =
         StubSynchronizationSnapshotRepository.returningLatestSynchronizationSnapshot(
           latestSnapshot,
@@ -627,6 +649,11 @@ describe('SynchronizationSnapshotRepository', () => {
 
       expect(result.value).toBe(latestSnapshot);
       expect(result.value).not.toBe(olderSnapshot);
+
+      expect(olderSnapshot.id).not.toBe(latestSnapshot.id);
+      expect(olderSnapshot.synchronizationRunId).not.toBe(latestSnapshot.synchronizationRunId);
+      expect(olderSnapshot.playbookSourceId).toBe(latestSnapshot.playbookSourceId);
+      expect(olderSnapshot.createdAt.compare(latestSnapshot.createdAt)).toBe(-1);
     });
   });
 
