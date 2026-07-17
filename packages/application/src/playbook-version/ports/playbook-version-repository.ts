@@ -20,4 +20,9 @@ export interface PlaybookVersionRepository {
     playbookId: PlaybookId,
     versionSequence: VersionSequence,
   ): Promise<Result<PlaybookVersion | null, PersistenceOperationFailedError>>;
+
+  findLatestByPlaybookId(
+    workspaceId: WorkspaceId,
+    playbookId: PlaybookId,
+  ): Promise<Result<PlaybookVersion | null, PersistenceOperationFailedError>>;
 }

@@ -43,6 +43,16 @@ type FindBySequenceCall = Readonly<{
   versionSequence: VersionSequence;
 }>;
 
+type FindLatestByPlaybookIdStubResult =
+  | { readonly kind: 'playbookVersion'; readonly playbookVersion: PlaybookVersion }
+  | { readonly kind: 'null' }
+  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
+
+type FindLatestByPlaybookIdCall = Readonly<{
+  workspaceId: WorkspaceId;
+  playbookId: PlaybookId;
+}>;
+
 // ---------------------------------------------------------------------------
 // Stub
 // ---------------------------------------------------------------------------
@@ -50,14 +60,18 @@ type FindBySequenceCall = Readonly<{
 class StubPlaybookVersionRepository implements PlaybookVersionRepository {
   readonly #findByIdResult: FindByIdStubResult;
   readonly #findBySequenceResult: FindBySequenceStubResult;
+  readonly #findLatestByPlaybookIdResult: FindLatestByPlaybookIdStubResult;
   #findBySequenceCall: FindBySequenceCall | null = null;
+  #findLatestByPlaybookIdCall: FindLatestByPlaybookIdCall | null = null;
 
   private constructor(
     findByIdResult: FindByIdStubResult,
     findBySequenceResult: FindBySequenceStubResult,
+    findLatestByPlaybookIdResult: FindLatestByPlaybookIdStubResult,
   ) {
     this.#findByIdResult = findByIdResult;
     this.#findBySequenceResult = findBySequenceResult;
+    this.#findLatestByPlaybookIdResult = findLatestByPlaybookIdResult;
   }
 
   // -- findById factories ---------------------------------------------------
@@ -66,15 +80,20 @@ class StubPlaybookVersionRepository implements PlaybookVersionRepository {
     return new StubPlaybookVersionRepository(
       { kind: 'playbookVersion', playbookVersion },
       { kind: 'null' },
+      { kind: 'null' },
     );
   }
 
   static returningNull(): StubPlaybookVersionRepository {
-    return new StubPlaybookVersionRepository({ kind: 'null' }, { kind: 'null' });
+    return new StubPlaybookVersionRepository({ kind: 'null' }, { kind: 'null' }, { kind: 'null' });
   }
 
   static returningError(error: PersistenceOperationFailedError): StubPlaybookVersionRepository {
-    return new StubPlaybookVersionRepository({ kind: 'error', error }, { kind: 'null' });
+    return new StubPlaybookVersionRepository(
+      { kind: 'error', error },
+      { kind: 'null' },
+      { kind: 'null' },
+    );
   }
 
   // -- findBySequence factories ---------------------------------------------
@@ -85,17 +104,73 @@ class StubPlaybookVersionRepository implements PlaybookVersionRepository {
     return new StubPlaybookVersionRepository(
       { kind: 'null' },
       { kind: 'playbookVersion', playbookVersion },
+      { kind: 'null' },
     );
   }
 
   static returningNoPlaybookVersionBySequence(): StubPlaybookVersionRepository {
-    return new StubPlaybookVersionRepository({ kind: 'null' }, { kind: 'null' });
+    return new StubPlaybookVersionRepository({ kind: 'null' }, { kind: 'null' }, { kind: 'null' });
   }
 
   static returningFindBySequenceError(
     error: PersistenceOperationFailedError,
   ): StubPlaybookVersionRepository {
-    return new StubPlaybookVersionRepository({ kind: 'null' }, { kind: 'error', error });
+    return new StubPlaybookVersionRepository(
+      { kind: 'null' },
+      { kind: 'error', error },
+      { kind: 'null' },
+    );
+  }
+
+  // -- findLatestByPlaybookId factories -------------------------------------
+
+  static returningLatestPlaybookVersion(
+    playbookVersion: PlaybookVersion,
+  ): StubPlaybookVersionRepository {
+    return new StubPlaybookVersionRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'playbookVersion', playbookVersion },
+    );
+  }
+
+  static returningNoLatestPlaybookVersion(): StubPlaybookVersionRepository {
+    return new StubPlaybookVersionRepository({ kind: 'null' }, { kind: 'null' }, { kind: 'null' });
+  }
+
+  static returningFindLatestByPlaybookIdError(
+    error: PersistenceOperationFailedError,
+  ): StubPlaybookVersionRepository {
+    return new StubPlaybookVersionRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'error', error },
+    );
+  }
+
+  // -- findLatestByPlaybookId ------------------------------------------------
+
+  get findLatestByPlaybookIdCall(): FindLatestByPlaybookIdCall | null {
+    return this.#findLatestByPlaybookIdCall;
+  }
+
+  async findLatestByPlaybookId(
+    workspaceId: WorkspaceId,
+    playbookId: PlaybookId,
+  ): Promise<Result<PlaybookVersion | null, PersistenceOperationFailedError>> {
+    this.#findLatestByPlaybookIdCall = Object.freeze({ workspaceId, playbookId });
+
+    switch (this.#findLatestByPlaybookIdResult.kind) {
+      case 'playbookVersion': {
+        return ok(this.#findLatestByPlaybookIdResult.playbookVersion);
+      }
+      case 'null': {
+        return ok(null);
+      }
+      case 'error': {
+        return err(this.#findLatestByPlaybookIdResult.error);
+      }
+    }
   }
 
   // -- findById -------------------------------------------------------------
@@ -595,6 +670,235 @@ describe('PlaybookVersionRepository', () => {
         pbId,
         vs,
       ) => repository.findBySequence(wsId, pbId, vs);
+
+      void _acceptsTypedIds;
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // findLatestByPlaybookId
+  // -------------------------------------------------------------------------
+
+  describe('findLatestByPlaybookId — found', () => {
+    it('returns the version with the highest sequence', async () => {
+      const seq1 = createValidPlaybookVersion({
+        playbookVersionId: '00000000-0000-0000-0000-000000000001',
+        versionSequence: 1,
+      });
+      const seq2 = createValidPlaybookVersion({
+        playbookVersionId: '00000000-0000-0000-0000-000000000002',
+        versionSequence: 2,
+      });
+      const seq3 = createValidPlaybookVersion({
+        playbookVersionId: '00000000-0000-0000-0000-000000000003',
+        versionSequence: 3,
+      });
+
+      expect(seq1.playbookId).toBe(seq2.playbookId);
+      expect(seq2.playbookId).toBe(seq3.playbookId);
+      expect(seq3.playbookId).toBe(seq1.playbookId);
+      expect(seq1.id).not.toBe(seq2.id);
+      expect(seq2.id).not.toBe(seq3.id);
+
+      const repository = StubPlaybookVersionRepository.returningLatestPlaybookVersion(seq3);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookId = parsePlaybookId('00000000-0000-0000-0000-000000000003');
+      if (!playbookId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+
+      const result = await repository.findLatestByPlaybookId(workspaceId.value, playbookId.value);
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(seq3);
+      expect(result.value).not.toBe(seq1);
+      expect(result.value).not.toBe(seq2);
+      expect(seq3.versionSequence.value).toBe(3);
+    });
+  });
+
+  describe('findLatestByPlaybookId — no versions', () => {
+    it('returns a successful Result with null when the playbook has no versions', async () => {
+      const repository = StubPlaybookVersionRepository.returningNoLatestPlaybookVersion();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookId = parsePlaybookId('00000000-0000-0000-0000-000000000003');
+      if (!playbookId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+
+      const result = await repository.findLatestByPlaybookId(workspaceId.value, playbookId.value);
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestByPlaybookId — playbook not found', () => {
+    it('returns a successful Result with null when the playbook does not exist', async () => {
+      const repository = StubPlaybookVersionRepository.returningNoLatestPlaybookVersion();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const nonExistentPlaybookId = parsePlaybookId('00000000-0000-0000-0000-00000000ffff');
+      if (!nonExistentPlaybookId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+
+      const result = await repository.findLatestByPlaybookId(
+        workspaceId.value,
+        nonExistentPlaybookId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestByPlaybookId — wrong workspace', () => {
+    it('returns a successful Result with null when queried from a different workspace', async () => {
+      const repository = StubPlaybookVersionRepository.returningNoLatestPlaybookVersion();
+      const workspaceB = parseWorkspaceId('00000000-0000-0000-0000-000000000005');
+      if (!workspaceB.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookId = parsePlaybookId('00000000-0000-0000-0000-000000000003');
+      if (!playbookId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+
+      const result = await repository.findLatestByPlaybookId(workspaceB.value, playbookId.value);
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestByPlaybookId — higher sequence in another playbook', () => {
+    it('returns the latest version for the queried playbook, unaffected by other playbooks', async () => {
+      const playbookAseq3 = createValidPlaybookVersion({
+        playbookVersionId: '00000000-0000-0000-0000-000000000001',
+        playbookId: '00000000-0000-0000-0000-00000000000a',
+        versionSequence: 3,
+      });
+      const playbookBseq10 = createValidPlaybookVersion({
+        playbookVersionId: '00000000-0000-0000-0000-000000000002',
+        playbookId: '00000000-0000-0000-0000-00000000000b',
+        versionSequence: 10,
+      });
+
+      expect(playbookAseq3.playbookId).not.toBe(playbookBseq10.playbookId);
+      expect(playbookAseq3.versionSequence.value).toBe(3);
+      expect(playbookBseq10.versionSequence.value).toBe(10);
+
+      const repository =
+        StubPlaybookVersionRepository.returningLatestPlaybookVersion(playbookAseq3);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookAId = parsePlaybookId('00000000-0000-0000-0000-00000000000a');
+      if (!playbookAId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+
+      const result = await repository.findLatestByPlaybookId(workspaceId.value, playbookAId.value);
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(playbookAseq3);
+      expect(result.value).not.toBe(playbookBseq10);
+    });
+  });
+
+  describe('findLatestByPlaybookId — persistence failure', () => {
+    it('returns a failed Result with PersistenceOperationFailedError', async () => {
+      const error = persistenceOperationFailed('playbookVersion.findLatestByPlaybookId');
+      const repository = StubPlaybookVersionRepository.returningFindLatestByPlaybookIdError(error);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookId = parsePlaybookId('00000000-0000-0000-0000-000000000003');
+      if (!playbookId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+
+      const result = await repository.findLatestByPlaybookId(workspaceId.value, playbookId.value);
+
+      expect(result.success).toBe(false);
+      if (result.success) {
+        return;
+      }
+
+      expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+      expect(result.error.details.operation).toBe('playbookVersion.findLatestByPlaybookId');
+    });
+  });
+
+  describe('findLatestByPlaybookId — argument capture', () => {
+    it('captures the workspaceId and playbookId from the last call', async () => {
+      const playbookVersion = createValidPlaybookVersion({ versionSequence: 5 });
+      const repository =
+        StubPlaybookVersionRepository.returningLatestPlaybookVersion(playbookVersion);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookId = parsePlaybookId('00000000-0000-0000-0000-000000000003');
+      if (!playbookId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+
+      await repository.findLatestByPlaybookId(workspaceId.value, playbookId.value);
+
+      const call = repository.findLatestByPlaybookIdCall;
+
+      expect(call).not.toBeNull();
+      expect(call!.workspaceId).toBe(workspaceId.value);
+      expect(call!.playbookId).toBe(playbookId.value);
+      expect(Object.isFrozen(call)).toBe(true);
+    });
+  });
+
+  describe('findLatestByPlaybookId — accepts typed IDs', () => {
+    it('compiles with WorkspaceId and PlaybookId parameter types', () => {
+      const playbookVersion = createValidPlaybookVersion();
+      const repository =
+        StubPlaybookVersionRepository.returningLatestPlaybookVersion(playbookVersion);
+
+      const _acceptsTypedIds: (
+        workspaceId: WorkspaceId,
+        playbookId: PlaybookId,
+      ) => Promise<Result<PlaybookVersion | null, PersistenceOperationFailedError>> = (
+        wsId,
+        pbId,
+      ) => repository.findLatestByPlaybookId(wsId, pbId);
 
       void _acceptsTypedIds;
     });
