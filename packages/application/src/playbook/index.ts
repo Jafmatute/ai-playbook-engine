@@ -1,1 +1,1 @@
-export type { PlaybookRepository } from './ports/index.js';
+export type { FindPlaybookByNormalizedNameOptions, PlaybookRepository } from './ports/index.js';

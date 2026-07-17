@@ -11,7 +11,8 @@ export type PersistenceOperation =
   | 'normalizationAttempt.findById'
   | 'knowledgeItem.findById'
   | 'validationAttempt.findById'
-  | 'playbookSource.findEnabledByPlaybookId';
+  | 'playbookSource.findEnabledByPlaybookId'
+  | 'playbook.findByNormalizedName';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;

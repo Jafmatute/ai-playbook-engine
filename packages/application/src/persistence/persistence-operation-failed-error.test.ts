@@ -14,6 +14,7 @@ const operations = [
   'knowledgeItem.findById',
   'validationAttempt.findById',
   'playbookSource.findEnabledByPlaybookId',
+  'playbook.findByNormalizedName',
 ] as const;
 
 describe('persistenceOperationFailed', () => {

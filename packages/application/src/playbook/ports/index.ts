@@ -1,1 +1,4 @@
-export type { PlaybookRepository } from './playbook-repository.js';
+export type {
+  FindPlaybookByNormalizedNameOptions,
+  PlaybookRepository,
+} from './playbook-repository.js';

@@ -15,18 +15,38 @@ import {
   persistenceOperationFailed,
 } from '../../persistence/index.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
-import type { PlaybookRepository } from './playbook-repository.js';
+import type {
+  FindPlaybookByNormalizedNameOptions,
+  PlaybookRepository,
+} from './playbook-repository.js';
 
 type FindByIdStubResult =
   | { readonly kind: 'playbook'; readonly playbook: Playbook }
   | { readonly kind: 'null' }
   | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
 
-class StubPlaybookRepository implements PlaybookRepository {
-  readonly #result: FindByIdStubResult;
+type FindByNormalizedNameStubResult =
+  | { readonly kind: 'playbook'; readonly playbook: Playbook }
+  | { readonly kind: 'null' }
+  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
 
-  private constructor(result: FindByIdStubResult) {
-    this.#result = result;
+type FindByNormalizedNameCall = Readonly<{
+  workspaceId: WorkspaceId;
+  normalizedName: string;
+  options: FindPlaybookByNormalizedNameOptions;
+}>;
+
+class StubPlaybookRepository implements PlaybookRepository {
+  readonly #findByIdResult: FindByIdStubResult;
+  readonly #findByNormalizedNameResult: FindByNormalizedNameStubResult;
+  #findByNormalizedNameCall: FindByNormalizedNameCall | null = null;
+
+  private constructor(
+    findByIdResult: FindByIdStubResult,
+    findByNormalizedNameResult: FindByNormalizedNameStubResult = { kind: 'null' },
+  ) {
+    this.#findByIdResult = findByIdResult;
+    this.#findByNormalizedNameResult = findByNormalizedNameResult;
   }
 
   static returningPlaybook(playbook: Playbook): StubPlaybookRepository {
@@ -41,19 +61,61 @@ class StubPlaybookRepository implements PlaybookRepository {
     return new StubPlaybookRepository({ kind: 'error', error });
   }
 
+  static returningPlaybookByNormalizedName(playbook: Playbook): StubPlaybookRepository {
+    return new StubPlaybookRepository({ kind: 'null' }, { kind: 'playbook', playbook });
+  }
+
+  static returningNoPlaybookByNormalizedName(): StubPlaybookRepository {
+    return new StubPlaybookRepository({ kind: 'null' }, { kind: 'null' });
+  }
+
+  static returningFindByNormalizedNameError(
+    error: PersistenceOperationFailedError,
+  ): StubPlaybookRepository {
+    return new StubPlaybookRepository({ kind: 'null' }, { kind: 'error', error });
+  }
+
+  get findByNormalizedNameCall(): FindByNormalizedNameCall | null {
+    return this.#findByNormalizedNameCall;
+  }
+
   async findById(
     _workspaceId: WorkspaceId,
     _playbookId: PlaybookId,
   ): Promise<Result<Playbook | null, PersistenceOperationFailedError>> {
-    switch (this.#result.kind) {
+    switch (this.#findByIdResult.kind) {
       case 'playbook': {
-        return ok(this.#result.playbook);
+        return ok(this.#findByIdResult.playbook);
       }
       case 'null': {
         return ok(null);
       }
       case 'error': {
-        return err(this.#result.error);
+        return err(this.#findByIdResult.error);
+      }
+    }
+  }
+
+  async findByNormalizedName(
+    workspaceId: WorkspaceId,
+    normalizedName: string,
+    options: FindPlaybookByNormalizedNameOptions,
+  ): Promise<Result<Playbook | null, PersistenceOperationFailedError>> {
+    this.#findByNormalizedNameCall = Object.freeze({
+      workspaceId,
+      normalizedName,
+      options: Object.freeze({ ...options }),
+    });
+
+    switch (this.#findByNormalizedNameResult.kind) {
+      case 'playbook': {
+        return ok(this.#findByNormalizedNameResult.playbook);
+      }
+      case 'null': {
+        return ok(null);
+      }
+      case 'error': {
+        return err(this.#findByNormalizedNameResult.error);
       }
     }
   }
@@ -91,6 +153,22 @@ function createValidPlaybook(): Playbook {
   }
 
   return playbookResult.value;
+}
+
+function createArchivedPlaybook(): Playbook {
+  const playbook = createValidPlaybook();
+
+  const archivedAtResult = Instant.parse('2026-07-16T10:00:00.000Z');
+  if (!archivedAtResult.success) {
+    throw new Error('Expected a valid instant fixture.');
+  }
+
+  const archiveResult = playbook.archive({ archivedAt: archivedAtResult.value });
+  if (!archiveResult.success) {
+    throw new Error('Expected the archive transition to succeed.');
+  }
+
+  return playbook;
 }
 
 describe('PlaybookRepository', () => {
@@ -201,6 +279,194 @@ describe('PlaybookRepository', () => {
         repository.findById(wsId, pbId);
 
       void _acceptsTypedIds;
+    });
+  });
+
+  describe('findByNormalizedName — found', () => {
+    it('returns a successful Result with the Playbook instance', async () => {
+      const playbook = createValidPlaybook();
+      const repository = StubPlaybookRepository.returningPlaybookByNormalizedName(playbook);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      const result = await repository.findByNormalizedName(workspaceId.value, 'test playbook', {
+        includeArchived: false,
+      });
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(playbook);
+    });
+  });
+
+  describe('findByNormalizedName — exact normalized match', () => {
+    it('receives the exact normalized value from the domain', async () => {
+      const nameResult = PlaybookName.create('Test Playbook');
+      if (!nameResult.success) {
+        throw new Error('Expected a valid playbook name fixture.');
+      }
+
+      const normalizedName = nameResult.value.normalizedValue;
+      const playbook = createValidPlaybook();
+      const repository = StubPlaybookRepository.returningPlaybookByNormalizedName(playbook);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      await repository.findByNormalizedName(workspaceId.value, normalizedName, {
+        includeArchived: false,
+      });
+
+      const call = repository.findByNormalizedNameCall;
+      expect(call).not.toBeNull();
+      expect(call!.normalizedName).toBe('test playbook');
+    });
+  });
+
+  describe('findByNormalizedName — absent', () => {
+    it('returns a successful Result with null', async () => {
+      const repository = StubPlaybookRepository.returningNoPlaybookByNormalizedName();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      const result = await repository.findByNormalizedName(workspaceId.value, 'nonexistent', {
+        includeArchived: false,
+      });
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findByNormalizedName — archived excluded', () => {
+    it('returns a successful Result with null when only an archived playbook matches (includeArchived: false)', async () => {
+      const repository = StubPlaybookRepository.returningNoPlaybookByNormalizedName();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      const result = await repository.findByNormalizedName(workspaceId.value, 'test playbook', {
+        includeArchived: false,
+      });
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+
+      const call = repository.findByNormalizedNameCall;
+      expect(call).not.toBeNull();
+      expect(call!.options.includeArchived).toBe(false);
+    });
+  });
+
+  describe('findByNormalizedName — archived included', () => {
+    it('returns the archived Playbook when includeArchived is true', async () => {
+      const archivedPlaybook = createArchivedPlaybook();
+      const repository = StubPlaybookRepository.returningPlaybookByNormalizedName(archivedPlaybook);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      const result = await repository.findByNormalizedName(workspaceId.value, 'test playbook', {
+        includeArchived: true,
+      });
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(archivedPlaybook);
+      if (result.value === null) {
+        throw new Error('Expected result.value to be a Playbook.');
+      }
+
+      expect(result.value.status).toBe('archived');
+
+      const call = repository.findByNormalizedNameCall;
+      expect(call).not.toBeNull();
+      expect(call!.options.includeArchived).toBe(true);
+    });
+  });
+
+  describe('findByNormalizedName — wrong workspace', () => {
+    it('returns a successful Result with null when the playbook belongs to a different workspace', async () => {
+      const repository = StubPlaybookRepository.returningNoPlaybookByNormalizedName();
+      const workspaceA = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceA.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const workspaceB = parseWorkspaceId('00000000-0000-0000-0000-000000000003');
+      if (!workspaceB.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      const result = await repository.findByNormalizedName(workspaceB.value, 'test playbook', {
+        includeArchived: false,
+      });
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findByNormalizedName — persistence failure', () => {
+    it('returns a failed Result with PersistenceOperationFailedError', async () => {
+      const error = persistenceOperationFailed('playbook.findByNormalizedName');
+      const repository = StubPlaybookRepository.returningFindByNormalizedNameError(error);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      const result = await repository.findByNormalizedName(workspaceId.value, 'test playbook', {
+        includeArchived: false,
+      });
+
+      expect(result.success).toBe(false);
+      if (result.success) {
+        return;
+      }
+
+      expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+      expect(result.error.details.operation).toBe('playbook.findByNormalizedName');
+    });
+  });
+
+  describe('findByNormalizedName — accepts typed signature', () => {
+    it('compiles with WorkspaceId, normalizedName string, and options', () => {
+      const playbook = createValidPlaybook();
+      const repository = StubPlaybookRepository.returningPlaybookByNormalizedName(playbook);
+
+      const _acceptsSignature: (
+        workspaceId: WorkspaceId,
+        normalizedName: string,
+        options: FindPlaybookByNormalizedNameOptions,
+      ) => Promise<Result<Playbook | null, PersistenceOperationFailedError>> = (wsId, name, opts) =>
+        repository.findByNormalizedName(wsId, name, opts);
+
+      void _acceptsSignature;
     });
   });
 });
