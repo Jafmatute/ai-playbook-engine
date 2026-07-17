@@ -20,6 +20,7 @@ const operations = [
   'synchronizationSnapshot.findLatestByPlaybookSourceId',
   'playbookVersion.findBySequence',
   'playbookVersion.findLatestByPlaybookId',
+  'normalizationAttempt.findLatestByPlaybookVersionId',
 ] as const;
 
 describe('persistenceOperationFailed', () => {
