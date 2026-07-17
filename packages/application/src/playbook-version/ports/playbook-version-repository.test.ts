@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PlaybookVersionId, WorkspaceId } from '@ai-playbook-engine/core';
+import type { PlaybookId, PlaybookVersionId, WorkspaceId } from '@ai-playbook-engine/core';
 import {
   ContentChecksum,
   Instant,
@@ -23,50 +23,142 @@ import {
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
 import type { PlaybookVersionRepository } from './playbook-version-repository.js';
 
+// ---------------------------------------------------------------------------
+// Stub result types
+// ---------------------------------------------------------------------------
+
 type FindByIdStubResult =
   | { readonly kind: 'playbookVersion'; readonly playbookVersion: PlaybookVersion }
   | { readonly kind: 'null' }
   | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
 
-class StubPlaybookVersionRepository implements PlaybookVersionRepository {
-  readonly #result: FindByIdStubResult;
+type FindBySequenceStubResult =
+  | { readonly kind: 'playbookVersion'; readonly playbookVersion: PlaybookVersion }
+  | { readonly kind: 'null' }
+  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
 
-  private constructor(result: FindByIdStubResult) {
-    this.#result = result;
+type FindBySequenceCall = Readonly<{
+  workspaceId: WorkspaceId;
+  playbookId: PlaybookId;
+  versionSequence: VersionSequence;
+}>;
+
+// ---------------------------------------------------------------------------
+// Stub
+// ---------------------------------------------------------------------------
+
+class StubPlaybookVersionRepository implements PlaybookVersionRepository {
+  readonly #findByIdResult: FindByIdStubResult;
+  readonly #findBySequenceResult: FindBySequenceStubResult;
+  #findBySequenceCall: FindBySequenceCall | null = null;
+
+  private constructor(
+    findByIdResult: FindByIdStubResult,
+    findBySequenceResult: FindBySequenceStubResult,
+  ) {
+    this.#findByIdResult = findByIdResult;
+    this.#findBySequenceResult = findBySequenceResult;
   }
 
+  // -- findById factories ---------------------------------------------------
+
   static returningPlaybookVersion(playbookVersion: PlaybookVersion): StubPlaybookVersionRepository {
-    return new StubPlaybookVersionRepository({ kind: 'playbookVersion', playbookVersion });
+    return new StubPlaybookVersionRepository(
+      { kind: 'playbookVersion', playbookVersion },
+      { kind: 'null' },
+    );
   }
 
   static returningNull(): StubPlaybookVersionRepository {
-    return new StubPlaybookVersionRepository({ kind: 'null' });
+    return new StubPlaybookVersionRepository({ kind: 'null' }, { kind: 'null' });
   }
 
   static returningError(error: PersistenceOperationFailedError): StubPlaybookVersionRepository {
-    return new StubPlaybookVersionRepository({ kind: 'error', error });
+    return new StubPlaybookVersionRepository({ kind: 'error', error }, { kind: 'null' });
   }
+
+  // -- findBySequence factories ---------------------------------------------
+
+  static returningPlaybookVersionBySequence(
+    playbookVersion: PlaybookVersion,
+  ): StubPlaybookVersionRepository {
+    return new StubPlaybookVersionRepository(
+      { kind: 'null' },
+      { kind: 'playbookVersion', playbookVersion },
+    );
+  }
+
+  static returningNoPlaybookVersionBySequence(): StubPlaybookVersionRepository {
+    return new StubPlaybookVersionRepository({ kind: 'null' }, { kind: 'null' });
+  }
+
+  static returningFindBySequenceError(
+    error: PersistenceOperationFailedError,
+  ): StubPlaybookVersionRepository {
+    return new StubPlaybookVersionRepository({ kind: 'null' }, { kind: 'error', error });
+  }
+
+  // -- findById -------------------------------------------------------------
 
   async findById(
     _workspaceId: WorkspaceId,
     _playbookVersionId: PlaybookVersionId,
   ): Promise<Result<PlaybookVersion | null, PersistenceOperationFailedError>> {
-    switch (this.#result.kind) {
+    switch (this.#findByIdResult.kind) {
       case 'playbookVersion': {
-        return ok(this.#result.playbookVersion);
+        return ok(this.#findByIdResult.playbookVersion);
       }
       case 'null': {
         return ok(null);
       }
       case 'error': {
-        return err(this.#result.error);
+        return err(this.#findByIdResult.error);
+      }
+    }
+  }
+
+  // -- findBySequence -------------------------------------------------------
+
+  get findBySequenceCall(): FindBySequenceCall | null {
+    return this.#findBySequenceCall;
+  }
+
+  async findBySequence(
+    workspaceId: WorkspaceId,
+    playbookId: PlaybookId,
+    versionSequence: VersionSequence,
+  ): Promise<Result<PlaybookVersion | null, PersistenceOperationFailedError>> {
+    this.#findBySequenceCall = Object.freeze({ workspaceId, playbookId, versionSequence });
+
+    switch (this.#findBySequenceResult.kind) {
+      case 'playbookVersion': {
+        return ok(this.#findBySequenceResult.playbookVersion);
+      }
+      case 'null': {
+        return ok(null);
+      }
+      case 'error': {
+        return err(this.#findBySequenceResult.error);
       }
     }
   }
 }
 
-function createValidPlaybookVersion(): PlaybookVersion {
-  const playbookVersionIdResult = parsePlaybookVersionId('00000000-0000-0000-0000-000000000001');
+// ---------------------------------------------------------------------------
+// Fixture
+// ---------------------------------------------------------------------------
+
+interface PlaybookVersionFixtureOptions {
+  readonly playbookVersionId: string;
+  readonly playbookId: string;
+  readonly versionSequence: number;
+}
+
+function createValidPlaybookVersion(
+  options?: Partial<PlaybookVersionFixtureOptions>,
+): PlaybookVersion {
+  const playbookVersionIdRaw = options?.playbookVersionId ?? '00000000-0000-0000-0000-000000000001';
+  const playbookVersionIdResult = parsePlaybookVersionId(playbookVersionIdRaw);
   if (!playbookVersionIdResult.success) {
     throw new Error('Expected a valid playbook version ID fixture.');
   }
@@ -76,7 +168,8 @@ function createValidPlaybookVersion(): PlaybookVersion {
     throw new Error('Expected a valid workspace ID fixture.');
   }
 
-  const playbookIdResult = parsePlaybookId('00000000-0000-0000-0000-000000000003');
+  const playbookIdRaw = options?.playbookId ?? '00000000-0000-0000-0000-000000000003';
+  const playbookIdResult = parsePlaybookId(playbookIdRaw);
   if (!playbookIdResult.success) {
     throw new Error('Expected a valid playbook ID fixture.');
   }
@@ -88,7 +181,8 @@ function createValidPlaybookVersion(): PlaybookVersion {
     throw new Error('Expected a valid synchronization snapshot ID fixture.');
   }
 
-  const versionSequenceResult = VersionSequence.create(1);
+  const versionSequenceRaw = options?.versionSequence ?? 1;
+  const versionSequenceResult = VersionSequence.create(versionSequenceRaw);
   if (!versionSequenceResult.success) {
     throw new Error('Expected a valid version sequence fixture.');
   }
@@ -138,6 +232,10 @@ function createValidPlaybookVersion(): PlaybookVersion {
 
   return playbookVersionResult.value;
 }
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 describe('PlaybookVersionRepository', () => {
   describe('findById — found', () => {
@@ -247,6 +345,256 @@ describe('PlaybookVersionRepository', () => {
         wsId,
         pvId,
       ) => repository.findById(wsId, pvId);
+
+      void _acceptsTypedIds;
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // findBySequence
+  // -------------------------------------------------------------------------
+
+  describe('findBySequence — found', () => {
+    it('returns a successful Result with the PlaybookVersion instance', async () => {
+      const playbookVersion = createValidPlaybookVersion({ versionSequence: 2 });
+      const repository =
+        StubPlaybookVersionRepository.returningPlaybookVersionBySequence(playbookVersion);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookId = parsePlaybookId('00000000-0000-0000-0000-000000000003');
+      if (!playbookId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+      const versionSequenceResult = VersionSequence.create(2);
+      if (!versionSequenceResult.success) {
+        throw new Error('Expected a valid version sequence fixture.');
+      }
+
+      const result = await repository.findBySequence(
+        workspaceId.value,
+        playbookId.value,
+        versionSequenceResult.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(playbookVersion);
+      expect(playbookVersion.versionSequence.value).toBe(2);
+    });
+  });
+
+  describe('findBySequence — sequence not found', () => {
+    it('returns a successful Result with null when the sequence does not exist', async () => {
+      const repository = StubPlaybookVersionRepository.returningNoPlaybookVersionBySequence();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookId = parsePlaybookId('00000000-0000-0000-0000-000000000003');
+      if (!playbookId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+      const versionSequenceResult = VersionSequence.create(99);
+      if (!versionSequenceResult.success) {
+        throw new Error('Expected a valid version sequence fixture.');
+      }
+
+      const result = await repository.findBySequence(
+        workspaceId.value,
+        playbookId.value,
+        versionSequenceResult.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findBySequence — playbook not found', () => {
+    it('returns a successful Result with null when the playbook does not exist', async () => {
+      const repository = StubPlaybookVersionRepository.returningNoPlaybookVersionBySequence();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const nonExistentPlaybookId = parsePlaybookId('00000000-0000-0000-0000-00000000ffff');
+      if (!nonExistentPlaybookId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+      const versionSequenceResult = VersionSequence.create(1);
+      if (!versionSequenceResult.success) {
+        throw new Error('Expected a valid version sequence fixture.');
+      }
+
+      const result = await repository.findBySequence(
+        workspaceId.value,
+        nonExistentPlaybookId.value,
+        versionSequenceResult.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findBySequence — wrong workspace', () => {
+    it('returns a successful Result with null when queried from a different workspace', async () => {
+      const repository = StubPlaybookVersionRepository.returningNoPlaybookVersionBySequence();
+      const workspaceB = parseWorkspaceId('00000000-0000-0000-0000-000000000005');
+      if (!workspaceB.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookId = parsePlaybookId('00000000-0000-0000-0000-000000000003');
+      if (!playbookId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+      const versionSequenceResult = VersionSequence.create(1);
+      if (!versionSequenceResult.success) {
+        throw new Error('Expected a valid version sequence fixture.');
+      }
+
+      const result = await repository.findBySequence(
+        workspaceB.value,
+        playbookId.value,
+        versionSequenceResult.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findBySequence — same sequence in different playbook', () => {
+    it('returns a successful Result with null for a non-matching playbook', async () => {
+      const repository = StubPlaybookVersionRepository.returningNoPlaybookVersionBySequence();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const otherPlaybookId = parsePlaybookId('00000000-0000-0000-0000-00000000000a');
+      if (!otherPlaybookId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+      const versionSequenceResult = VersionSequence.create(1);
+      if (!versionSequenceResult.success) {
+        throw new Error('Expected a valid version sequence fixture.');
+      }
+
+      const result = await repository.findBySequence(
+        workspaceId.value,
+        otherPlaybookId.value,
+        versionSequenceResult.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findBySequence — persistence failure', () => {
+    it('returns a failed Result with PersistenceOperationFailedError', async () => {
+      const error = persistenceOperationFailed('playbookVersion.findBySequence');
+      const repository = StubPlaybookVersionRepository.returningFindBySequenceError(error);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookId = parsePlaybookId('00000000-0000-0000-0000-000000000003');
+      if (!playbookId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+      const versionSequenceResult = VersionSequence.create(1);
+      if (!versionSequenceResult.success) {
+        throw new Error('Expected a valid version sequence fixture.');
+      }
+
+      const result = await repository.findBySequence(
+        workspaceId.value,
+        playbookId.value,
+        versionSequenceResult.value,
+      );
+
+      expect(result.success).toBe(false);
+      if (result.success) {
+        return;
+      }
+
+      expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+      expect(result.error.details.operation).toBe('playbookVersion.findBySequence');
+    });
+  });
+
+  describe('findBySequence — argument capture', () => {
+    it('captures the workspaceId, playbookId, and versionSequence from the last call', async () => {
+      const playbookVersion = createValidPlaybookVersion({ versionSequence: 3 });
+      const repository =
+        StubPlaybookVersionRepository.returningPlaybookVersionBySequence(playbookVersion);
+
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookId = parsePlaybookId('00000000-0000-0000-0000-000000000003');
+      if (!playbookId.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+      const versionSequenceResult = VersionSequence.create(3);
+      if (!versionSequenceResult.success) {
+        throw new Error('Expected a valid version sequence fixture.');
+      }
+
+      await repository.findBySequence(
+        workspaceId.value,
+        playbookId.value,
+        versionSequenceResult.value,
+      );
+
+      const call = repository.findBySequenceCall;
+
+      expect(call).not.toBeNull();
+      expect(call!.workspaceId).toBe(workspaceId.value);
+      expect(call!.playbookId).toBe(playbookId.value);
+      expect(call!.versionSequence).toBe(versionSequenceResult.value);
+      expect(Object.isFrozen(call)).toBe(true);
+    });
+  });
+
+  describe('findBySequence — accepts typed IDs', () => {
+    it('compiles with WorkspaceId, PlaybookId, and VersionSequence parameter types', () => {
+      const playbookVersion = createValidPlaybookVersion();
+      const repository =
+        StubPlaybookVersionRepository.returningPlaybookVersionBySequence(playbookVersion);
+
+      const _acceptsTypedIds: (
+        workspaceId: WorkspaceId,
+        playbookId: PlaybookId,
+        versionSequence: VersionSequence,
+      ) => Promise<Result<PlaybookVersion | null, PersistenceOperationFailedError>> = (
+        wsId,
+        pbId,
+        vs,
+      ) => repository.findBySequence(wsId, pbId, vs);
 
       void _acceptsTypedIds;
     });
