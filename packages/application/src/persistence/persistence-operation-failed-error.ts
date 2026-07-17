@@ -12,7 +12,8 @@ export type PersistenceOperation =
   | 'knowledgeItem.findById'
   | 'validationAttempt.findById'
   | 'playbookSource.findEnabledByPlaybookId'
-  | 'playbook.findByNormalizedName';
+  | 'playbook.findByNormalizedName'
+  | 'synchronizationRun.findActiveByPlaybookSourceId';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;

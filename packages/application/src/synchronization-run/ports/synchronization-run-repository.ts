@@ -1,4 +1,5 @@
 import type {
+  PlaybookSourceId,
   SynchronizationRun,
   SynchronizationRunId,
   WorkspaceId,
@@ -11,5 +12,10 @@ export interface SynchronizationRunRepository {
   findById(
     workspaceId: WorkspaceId,
     synchronizationRunId: SynchronizationRunId,
+  ): Promise<Result<SynchronizationRun | null, PersistenceOperationFailedError>>;
+
+  findActiveByPlaybookSourceId(
+    workspaceId: WorkspaceId,
+    playbookSourceId: PlaybookSourceId,
   ): Promise<Result<SynchronizationRun | null, PersistenceOperationFailedError>>;
 }
