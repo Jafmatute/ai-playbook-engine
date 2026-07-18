@@ -1,0 +1,49 @@
+import { ExitCode } from './exit-codes.js';
+
+export function mapErrorToExitCode(errorCode: string): ExitCode {
+  switch (errorCode) {
+    case 'INVALID_IDENTIFIER':
+    case 'WORKSPACE_NAME_REQUIRED':
+    case 'WORKSPACE_NAME_INVALID':
+    case 'WORKSPACE_DESCRIPTION_INVALID':
+    case 'PLAYBOOK_NAME_REQUIRED':
+    case 'PLAYBOOK_NAME_INVALID':
+    case 'PLAYBOOK_DESCRIPTION_INVALID':
+    case 'PAGINATION_INVALID':
+      return ExitCode.INVALID_INPUT;
+
+    case 'WORKSPACE_NOT_FOUND':
+    case 'PLAYBOOK_NOT_FOUND':
+      return ExitCode.NOT_FOUND;
+
+    case 'WORKSPACE_ALREADY_INITIALIZED':
+    case 'PLAYBOOK_NAME_CONFLICT':
+    case 'WORKSPACE_NOT_ACTIVE':
+      return ExitCode.CONFLICT;
+
+    case 'CURRENT_WORKSPACE_UNAVAILABLE':
+    case 'CONFIGURATION_INVALID':
+    case 'CONFIGURATION_MISSING':
+      return ExitCode.CONFIG_ERROR;
+
+    case 'PERSISTENCE_OPERATION_FAILED':
+    case 'WORKSPACE_STATE_INVALID':
+    case 'PLAYBOOK_STATE_INVALID':
+      return ExitCode.INFRASTRUCTURE_ERROR;
+
+    default:
+      return ExitCode.UNEXPECTED_ERROR;
+  }
+}
+
+export function getErrorMessage(error: { code: string; message: string; details?: unknown }): {
+  code: string;
+  message: string;
+  details: unknown;
+} {
+  return {
+    code: error.code,
+    message: error.message,
+    details: error.details ?? {},
+  };
+}

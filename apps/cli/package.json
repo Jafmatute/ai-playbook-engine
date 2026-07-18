@@ -1,0 +1,34 @@
+{
+  "name": "@ai-playbook-engine/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/main.js",
+  "types": "./dist/main.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "import": "./dist/main.js"
+    }
+  },
+  "bin": {
+    "ai-pb": "./dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "start": "node ./dist/main.js",
+    "build": "tsc --build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run src && tsc --project tsconfig.test.json --noEmit",
+    "clean": "rimraf dist tsconfig.tsbuildinfo"
+  },
+  "dependencies": {
+    "@ai-playbook-engine/application": "workspace:*",
+    "@ai-playbook-engine/core": "workspace:*",
+    "@ai-playbook-engine/shared": "workspace:*",
+    "@ai-playbook-engine/config": "workspace:*",
+    "@ai-playbook-engine/infrastructure": "workspace:*"
+  }
+}

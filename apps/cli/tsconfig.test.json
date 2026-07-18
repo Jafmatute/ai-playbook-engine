@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "node_modules"],
+  "references": [
+    {
+      "path": "../../packages/application"
+    },
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/shared"
+    },
+    {
+      "path": "../../packages/config"
+    },
+    {
+      "path": "../../packages/infrastructure"
+    }
+  ]
+}
