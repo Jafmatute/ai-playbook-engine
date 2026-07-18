@@ -9,6 +9,7 @@ import type { Result } from '@ai-playbook-engine/shared';
 
 import type { Page, PaginationRequest } from '../../pagination/index.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
+import type { SynchronizationRunListFilter } from '../synchronization-run-list-filter.js';
 
 export interface SynchronizationRunRepository {
   findById(
@@ -29,6 +30,13 @@ export interface SynchronizationRunRepository {
   findStaleRunning(
     workspaceId: WorkspaceId,
     olderThan: Instant,
+    pagination: PaginationRequest,
+  ): Promise<Result<Page<SynchronizationRun>, PersistenceOperationFailedError>>;
+
+  listByPlaybookSourceId(
+    workspaceId: WorkspaceId,
+    playbookSourceId: PlaybookSourceId,
+    filter: SynchronizationRunListFilter,
     pagination: PaginationRequest,
   ): Promise<Result<Page<SynchronizationRun>, PersistenceOperationFailedError>>;
 }

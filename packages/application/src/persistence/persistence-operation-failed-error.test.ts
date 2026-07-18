@@ -31,6 +31,7 @@ const operations = [
   'knowledgeRelationship.listByTargetItem',
   'playbookSource.listByPlaybookId',
   'synchronizationRun.findStaleRunning',
+  'synchronizationRun.listByPlaybookSourceId',
 ] as const;
 
 describe('persistenceOperationFailed', () => {

@@ -28,7 +28,8 @@ export type PersistenceOperation =
   | 'knowledgeRelationship.listBySourceItem'
   | 'knowledgeRelationship.listByTargetItem'
   | 'playbookSource.listByPlaybookId'
-  | 'synchronizationRun.findStaleRunning';
+  | 'synchronizationRun.findStaleRunning'
+  | 'synchronizationRun.listByPlaybookSourceId';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;

@@ -14,6 +14,7 @@ import {
 import { err, ok, type Result } from '@ai-playbook-engine/shared';
 
 import type { Page, PaginationRequest } from '../../pagination/index.js';
+import type { SynchronizationRunListFilter } from '../synchronization-run-list-filter.js';
 import {
   PERSISTENCE_OPERATION_FAILED,
   persistenceOperationFailed,
@@ -56,6 +57,17 @@ type FindStaleRunningCall = Readonly<{
   pagination: PaginationRequest;
 }>;
 
+type ListByPlaybookSourceIdStubResult =
+  | { readonly kind: 'page'; readonly page: Page<SynchronizationRun> }
+  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
+
+type ListByPlaybookSourceIdCall = Readonly<{
+  workspaceId: WorkspaceId;
+  playbookSourceId: PlaybookSourceId;
+  filter: SynchronizationRunListFilter;
+  pagination: PaginationRequest;
+}>;
+
 function copyFrozenSynchronizationRunPage(
   page: Page<SynchronizationRun>,
 ): Page<SynchronizationRun> {
@@ -82,14 +94,24 @@ const DEFAULT_EMPTY_STALE_RUNNING_PAGE: Page<SynchronizationRun> = Object.freeze
   totalCount: 0,
 });
 
+const DEFAULT_EMPTY_LIST_BY_PLAYBOOK_SOURCE_ID_PAGE: Page<SynchronizationRun> = Object.freeze({
+  items: Object.freeze([]),
+  offset: 0,
+  limit: 25,
+  hasMore: false,
+  totalCount: 0,
+});
+
 class StubSynchronizationRunRepository implements SynchronizationRunRepository {
   readonly #findByIdResult: FindByIdStubResult;
   readonly #findActiveByPlaybookSourceIdResult: FindActiveByPlaybookSourceIdStubResult;
   readonly #findLatestCompletedResult: FindLatestCompletedByPlaybookSourceIdStubResult;
   readonly #findStaleRunningResult: FindStaleRunningStubResult;
+  readonly #listByPlaybookSourceIdResult: ListByPlaybookSourceIdStubResult;
   #findActiveByPlaybookSourceIdCall: FindActiveByPlaybookSourceIdCall | null = null;
   #findLatestCompletedCall: FindLatestCompletedByPlaybookSourceIdCall | null = null;
   #findStaleRunningCall: FindStaleRunningCall | null = null;
+  #listByPlaybookSourceIdCall: ListByPlaybookSourceIdCall | null = null;
 
   private constructor(
     findByIdResult: FindByIdStubResult,
@@ -99,11 +121,16 @@ class StubSynchronizationRunRepository implements SynchronizationRunRepository {
       kind: 'page',
       page: DEFAULT_EMPTY_STALE_RUNNING_PAGE,
     },
+    listByPlaybookSourceIdResult: ListByPlaybookSourceIdStubResult = {
+      kind: 'page',
+      page: DEFAULT_EMPTY_LIST_BY_PLAYBOOK_SOURCE_ID_PAGE,
+    },
   ) {
     this.#findByIdResult = findByIdResult;
     this.#findActiveByPlaybookSourceIdResult = findActiveByPlaybookSourceIdResult;
     this.#findLatestCompletedResult = findLatestCompletedResult;
     this.#findStaleRunningResult = findStaleRunningResult;
+    this.#listByPlaybookSourceIdResult = listByPlaybookSourceIdResult;
   }
 
   static returningSynchronizationRun(
@@ -216,6 +243,53 @@ class StubSynchronizationRunRepository implements SynchronizationRunRepository {
     );
   }
 
+  // -- listByPlaybookSourceId factories ---------------------------------------
+
+  static returningListByPlaybookSourceIdPage(
+    page: Page<SynchronizationRun>,
+  ): StubSynchronizationRunRepository {
+    return new StubSynchronizationRunRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'page', page: DEFAULT_EMPTY_STALE_RUNNING_PAGE },
+      { kind: 'page', page: copyFrozenSynchronizationRunPage(page) },
+    );
+  }
+
+  static returningEmptyListByPlaybookSourceIdPage(
+    pagination: PaginationRequest,
+  ): StubSynchronizationRunRepository {
+    return new StubSynchronizationRunRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'page', page: DEFAULT_EMPTY_STALE_RUNNING_PAGE },
+      {
+        kind: 'page',
+        page: Object.freeze({
+          items: Object.freeze([]),
+          offset: pagination.offset,
+          limit: pagination.limit,
+          hasMore: false,
+          totalCount: 0,
+        }),
+      },
+    );
+  }
+
+  static returningListByPlaybookSourceIdError(
+    error: PersistenceOperationFailedError,
+  ): StubSynchronizationRunRepository {
+    return new StubSynchronizationRunRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'page', page: DEFAULT_EMPTY_STALE_RUNNING_PAGE },
+      { kind: 'error', error },
+    );
+  }
+
   // -- getters ---------------------------------------------------------------
 
   get findActiveByPlaybookSourceIdCall(): FindActiveByPlaybookSourceIdCall | null {
@@ -228,6 +302,10 @@ class StubSynchronizationRunRepository implements SynchronizationRunRepository {
 
   get findStaleRunningCall(): FindStaleRunningCall | null {
     return this.#findStaleRunningCall;
+  }
+
+  get listByPlaybookSourceIdCall(): ListByPlaybookSourceIdCall | null {
+    return this.#listByPlaybookSourceIdCall;
   }
 
   // -- findById --------------------------------------------------------------
@@ -309,6 +387,31 @@ class StubSynchronizationRunRepository implements SynchronizationRunRepository {
       }
       case 'error': {
         return err(this.#findStaleRunningResult.error);
+      }
+    }
+  }
+
+  // -- listByPlaybookSourceId -------------------------------------------------
+
+  async listByPlaybookSourceId(
+    workspaceId: WorkspaceId,
+    playbookSourceId: PlaybookSourceId,
+    filter: SynchronizationRunListFilter,
+    pagination: PaginationRequest,
+  ): Promise<Result<Page<SynchronizationRun>, PersistenceOperationFailedError>> {
+    this.#listByPlaybookSourceIdCall = Object.freeze({
+      workspaceId,
+      playbookSourceId,
+      filter,
+      pagination,
+    });
+
+    switch (this.#listByPlaybookSourceIdResult.kind) {
+      case 'page': {
+        return ok(this.#listByPlaybookSourceIdResult.page);
+      }
+      case 'error': {
+        return err(this.#listByPlaybookSourceIdResult.error);
       }
     }
   }
@@ -1957,6 +2060,846 @@ describe('SynchronizationRunRepository', () => {
         cutoff,
         pageRequest,
       ) => repository.findStaleRunning(wsId, cutoff, pageRequest);
+
+      void _acceptsTypedArguments;
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // listByPlaybookSourceId tests
+  // -------------------------------------------------------------------------
+
+  describe('listByPlaybookSourceId — history without filters', () => {
+    it('returns a page with running and completed runs for the source', async () => {
+      const runningRun = createRunningSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        playbookSourceId: '00000000-0000-0000-0000-00000000000a',
+        startedAt: '2026-07-15T09:00:00.000Z',
+      });
+      const completedRun = createCompletedSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000002',
+        playbookSourceId: '00000000-0000-0000-0000-00000000000a',
+        synchronizationSnapshotId: '00000000-0000-0000-0000-000000000010',
+        createdAt: '2026-07-15T08:00:00.000Z',
+        startedAt: '2026-07-15T09:00:00.000Z',
+        completedAt: '2026-07-15T10:00:00.000Z',
+      });
+
+      expect(runningRun.workspaceId).toBe(completedRun.workspaceId);
+      expect(runningRun.playbookSourceId).toBe(completedRun.playbookSourceId);
+      expect(runningRun.id).not.toBe(completedRun.id);
+      expect(runningRun.status).toBe('running');
+      expect(completedRun.status).toBe('completed');
+      expect(runningRun.createdAt.compare(completedRun.createdAt)).not.toBe(0);
+
+      const filter: SynchronizationRunListFilter = Object.freeze({});
+      const configuredPage: Page<SynchronizationRun> = {
+        items: [runningRun, completedRun],
+        offset: 0,
+        limit: 2,
+        hasMore: false,
+        totalCount: 2,
+      };
+      const repository =
+        StubSynchronizationRunRepository.returningListByPlaybookSourceIdPage(configuredPage);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-00000000000a');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+        filter,
+        Object.freeze({ offset: 0, limit: 2 }),
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value.items).toHaveLength(2);
+      expect(result.value.items[0]).toBe(runningRun);
+      expect(result.value.items[1]).toBe(completedRun);
+
+      for (const run of result.value.items) {
+        expect(run.workspaceId).toBe(workspaceId.value);
+        expect(run.playbookSourceId).toBe(playbookSourceId.value);
+      }
+
+      expect(runningRun.status).toBe('running');
+      expect(completedRun.status).toBe('completed');
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(2);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(2);
+      expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookSourceId — filter by status', () => {
+    it('returns a page filtered by a specific status', async () => {
+      const failedRun = createFailedSynchronizationRun();
+      expect(failedRun.status).toBe('failed');
+
+      const filter: SynchronizationRunListFilter = Object.freeze({ status: 'failed' });
+      const configuredPage: Page<SynchronizationRun> = {
+        items: [failedRun],
+        offset: 0,
+        limit: 1,
+        hasMore: false,
+        totalCount: 1,
+      };
+      const repository =
+        StubSynchronizationRunRepository.returningListByPlaybookSourceIdPage(configuredPage);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+        filter,
+        Object.freeze({ offset: 0, limit: 1 }),
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value.items).toHaveLength(1);
+      expect(result.value.items[0]).toBe(failedRun);
+      expect(result.value.items[0]?.status).toBe('failed');
+      expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookSourceId — inclusive lower bound', () => {
+    it('includes runs whose createdAt equals createdAtFrom', async () => {
+      const createdAtFrom = Instant.parse('2026-07-15T10:00:00.000Z');
+      if (!createdAtFrom.success) {
+        throw new Error('Expected a valid instant fixture.');
+      }
+
+      const run = createRunningSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        startedAt: '2026-07-15T10:00:00.000Z',
+        createdAt: '2026-07-15T10:00:00.000Z',
+      });
+
+      expect(run.createdAt.compare(createdAtFrom.value)).toBe(0);
+
+      const filter: SynchronizationRunListFilter = Object.freeze({
+        createdAtFrom: createdAtFrom.value,
+      });
+      const configuredPage: Page<SynchronizationRun> = {
+        items: [run],
+        offset: 0,
+        limit: 1,
+        hasMore: false,
+        totalCount: 1,
+      };
+      const repository =
+        StubSynchronizationRunRepository.returningListByPlaybookSourceIdPage(configuredPage);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+        filter,
+        Object.freeze({ offset: 0, limit: 1 }),
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value.items[0]).toBe(run);
+      expect(Object.isFrozen(result.value)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookSourceId — exclusive upper bound', () => {
+    it('excludes runs whose createdAt equals createdAtTo', async () => {
+      const createdAtTo = Instant.parse('2026-07-15T10:00:00.000Z');
+      if (!createdAtTo.success) {
+        throw new Error('Expected a valid instant fixture.');
+      }
+
+      const boundaryRun = createRunningSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        startedAt: '2026-07-15T10:00:00.000Z',
+        createdAt: '2026-07-15T10:00:00.000Z',
+      });
+
+      expect(boundaryRun.createdAt.compare(createdAtTo.value)).toBe(0);
+
+      const filter: SynchronizationRunListFilter = Object.freeze({
+        createdAtTo: createdAtTo.value,
+      });
+      const repository = StubSynchronizationRunRepository.returningEmptyListByPlaybookSourceIdPage(
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+        filter,
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value.items).toHaveLength(0);
+      expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
+      void boundaryRun;
+    });
+  });
+
+  describe('listByPlaybookSourceId — combined filter', () => {
+    it('returns a page when all filter fields match semantically', async () => {
+      const createdAtFrom = Instant.parse('2026-07-15T00:00:00.000Z');
+      if (!createdAtFrom.success) {
+        throw new Error('Expected a valid instant fixture.');
+      }
+      const createdAtTo = Instant.parse('2026-07-16T00:00:00.000Z');
+      if (!createdAtTo.success) {
+        throw new Error('Expected a valid instant fixture.');
+      }
+
+      const completedRun = createCompletedSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        synchronizationSnapshotId: '00000000-0000-0000-0000-000000000010',
+        createdAt: '2026-07-15T12:00:00.000Z',
+        startedAt: '2026-07-15T12:00:00.000Z',
+        completedAt: '2026-07-15T13:00:00.000Z',
+      });
+
+      expect(completedRun.status).toBe('completed');
+      expect(completedRun.createdAt.compare(createdAtFrom.value)).toBeGreaterThanOrEqual(0);
+      expect(completedRun.createdAt.compare(createdAtTo.value)).toBeLessThan(0);
+
+      const filter: SynchronizationRunListFilter = Object.freeze({
+        status: 'completed',
+        createdAtFrom: createdAtFrom.value,
+        createdAtTo: createdAtTo.value,
+      });
+      const configuredPage: Page<SynchronizationRun> = {
+        items: [completedRun],
+        offset: 0,
+        limit: 1,
+        hasMore: false,
+        totalCount: 1,
+      };
+      const repository =
+        StubSynchronizationRunRepository.returningListByPlaybookSourceIdPage(configuredPage);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+        filter,
+        Object.freeze({ offset: 0, limit: 1 }),
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value.items[0]).toBe(completedRun);
+      expect(Object.isFrozen(result.value)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookSourceId — empty page', () => {
+    it('returns a frozen empty page when there are no runs', async () => {
+      const repository = StubSynchronizationRunRepository.returningEmptyListByPlaybookSourceIdPage(
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+        Object.freeze({}),
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value.items).toHaveLength(0);
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(25);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(0);
+      expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookSourceId — subsequent page', () => {
+    it('preserves offset, limit, hasMore, and totalCount as configured', async () => {
+      const run = createRunningSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        startedAt: '2026-07-15T09:00:00.000Z',
+      });
+      const configuredPage: Page<SynchronizationRun> = {
+        items: [run],
+        offset: 25,
+        limit: 25,
+        hasMore: true,
+        totalCount: 60,
+      };
+      const repository =
+        StubSynchronizationRunRepository.returningListByPlaybookSourceIdPage(configuredPage);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+        Object.freeze({}),
+        Object.freeze({ offset: 25, limit: 25 }),
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value.items).toHaveLength(1);
+      expect(result.value.items[0]).toBe(run);
+      expect(result.value.offset).toBe(25);
+      expect(result.value.limit).toBe(25);
+      expect(result.value.hasMore).toBe(true);
+      expect(result.value.totalCount).toBe(60);
+      expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookSourceId — defensive copy', () => {
+    it('is not affected by external mutations to the source array after configuration', async () => {
+      const runA = createRunningSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        playbookSourceId: '00000000-0000-0000-0000-00000000000a',
+        startedAt: '2026-07-15T09:00:00.000Z',
+      });
+      const runB = createRunningSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000002',
+        playbookSourceId: '00000000-0000-0000-0000-00000000000b',
+        startedAt: '2026-07-15T10:00:00.000Z',
+      });
+
+      const configuredRuns: SynchronizationRun[] = [runA];
+      const configuredPage: Page<SynchronizationRun> = {
+        items: configuredRuns,
+        offset: 0,
+        limit: 25,
+        hasMore: false,
+        totalCount: 1,
+      };
+      const repository =
+        StubSynchronizationRunRepository.returningListByPlaybookSourceIdPage(configuredPage);
+      configuredRuns.push(runB);
+
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+        Object.freeze({}),
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value.items).toHaveLength(1);
+      expect(result.value.items[0]).toBe(runA);
+      expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookSourceId — source does not exist', () => {
+    it('returns a frozen empty page when the playbook source does not exist', async () => {
+      const repository = StubSynchronizationRunRepository.returningEmptyListByPlaybookSourceIdPage(
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const nonExistentSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-00000000ffff');
+      if (!nonExistentSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookSourceId(
+        workspaceId.value,
+        nonExistentSourceId.value,
+        Object.freeze({}),
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value.items).toHaveLength(0);
+      expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookSourceId — wrong workspace', () => {
+    it('returns a frozen empty page when the run belongs to a different workspace', async () => {
+      const workspaceAResult = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceAResult.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const workspaceBResult = parseWorkspaceId('00000000-0000-0000-0000-000000000005');
+      if (!workspaceBResult.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      expect(workspaceAResult.value).not.toBe(workspaceBResult.value);
+
+      const runInWorkspaceA = createRunningSynchronizationRun({
+        workspaceId: '00000000-0000-0000-0000-000000000002',
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        playbookSourceId: '00000000-0000-0000-0000-000000000004',
+        startedAt: '2026-07-15T09:00:00.000Z',
+      });
+
+      expect(runInWorkspaceA.workspaceId).toBe(workspaceAResult.value);
+      expect(runInWorkspaceA.workspaceId).not.toBe(workspaceBResult.value);
+
+      const repository = StubSynchronizationRunRepository.returningEmptyListByPlaybookSourceIdPage(
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookSourceId(
+        workspaceBResult.value,
+        playbookSourceId.value,
+        Object.freeze({}),
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value.items).toHaveLength(0);
+      expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookSourceId — another playbook source', () => {
+    it('returns a frozen empty page when only another source has runs', async () => {
+      const queriedSourceResult = parsePlaybookSourceId('00000000-0000-0000-0000-00000000000a');
+      if (!queriedSourceResult.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+      const otherSourceResult = parsePlaybookSourceId('00000000-0000-0000-0000-00000000000c');
+      if (!otherSourceResult.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const otherRun = createRunningSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        playbookSourceId: '00000000-0000-0000-0000-00000000000c',
+        startedAt: '2026-07-15T09:00:00.000Z',
+      });
+
+      expect(queriedSourceResult.value).not.toBe(otherSourceResult.value);
+      expect(otherRun.playbookSourceId).toBe(otherSourceResult.value);
+      expect(otherRun.playbookSourceId).not.toBe(queriedSourceResult.value);
+
+      const repository = StubSynchronizationRunRepository.returningEmptyListByPlaybookSourceIdPage(
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookSourceId(
+        workspaceId.value,
+        queriedSourceResult.value,
+        Object.freeze({}),
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value.items).toHaveLength(0);
+      expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookSourceId — independent from findById', () => {
+    it('does not affect findById when listByPlaybookSourceId is configured', async () => {
+      const run = createRunningSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        startedAt: '2026-07-15T09:00:00.000Z',
+      });
+      const page: Page<SynchronizationRun> = {
+        items: [run],
+        offset: 0,
+        limit: 25,
+        hasMore: false,
+        totalCount: 1,
+      };
+      const repository = StubSynchronizationRunRepository.returningListByPlaybookSourceIdPage(page);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const runId = parseSynchronizationRunId('00000000-0000-0000-0000-000000000001');
+      if (!runId.success) {
+        throw new Error('Expected a valid synchronization run ID fixture.');
+      }
+
+      const result = await repository.findById(workspaceId.value, runId.value);
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('listByPlaybookSourceId — independent from findActiveByPlaybookSourceId', () => {
+    it('does not affect findActiveByPlaybookSourceId when list is configured', async () => {
+      const run = createRunningSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        startedAt: '2026-07-15T09:00:00.000Z',
+      });
+      const page: Page<SynchronizationRun> = {
+        items: [run],
+        offset: 0,
+        limit: 25,
+        hasMore: false,
+        totalCount: 1,
+      };
+      const repository = StubSynchronizationRunRepository.returningListByPlaybookSourceIdPage(page);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const sourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!sourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findActiveByPlaybookSourceId(
+        workspaceId.value,
+        sourceId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('listByPlaybookSourceId — independent from findLatestCompletedByPlaybookSourceId', () => {
+    it('does not affect findLatestCompletedByPlaybookSourceId when list is configured', async () => {
+      const run = createRunningSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        startedAt: '2026-07-15T09:00:00.000Z',
+      });
+      const page: Page<SynchronizationRun> = {
+        items: [run],
+        offset: 0,
+        limit: 25,
+        hasMore: false,
+        totalCount: 1,
+      };
+      const repository = StubSynchronizationRunRepository.returningListByPlaybookSourceIdPage(page);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const sourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!sourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findLatestCompletedByPlaybookSourceId(
+        workspaceId.value,
+        sourceId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('listByPlaybookSourceId — independent from findStaleRunning', () => {
+    it('does not affect findStaleRunning when list is configured', async () => {
+      const run = createRunningSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        startedAt: '2026-07-15T09:00:00.000Z',
+      });
+      const page: Page<SynchronizationRun> = {
+        items: [run],
+        offset: 0,
+        limit: 25,
+        hasMore: false,
+        totalCount: 1,
+      };
+      const repository = StubSynchronizationRunRepository.returningListByPlaybookSourceIdPage(page);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      const result = await repository.findStaleRunning(
+        workspaceId.value,
+        parseOlderThanInstant(),
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value.items).toHaveLength(0);
+      expect(Object.isFrozen(result.value)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookSourceId — existing operation does not affect list', () => {
+    it('returns a default empty page when only findById is configured', async () => {
+      const run = createValidSynchronizationRun();
+      const repository = StubSynchronizationRunRepository.returningSynchronizationRun(run);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+        Object.freeze({}),
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value.items).toHaveLength(0);
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(25);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(0);
+      expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookSourceId — persistence failure', () => {
+    it('returns a failed Result with PersistenceOperationFailedError', async () => {
+      const error = persistenceOperationFailed('synchronizationRun.listByPlaybookSourceId');
+      const repository =
+        StubSynchronizationRunRepository.returningListByPlaybookSourceIdError(error);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+        Object.freeze({}),
+        Object.freeze({ offset: 0, limit: 25 }),
+      );
+
+      expect(result.success).toBe(false);
+      if (result.success) {
+        return;
+      }
+
+      expect(result.error).toBe(error);
+      expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+      expect(result.error.details.operation).toBe('synchronizationRun.listByPlaybookSourceId');
+    });
+  });
+
+  describe('listByPlaybookSourceId — argument capture', () => {
+    it('captures the workspaceId, playbookSourceId, filter, and pagination', async () => {
+      const run = createRunningSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        startedAt: '2026-07-15T09:00:00.000Z',
+      });
+      const page: Page<SynchronizationRun> = {
+        items: [run],
+        offset: 0,
+        limit: 25,
+        hasMore: false,
+        totalCount: 1,
+      };
+      const repository = StubSynchronizationRunRepository.returningListByPlaybookSourceIdPage(page);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+      const filter: SynchronizationRunListFilter = Object.freeze({ status: 'running' });
+      const pagination: PaginationRequest = Object.freeze({ offset: 0, limit: 25 });
+
+      await repository.listByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+        filter,
+        pagination,
+      );
+
+      const call = repository.listByPlaybookSourceIdCall;
+
+      expect(call).not.toBeNull();
+
+      if (call === null) {
+        throw new Error('Expected the repository call to be captured.');
+      }
+
+      expect(call.workspaceId).toBe(workspaceId.value);
+      expect(call.playbookSourceId).toBe(playbookSourceId.value);
+      expect(call.filter).toBe(filter);
+      expect(call.pagination).toBe(pagination);
+      expect(Object.isFrozen(call)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookSourceId — accepts typed arguments', () => {
+    it('compiles with WorkspaceId, PlaybookSourceId, SynchronizationRunListFilter, and PaginationRequest', () => {
+      const run = createRunningSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        startedAt: '2026-07-15T09:00:00.000Z',
+      });
+      const page: Page<SynchronizationRun> = {
+        items: [run],
+        offset: 0,
+        limit: 25,
+        hasMore: false,
+        totalCount: 1,
+      };
+      const repository = StubSynchronizationRunRepository.returningListByPlaybookSourceIdPage(page);
+
+      const _acceptsTypedArguments: (
+        workspaceId: WorkspaceId,
+        playbookSourceId: PlaybookSourceId,
+        filter: SynchronizationRunListFilter,
+        pagination: PaginationRequest,
+      ) => Promise<Result<Page<SynchronizationRun>, PersistenceOperationFailedError>> = (
+        wsId,
+        sourceId,
+        runFilter,
+        pageRequest,
+      ) => repository.listByPlaybookSourceId(wsId, sourceId, runFilter, pageRequest);
 
       void _acceptsTypedArguments;
     });
