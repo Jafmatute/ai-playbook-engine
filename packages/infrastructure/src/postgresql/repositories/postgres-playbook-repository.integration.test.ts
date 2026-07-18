@@ -474,4 +474,107 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
       expect(found.value.activeVersionId).toBeNull();
     }
   });
+
+  it('list — returns empty page when no playbooks exist in workspace', async () => {
+    const result = await playbookRepo.list(workspaceId, {}, { offset: 0, limit: 25 });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.value.items).toEqual([]);
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(25);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(0);
+    }
+  });
+
+  it('list — filtered by combined status, prefix, and active version', async () => {
+    const pb1 = createPlaybookFixture(workspaceId, '000000000091', 'AI Engineering One');
+    await playbookRepo.insert(pb1);
+    await pool.query(
+      `UPDATE playbooks SET status = 'archived', active_version_id = '99999999-9999-9999-9999-000000000001' WHERE playbook_id = $1`,
+      [pb1.id],
+    );
+
+    const pb2 = createPlaybookFixture(workspaceId, '000000000092', 'Other Engineering');
+    await playbookRepo.insert(pb2);
+    await pool.query(
+      `UPDATE playbooks SET active_version_id = '99999999-9999-9999-9999-000000000002' WHERE playbook_id = $1`,
+      [pb2.id],
+    );
+
+    const pb3 = createPlaybookFixture(workspaceId, '000000000093', 'AI Engineering Three');
+    await playbookRepo.insert(pb3);
+
+    const pb4 = createPlaybookFixture(workspaceId, '000000000094', 'AI Engineering Four');
+    await playbookRepo.insert(pb4);
+    await pool.query(
+      `UPDATE playbooks SET active_version_id = '99999999-9999-9999-9999-000000000004' WHERE playbook_id = $1`,
+      [pb4.id],
+    );
+
+    const result = await playbookRepo.list(
+      workspaceId,
+      {
+        status: 'active',
+        normalizedNamePrefix: 'ai engineering',
+        hasActiveVersion: true,
+      },
+      { offset: 0, limit: 25 },
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.value.items).toHaveLength(1);
+      const item = result.value.items[0];
+      expect(item).toBeDefined();
+      if (item !== undefined) {
+        expect(item.id).toBe(pb4.id);
+      }
+    }
+  });
+
+  it('list — orders duplicate archived names by normalized_name ASC then playbook_id ASC', async () => {
+    const pbA = createPlaybookFixture(workspaceId, '000000000082', 'Duplicate Name');
+    await playbookRepo.insert(pbA);
+    await pool.query(
+      `UPDATE playbooks SET status = 'archived', archived_at = NOW() WHERE playbook_id = $1`,
+      [pbA.id],
+    );
+
+    const pbC = createPlaybookFixture(workspaceId, '000000000083', 'Alpha Duplicate');
+    await playbookRepo.insert(pbC);
+    await pool.query(
+      `UPDATE playbooks SET status = 'archived', archived_at = NOW() WHERE playbook_id = $1`,
+      [pbC.id],
+    );
+
+    const pbB = createPlaybookFixture(workspaceId, '000000000081', 'Duplicate Name');
+    await playbookRepo.insert(pbB);
+    await pool.query(
+      `UPDATE playbooks SET status = 'archived', archived_at = NOW() WHERE playbook_id = $1`,
+      [pbB.id],
+    );
+
+    const result = await playbookRepo.list(
+      workspaceId,
+      { status: 'archived' },
+      { offset: 0, limit: 25 },
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.value.items).toHaveLength(3);
+      const item0 = result.value.items[0];
+      const item1 = result.value.items[1];
+      const item2 = result.value.items[2];
+      expect(item0).toBeDefined();
+      expect(item1).toBeDefined();
+      expect(item2).toBeDefined();
+      if (item0 !== undefined && item1 !== undefined && item2 !== undefined) {
+        expect(item0.id).toBe(pbC.id);
+        expect(item1.id).toBe(pbB.id);
+        expect(item2.id).toBe(pbA.id);
+      }
+    }
+  });
 });
