@@ -12,6 +12,7 @@ import {
   InitializeWorkspaceHandler,
   type InitializeWorkspaceCommand,
 } from './initialize-workspace.js';
+import type { WorkspaceAlreadyInitializedError } from '../../errors/index.js';
 import { WORKSPACE_ALREADY_INITIALIZED } from '../../errors/index.js';
 
 class StubClock implements Clock {
@@ -65,12 +66,18 @@ class StubWorkspaceRepository implements WorkspaceRepository {
     }
   }
 
-  async insert(): Promise<Result<void, any>> {
+  async insert(): Promise<
+    Result<void, WorkspaceAlreadyInitializedError | PersistenceOperationFailedError>
+  > {
     switch (this.#insertResult.kind) {
       case 'ok':
         return ok(undefined);
       case 'alreadyInitialized':
-        return err({ code: WORKSPACE_ALREADY_INITIALIZED, message: '', details: {} });
+        return err({
+          code: WORKSPACE_ALREADY_INITIALIZED,
+          message: '',
+          details: Object.freeze({}),
+        });
       case 'error':
         return err(this.#insertResult.error);
     }

@@ -68,7 +68,7 @@ class StubWorkspaceRepository implements WorkspaceRepository {
     return ok(false);
   }
 
-  async insert(): Promise<Result<void, any>> {
+  async insert(): Promise<Result<void, PersistenceOperationFailedError>> {
     return ok(undefined);
   }
 }

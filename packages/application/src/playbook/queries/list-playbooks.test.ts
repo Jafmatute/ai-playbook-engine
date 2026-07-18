@@ -7,6 +7,8 @@ import {
   parseWorkspaceId,
   Playbook,
   PlaybookName,
+  Workspace,
+  WorkspaceName,
 } from '@ai-playbook-engine/core';
 import { err, ok, type Result } from '@ai-playbook-engine/shared';
 
@@ -18,12 +20,13 @@ import { currentWorkspaceUnavailable } from '../../ports/index.js';
 import type { PlaybookRepository } from '../ports/playbook-repository.js';
 import type { PlaybookListFilter } from '../playbook-list-filter.js';
 import type { Page, PaginationRequest } from '../../pagination/index.js';
-import { PAGINATION_INVALID } from '../../errors/index.js';
+import { PAGINATION_INVALID, WORKSPACE_NOT_FOUND } from '../../errors/index.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
 import {
   persistenceOperationFailed,
   PERSISTENCE_OPERATION_FAILED,
 } from '../../persistence/index.js';
+import type { WorkspaceRepository } from '../../workspace/ports/workspace-repository.js';
 import { ListPlaybooksHandler, type ListPlaybooksQuery } from './list-playbooks.js';
 
 // ---------------------------------------------------------------------------
@@ -48,6 +51,42 @@ class StubCurrentWorkspaceProvider implements CurrentWorkspaceProvider {
       case 'unavailable':
         return err(currentWorkspaceUnavailable());
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Stub: WorkspaceRepository
+// ---------------------------------------------------------------------------
+
+type FindByIdResult =
+  | { readonly kind: 'workspace'; readonly workspace: Workspace }
+  | { readonly kind: 'null' }
+  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
+
+class StubWorkspaceRepository implements WorkspaceRepository {
+  readonly #findByIdResult: FindByIdResult;
+
+  constructor(findByIdResult: FindByIdResult) {
+    this.#findByIdResult = findByIdResult;
+  }
+
+  async findById(): Promise<Result<Workspace | null, PersistenceOperationFailedError>> {
+    switch (this.#findByIdResult.kind) {
+      case 'workspace':
+        return ok(this.#findByIdResult.workspace);
+      case 'null':
+        return ok(null);
+      case 'error':
+        return err(this.#findByIdResult.error);
+    }
+  }
+
+  async hasAnyWorkspace(): Promise<Result<boolean, PersistenceOperationFailedError>> {
+    return ok(true);
+  }
+
+  async insert(): Promise<Result<void, PersistenceOperationFailedError>> {
+    return ok(undefined);
   }
 }
 
@@ -116,7 +155,7 @@ class StubPlaybookRepository implements PlaybookRepository {
     }
   }
 
-  async insert(): Promise<Result<void, any>> {
+  async insert(): Promise<Result<void, PersistenceOperationFailedError>> {
     return ok(undefined);
   }
 }
@@ -127,6 +166,20 @@ class StubPlaybookRepository implements PlaybookRepository {
 
 function now(): Instant {
   const result = Instant.parse('2026-07-17T12:00:00.000Z');
+  if (!result.success) throw new Error('bad fixture');
+  return result.value;
+}
+
+function createWorkspace(id: string): Workspace {
+  const workspaceId = parseWorkspaceId(id);
+  if (!workspaceId.success) throw new Error('bad fixture');
+  const name = WorkspaceName.create('Test Workspace');
+  if (!name.success) throw new Error('bad fixture');
+  const result = Workspace.create({
+    workspaceId: workspaceId.value,
+    name: name.value,
+    createdAt: now(),
+  });
   if (!result.success) throw new Error('bad fixture');
   return result.value;
 }
@@ -158,6 +211,10 @@ function validWorkspaceId(): WorkspaceId {
   return id.value;
 }
 
+function validWorkspace(): Workspace {
+  return createWorkspace('00000000-0000-0000-0000-000000000002');
+}
+
 const DEFAULT_PAGINATION = Object.freeze({ offset: 0, limit: 25 });
 
 // ---------------------------------------------------------------------------
@@ -175,9 +232,14 @@ describe('ListPlaybooksHandler', () => {
       totalCount: 1,
     };
 
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({ kind: 'page', page: repoPage });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 
@@ -200,6 +262,69 @@ describe('ListPlaybooksHandler', () => {
     expect(call!.pagination).toMatchObject(DEFAULT_PAGINATION);
   });
 
+  it('returns WORKSPACE_NOT_FOUND when the workspace does not exist', async () => {
+    const workspaceRepo = new StubWorkspaceRepository({ kind: 'null' });
+    const repository = new StubPlaybookRepository({
+      kind: 'page',
+      page: { items: [], offset: 0, limit: 25, hasMore: false, totalCount: 0 },
+    });
+    const handler = new ListPlaybooksHandler(
+      new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
+      repository,
+    );
+
+    const result = await handler.handle({ offset: 0, limit: 25 });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+
+    expect(result.error).toMatchObject({ code: WORKSPACE_NOT_FOUND });
+  });
+
+  it('returns persistence error when workspace repository fails', async () => {
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'error',
+      error: persistenceOperationFailed('workspace.findById'),
+    });
+    const repository = new StubPlaybookRepository({
+      kind: 'page',
+      page: { items: [], offset: 0, limit: 25, hasMore: false, totalCount: 0 },
+    });
+    const handler = new ListPlaybooksHandler(
+      new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
+      repository,
+    );
+
+    const result = await handler.handle({ offset: 0, limit: 25 });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+
+    expect(result.error).toMatchObject({ code: PERSISTENCE_OPERATION_FAILED });
+  });
+
+  it('returns error when workspace provider is unavailable', async () => {
+    const workspaceRepo = new StubWorkspaceRepository({ kind: 'null' });
+    const repository = new StubPlaybookRepository({
+      kind: 'page',
+      page: { items: [], offset: 0, limit: 25, hasMore: false, totalCount: 0 },
+    });
+    const handler = new ListPlaybooksHandler(
+      new StubCurrentWorkspaceProvider({ kind: 'unavailable' }),
+      workspaceRepo,
+      repository,
+    );
+
+    const result = await handler.handle({ offset: 0, limit: 25 });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+
+    expect(result.error.code).toBe('CURRENT_WORKSPACE_UNAVAILABLE');
+  });
+
   it('passes status filter to the repository', async () => {
     const activePb = createPlaybook('Active');
     const repoPage: Page<Playbook> = {
@@ -210,9 +335,14 @@ describe('ListPlaybooksHandler', () => {
       totalCount: 1,
     };
 
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({ kind: 'page', page: repoPage });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 
@@ -239,9 +369,14 @@ describe('ListPlaybooksHandler', () => {
       totalCount: 1,
     };
 
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({ kind: 'page', page: repoPage });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 
@@ -266,9 +401,14 @@ describe('ListPlaybooksHandler', () => {
       totalCount: 1,
     };
 
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({ kind: 'page', page: repoPage });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 
@@ -293,9 +433,14 @@ describe('ListPlaybooksHandler', () => {
       totalCount: 1,
     };
 
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({ kind: 'page', page: repoPage });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 
@@ -320,9 +465,14 @@ describe('ListPlaybooksHandler', () => {
       totalCount: 1,
     };
 
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({ kind: 'page', page: repoPage });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 
@@ -347,9 +497,14 @@ describe('ListPlaybooksHandler', () => {
       totalCount: 1,
     };
 
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({ kind: 'page', page: repoPage });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 
@@ -381,9 +536,14 @@ describe('ListPlaybooksHandler', () => {
       totalCount: 0,
     };
 
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({ kind: 'page', page: repoPage });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 
@@ -406,9 +566,14 @@ describe('ListPlaybooksHandler', () => {
       totalCount: 80,
     };
 
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({ kind: 'page', page: repoPage });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 
@@ -427,12 +592,17 @@ describe('ListPlaybooksHandler', () => {
   });
 
   it('returns error when offset is negative', async () => {
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({
       kind: 'page',
       page: { items: [], offset: 0, limit: 25, hasMore: false, totalCount: 0 },
     });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 
@@ -445,12 +615,17 @@ describe('ListPlaybooksHandler', () => {
   });
 
   it('returns error when limit is 0', async () => {
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({
       kind: 'page',
       page: { items: [], offset: 0, limit: 25, hasMore: false, totalCount: 0 },
     });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 
@@ -463,12 +638,17 @@ describe('ListPlaybooksHandler', () => {
   });
 
   it('returns error when limit exceeds 100', async () => {
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({
       kind: 'page',
       page: { items: [], offset: 0, limit: 25, hasMore: false, totalCount: 0 },
     });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 
@@ -481,12 +661,17 @@ describe('ListPlaybooksHandler', () => {
   });
 
   it('returns persistence error when the repository fails', async () => {
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({
       kind: 'error',
       error: persistenceOperationFailed('playbook.list'),
     });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 
@@ -511,9 +696,14 @@ describe('ListPlaybooksHandler', () => {
       totalCount: 1,
     };
 
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: validWorkspace(),
+    });
     const repository = new StubPlaybookRepository({ kind: 'page', page: repoPage });
     const handler = new ListPlaybooksHandler(
       new StubCurrentWorkspaceProvider({ kind: 'workspaceId', workspaceId: validWorkspaceId() }),
+      workspaceRepo,
       repository,
     );
 

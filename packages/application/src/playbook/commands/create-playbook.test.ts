@@ -89,7 +89,7 @@ class StubWorkspaceRepository implements WorkspaceRepository {
     return ok(false);
   }
 
-  async insert(): Promise<Result<void, any>> {
+  async insert(): Promise<Result<void, PersistenceOperationFailedError>> {
     return ok(undefined);
   }
 }
@@ -135,7 +135,12 @@ class StubPlaybookRepository implements PlaybookRepository {
     }
   }
 
-  async list(): Promise<Result<any, PersistenceOperationFailedError>> {
+  async list(): Promise<
+    Result<
+      { items: Playbook[]; offset: number; limit: number; hasMore: boolean; totalCount: number },
+      PersistenceOperationFailedError
+    >
+  > {
     return ok({ items: [], offset: 0, limit: 25, hasMore: false, totalCount: 0 });
   }
 
