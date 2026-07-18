@@ -14,7 +14,10 @@ The CLI connects to PostgreSQL via the environment variable:
 AI_PLAYBOOK_ENGINE_DATABASE_URL=postgresql://user:password@localhost:5432/ai_playbook_engine
 ```
 
-Set this in your shell or `.env` file before running any database-dependent commands.
+> [!IMPORTANT]
+> - `.env.example` is only a reference.
+> - The Engine does NOT load `.env` files.
+> - The variables must be set in the process environment (e.g. your shell environment).
 
 ## Build
 
@@ -141,13 +144,21 @@ Error responses use:
 
 ## Running Tests
 
-Unit tests for the CLI package:
+### Unit Tests
+Unit tests do not require a database and can be run with:
 
 ```bash
-pnpm --filter @ai-playbook-engine/cli test
+pnpm test:unit
 ```
 
-Integration tests require a real PostgreSQL database. Set the test database URL:
+Or run all unit tests across all workspace packages:
+
+```bash
+pnpm test
+```
+
+### Integration and E2E Tests
+Integration and E2E tests require a real PostgreSQL database. Set the test database URL in your process environment:
 
 ```bash
 # Windows (PowerShell)
@@ -157,8 +168,9 @@ $env:AI_PLAYBOOK_ENGINE_TEST_DATABASE_URL = "postgresql://user:password@localhos
 export AI_PLAYBOOK_ENGINE_TEST_DATABASE_URL=postgresql://user:password@localhost:5432/ai_playbook_engine_test
 ```
 
-Then run integration tests:
+Then run integration and E2E tests:
 
 ```bash
 pnpm test:integration
+pnpm test:e2e
 ```
