@@ -26,7 +26,8 @@ export type PersistenceOperation =
   | 'synchronizationRun.findLatestCompletedByPlaybookSourceId'
   | 'synchronizationSnapshot.findLatestByChecksum'
   | 'knowledgeRelationship.listBySourceItem'
-  | 'knowledgeRelationship.listByTargetItem';
+  | 'knowledgeRelationship.listByTargetItem'
+  | 'playbookSource.listByPlaybookId';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;

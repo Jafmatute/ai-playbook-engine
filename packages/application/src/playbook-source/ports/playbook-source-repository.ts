@@ -6,6 +6,7 @@ import type {
 } from '@ai-playbook-engine/core';
 import type { Result } from '@ai-playbook-engine/shared';
 
+import type { Page, PaginationRequest } from '../../pagination/index.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
 
 export interface PlaybookSourceRepository {
@@ -18,4 +19,10 @@ export interface PlaybookSourceRepository {
     workspaceId: WorkspaceId,
     playbookId: PlaybookId,
   ): Promise<Result<PlaybookSource | null, PersistenceOperationFailedError>>;
+
+  listByPlaybookId(
+    workspaceId: WorkspaceId,
+    playbookId: PlaybookId,
+    pagination: PaginationRequest,
+  ): Promise<Result<Page<PlaybookSource>, PersistenceOperationFailedError>>;
 }
