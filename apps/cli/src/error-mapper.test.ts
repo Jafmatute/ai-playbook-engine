@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { mapErrorToExitCode } from './error-mapper.js';
+import { playbookSourceNotFound } from '@ai-playbook-engine/application';
+import { parsePlaybookSourceId } from '@ai-playbook-engine/core';
 
 describe('mapErrorToExitCode', () => {
   it.each([
@@ -17,8 +19,16 @@ describe('mapErrorToExitCode', () => {
   it.each([
     ['WORKSPACE_NOT_FOUND', 3],
     ['PLAYBOOK_NOT_FOUND', 3],
+    ['PLAYBOOK_SOURCE_NOT_FOUND', 3],
   ])('maps %s to NOT_FOUND (%i)', (code, expected) => {
     expect(mapErrorToExitCode(code)).toBe(expected);
+  });
+
+  it('maps real playbookSourceNotFound error to NOT_FOUND (3)', () => {
+    const idResult = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+    if (!idResult.success) throw new Error('Expected valid playbook source ID.');
+    const error = playbookSourceNotFound(idResult.value);
+    expect(mapErrorToExitCode(error.code)).toBe(3);
   });
 
   it.each([

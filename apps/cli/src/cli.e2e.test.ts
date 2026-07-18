@@ -617,6 +617,9 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     expect(showAfterRestoreAgainRes.stdout).not.toContain('Archived At:');
     assertSafeOutput(showAfterRestoreAgainRes.stdout);
 
+    let firstPlaybookSourceId: string;
+    let secondPlaybookSourceId: string;
+
     // 23. Register a source for the restored active Playbook.
     const registerSourceRes = runCli(
       [
@@ -663,6 +666,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       'lastFailedSynchronizationAt' in registerSourceJson.data
     ) {
       expect(registerSourceJson.data.playbookSourceId).toMatch(UUID_PATTERN);
+      firstPlaybookSourceId = registerSourceJson.data.playbookSourceId;
       expect(registerSourceJson.data.workspaceId).toBe(workspaceId);
       expect(registerSourceJson.data.playbookId).toBe(playbookId);
       expect(registerSourceJson.data.type).toBe('notion');
@@ -785,6 +789,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       typeof registerSource2Json.data.createdAt === 'string'
     ) {
       expect(registerSource2Json.data.playbookSourceId).toMatch(UUID_PATTERN);
+      secondPlaybookSourceId = registerSource2Json.data.playbookSourceId;
 
       expect(registerSource2Json.data.workspaceId).toBe(workspaceId);
 
@@ -893,5 +898,154 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     expect(showAfterArchivedSourceConflictRes.stdout).toContain('Archived At:');
     expect(showAfterArchivedSourceConflictRes.stdout).toContain(playbookId2);
     assertSafeOutput(showAfterArchivedSourceConflictRes.stdout);
+
+    // 28. Show first playbook source as JSON.
+    const showSource1JsonRes = runCli(
+      ['playbook', 'source', 'show', '--id', firstPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(showSource1JsonRes.status).toBe(0);
+    expect(showSource1JsonRes.stderr).toBe('');
+    assertSafeOutput(showSource1JsonRes.stdout);
+    const showSource1Json: unknown = JSON.parse(showSource1JsonRes.stdout);
+    if (
+      showSource1Json !== null &&
+      typeof showSource1Json === 'object' &&
+      'success' in showSource1Json &&
+      showSource1Json.success === true &&
+      'data' in showSource1Json &&
+      showSource1Json.data !== null &&
+      typeof showSource1Json.data === 'object' &&
+      'playbookSourceId' in showSource1Json.data &&
+      typeof showSource1Json.data.playbookSourceId === 'string' &&
+      'workspaceId' in showSource1Json.data &&
+      'playbookId' in showSource1Json.data &&
+      'type' in showSource1Json.data &&
+      'status' in showSource1Json.data &&
+      'externalRootReference' in showSource1Json.data &&
+      'configurationReference' in showSource1Json.data &&
+      'createdAt' in showSource1Json.data &&
+      'lastSuccessfulSynchronizationRunId' in showSource1Json.data &&
+      'lastSuccessfulSynchronizationAt' in showSource1Json.data &&
+      'lastFailedSynchronizationRunId' in showSource1Json.data &&
+      'lastFailedSynchronizationAt' in showSource1Json.data
+    ) {
+      expect(showSource1Json.data.playbookSourceId).toBe(firstPlaybookSourceId);
+      expect(showSource1Json.data.workspaceId).toBe(workspaceId);
+      expect(showSource1Json.data.playbookId).toBe(playbookId);
+      expect(showSource1Json.data.type).toBe('notion');
+      expect(showSource1Json.data.status).toBe('enabled');
+      expect(showSource1Json.data.externalRootReference).toBe('notion-root-1');
+      expect(showSource1Json.data.configurationReference).toBe('notion/main');
+      expectIsoTimestamp(showSource1Json.data.createdAt);
+      expect(showSource1Json.data.lastSuccessfulSynchronizationRunId).toBeNull();
+      expect(showSource1Json.data.lastSuccessfulSynchronizationAt).toBeNull();
+      expect(showSource1Json.data.lastFailedSynchronizationRunId).toBeNull();
+      expect(showSource1Json.data.lastFailedSynchronizationAt).toBeNull();
+    } else throw new Error('Invalid source show json output structure');
+
+    // 29. Show first playbook source as human.
+    const showSource1HumanRes = runCli(
+      ['playbook', 'source', 'show', '--id', firstPlaybookSourceId],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(showSource1HumanRes.status).toBe(0);
+    expect(showSource1HumanRes.stderr).toBe('');
+    expect(showSource1HumanRes.stdout).toContain('Playbook Source:');
+    expect(showSource1HumanRes.stdout).toContain(firstPlaybookSourceId);
+    expect(showSource1HumanRes.stdout).toContain(playbookId);
+    expect(showSource1HumanRes.stdout).toContain('notion');
+    expect(showSource1HumanRes.stdout).toContain('enabled');
+    expect(showSource1HumanRes.stdout).toContain('notion-root-1');
+    expect(showSource1HumanRes.stdout).toContain('notion/main');
+    assertSafeOutput(showSource1HumanRes.stdout);
+
+    // 30. Invalid identifier returns INVALID_INPUT.
+    const invalidIdRes = runCli(
+      ['playbook', 'source', 'show', '--id', 'not-a-uuid', '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(invalidIdRes.status).toBe(2);
+    expect(invalidIdRes.stderr).toBe('');
+    assertSafeOutput(invalidIdRes.stdout);
+    const invalidIdJson: unknown = JSON.parse(invalidIdRes.stdout);
+    if (
+      invalidIdJson !== null &&
+      typeof invalidIdJson === 'object' &&
+      'success' in invalidIdJson &&
+      'error' in invalidIdJson &&
+      invalidIdJson.error !== null &&
+      typeof invalidIdJson.error === 'object' &&
+      'code' in invalidIdJson.error
+    ) {
+      expect(invalidIdJson.success).toBe(false);
+      expect(invalidIdJson.error.code).toBe('INVALID_IDENTIFIER');
+    } else throw new Error('Invalid source show invalid-id json output structure');
+
+    // 31. Non-existent canonical UUID returns PLAYBOOK_SOURCE_NOT_FOUND.
+    const nonExistentRes = runCli(
+      [
+        'playbook',
+        'source',
+        'show',
+        '--id',
+        '00000000-0000-0000-0000-000000000999',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(nonExistentRes.status).toBe(3);
+    expect(nonExistentRes.stderr).toBe('');
+    assertSafeOutput(nonExistentRes.stdout);
+    const nonExistentJson: unknown = JSON.parse(nonExistentRes.stdout);
+    if (
+      nonExistentJson !== null &&
+      typeof nonExistentJson === 'object' &&
+      'success' in nonExistentJson &&
+      'error' in nonExistentJson &&
+      nonExistentJson.error !== null &&
+      typeof nonExistentJson.error === 'object' &&
+      'code' in nonExistentJson.error &&
+      'details' in nonExistentJson.error &&
+      nonExistentJson.error.details !== null &&
+      typeof nonExistentJson.error.details === 'object' &&
+      'playbookSourceId' in nonExistentJson.error.details
+    ) {
+      expect(nonExistentJson.success).toBe(false);
+      expect(nonExistentJson.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
+      expect(nonExistentJson.error.details.playbookSourceId).toBe(
+        '00000000-0000-0000-0000-000000000999',
+      );
+    } else throw new Error('Invalid source show not-found json output structure');
+
+    // 32. Show the second source (archived Playbook) — must still succeed.
+    const showArchivedSourceRes = runCli(
+      ['playbook', 'source', 'show', '--id', secondPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(showArchivedSourceRes.status).toBe(0);
+    expect(showArchivedSourceRes.stderr).toBe('');
+    assertSafeOutput(showArchivedSourceRes.stdout);
+    const showArchivedSourceJson: unknown = JSON.parse(showArchivedSourceRes.stdout);
+    if (
+      showArchivedSourceJson !== null &&
+      typeof showArchivedSourceJson === 'object' &&
+      'success' in showArchivedSourceJson &&
+      showArchivedSourceJson.success === true &&
+      'data' in showArchivedSourceJson &&
+      showArchivedSourceJson.data !== null &&
+      typeof showArchivedSourceJson.data === 'object' &&
+      'playbookSourceId' in showArchivedSourceJson.data &&
+      typeof showArchivedSourceJson.data.playbookSourceId === 'string' &&
+      'playbookId' in showArchivedSourceJson.data &&
+      typeof showArchivedSourceJson.data.playbookId === 'string' &&
+      'status' in showArchivedSourceJson.data &&
+      typeof showArchivedSourceJson.data.status === 'string'
+    ) {
+      expect(showArchivedSourceJson.data.playbookSourceId).toBe(secondPlaybookSourceId);
+      expect(showArchivedSourceJson.data.playbookId).toBe(playbookId2);
+      expect(showArchivedSourceJson.data.status).toBe('enabled');
+    } else throw new Error('Invalid archived source show json output structure');
   });
 });

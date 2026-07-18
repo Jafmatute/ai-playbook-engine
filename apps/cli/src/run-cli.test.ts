@@ -19,6 +19,7 @@ import {
   playbookNotFound,
   playbookNameConflict,
   playbookSourceTypeUnsupported,
+  playbookSourceNotFound,
   persistenceRevisionConflict,
   PersistenceRevision,
 } from '@ai-playbook-engine/application';
@@ -26,11 +27,13 @@ import type {
   PlaybookAlreadyArchivedError,
   PlaybookNotArchivedError,
   PlaybookOperationNotAllowedError,
+  PlaybookSourceId,
   PlaybookStateInvalidError,
 } from '@ai-playbook-engine/core';
 import {
   Instant,
   parsePlaybookId,
+  parsePlaybookSourceId,
   parseWorkspaceId,
   Playbook,
   PlaybookName,
@@ -57,6 +60,7 @@ interface MockServicesOverrides {
   readonly archivePlaybook?: CliServices['archivePlaybook'];
   readonly restorePlaybook?: CliServices['restorePlaybook'];
   readonly registerPlaybookSource?: CliServices['registerPlaybookSource'];
+  readonly getPlaybookSource?: CliServices['getPlaybookSource'];
   readonly getPlaybook?: CliServices['getPlaybook'];
   readonly listPlaybooks?: CliServices['listPlaybooks'];
 }
@@ -141,6 +145,12 @@ function createPlaybookId(value: string) {
     throw new Error('Expected a valid playbook ID fixture.');
   }
 
+  return result.value;
+}
+
+function createPlaybookSourceId(value: string): PlaybookSourceId {
+  const result = parsePlaybookSourceId(value);
+  if (!result.success) throw new Error('Expected a valid playbook source ID fixture.');
   return result.value;
 }
 
@@ -257,6 +267,9 @@ function createMockServices(overrides: MockServicesOverrides = {}): CliServices 
       handle: async () => ok(createPlaybookOutputFixture()),
     },
     registerPlaybookSource: overrides.registerPlaybookSource ?? {
+      handle: async () => ok(createPlaybookSourceOutputFixture()),
+    },
+    getPlaybookSource: overrides.getPlaybookSource ?? {
       handle: async () => ok(createPlaybookSourceOutputFixture()),
     },
     getPlaybook: overrides.getPlaybook ?? {
@@ -1404,6 +1417,179 @@ describe('runCli playbook source register command', () => {
     ).toBe(ExitCode.UNEXPECTED_ERROR);
     expect(io.stdout).toContain('An unexpected error occurred.');
     expect(io.stdout).not.toContain('Secret source registration failure');
+    expect(io.stderr).toBe('');
+    expect(pool.closeCalled).toBe(1);
+  });
+});
+
+describe('runCli playbook source show command', () => {
+  const envReader = new MapEnvReader(
+    new Map([['AI_PLAYBOOK_ENGINE_DATABASE_URL', 'postgres://localhost:5432/db']]),
+  );
+  const args = ['playbook', 'source', 'show', '--id', '00000000-0000-0000-0000-000000000003'];
+
+  it('includes help', async () => {
+    const help = new MockIo();
+    expect(
+      await runCli(['--help'], envReader, help, createMockDependencies(createMockServices())),
+    ).toBe(ExitCode.SUCCESS);
+    expect(help.stdout).toContain(
+      'playbook source show      --id <uuid>       Show playbook source details',
+    );
+  });
+
+  it.each([
+    ['a missing id', ['playbook', 'source', 'show']],
+    ['an id flag without a value', ['playbook', 'source', 'show', '--id']],
+    ['an unknown flag', [...args, '--unexpected']],
+    [
+      'the forbidden --playbook-id flag',
+      [...args, '--playbook-id', '00000000-0000-0000-0000-000000000002'],
+    ],
+    ['the forbidden --type flag', [...args, '--type', 'notion']],
+    ['the forbidden --status flag', [...args, '--status', 'enabled']],
+    ['the forbidden --token flag', [...args, '--token', 'secret']],
+  ])('rejects %s before building services', async (_scenario, invalid) => {
+    const dependencies = createMockDependencies(createMockServices());
+    expect(await runCli(invalid, envReader, new MockIo(), dependencies)).toBe(
+      ExitCode.INVALID_INPUT,
+    );
+    expect(dependencies.getBuildCalled()).toBe(0);
+  });
+
+  it('passes the exact command, renders safe human and JSON output, and closes once', async () => {
+    const pool = new MockPool();
+    const getPlaybookSource: CliServices['getPlaybookSource'] = {
+      handle: async (command) => {
+        expect(command).toEqual({
+          playbookSourceId: '00000000-0000-0000-0000-000000000003',
+        });
+        return ok(createPlaybookSourceOutputFixture());
+      },
+    };
+    const human = new MockIo();
+    expect(
+      await runCli(
+        args,
+        envReader,
+        human,
+        createMockDependencies(createMockServices({ pool, getPlaybookSource })),
+      ),
+    ).toBe(ExitCode.SUCCESS);
+    expect(human.stdout).toContain('Playbook Source:');
+    expect(human.stdout).toContain('Configuration Reference:  notion/main');
+    expect(human.stdout).not.toMatch(/credential|secret|token/i);
+    expect(human.stderr).toBe('');
+    expect(pool.closeCalled).toBe(1);
+
+    const json = new MockIo();
+    expect(
+      await runCli(
+        [...args, '--output', 'json'],
+        envReader,
+        json,
+        createMockDependencies(createMockServices()),
+      ),
+    ).toBe(ExitCode.SUCCESS);
+    const parsed: unknown = JSON.parse(json.stdout);
+    expect(parsed).not.toBeNull();
+    expect(typeof parsed).toBe('object');
+    if (
+      parsed !== null &&
+      typeof parsed === 'object' &&
+      'success' in parsed &&
+      parsed.success === true &&
+      'data' in parsed &&
+      parsed.data !== null &&
+      typeof parsed.data === 'object' &&
+      'playbookSourceId' in parsed.data &&
+      typeof parsed.data.playbookSourceId === 'string' &&
+      'workspaceId' in parsed.data &&
+      typeof parsed.data.workspaceId === 'string' &&
+      'playbookId' in parsed.data &&
+      typeof parsed.data.playbookId === 'string' &&
+      'type' in parsed.data &&
+      typeof parsed.data.type === 'string' &&
+      'status' in parsed.data &&
+      typeof parsed.data.status === 'string' &&
+      'externalRootReference' in parsed.data &&
+      typeof parsed.data.externalRootReference === 'string' &&
+      'configurationReference' in parsed.data &&
+      typeof parsed.data.configurationReference === 'string' &&
+      'createdAt' in parsed.data &&
+      typeof parsed.data.createdAt === 'string' &&
+      'lastSuccessfulSynchronizationRunId' in parsed.data &&
+      'lastSuccessfulSynchronizationAt' in parsed.data &&
+      'lastFailedSynchronizationRunId' in parsed.data &&
+      'lastFailedSynchronizationAt' in parsed.data
+    ) {
+      expect(parsed.data.playbookSourceId).toBe('00000000-0000-0000-0000-000000000003');
+      expect(parsed.data.workspaceId).toBe('00000000-0000-0000-0000-000000000001');
+      expect(parsed.data.playbookId).toBe('00000000-0000-0000-0000-000000000002');
+      expect(parsed.data.type).toBe('notion');
+      expect(parsed.data.status).toBe('enabled');
+      expect(parsed.data.externalRootReference).toBe('notion-root');
+      expect(parsed.data.configurationReference).toBe('notion/main');
+      expect(parsed.data.createdAt).toBe('2026-07-12T10:00:00.000Z');
+      expect(parsed.data.lastSuccessfulSynchronizationRunId).toBeNull();
+      expect(parsed.data.lastSuccessfulSynchronizationAt).toBeNull();
+      expect(parsed.data.lastFailedSynchronizationRunId).toBeNull();
+      expect(parsed.data.lastFailedSynchronizationAt).toBeNull();
+      expect('revision' in parsed.data).toBe(false);
+      expect('token' in parsed.data).toBe(false);
+      expect('credential' in parsed.data).toBe(false);
+      expect('secret' in parsed.data).toBe(false);
+    } else {
+      throw new Error('Invalid playbook source show JSON success output structure.');
+    }
+    expect(json.stderr).toBe('');
+  });
+
+  it.each([
+    [createInvalidPlaybookIdError(), ExitCode.INVALID_INPUT],
+    [
+      playbookSourceNotFound(createPlaybookSourceId('00000000-0000-0000-0000-000000000003')),
+      ExitCode.NOT_FOUND,
+    ],
+  ])('maps real $0.code errors to exits and closes once', async (error, expected) => {
+    const pool = new MockPool();
+    const getPlaybookSource: CliServices['getPlaybookSource'] = {
+      handle: async () => err(error),
+    };
+    const io = new MockIo();
+
+    expect(
+      await runCli(
+        args,
+        envReader,
+        io,
+        createMockDependencies(createMockServices({ pool, getPlaybookSource })),
+      ),
+    ).toBe(expected);
+    expect(io.stderr).toContain(error.message);
+    expect(io.stdout).toBe('');
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  it('closes once and preserves privacy when the handler throws in JSON mode', async () => {
+    const pool = new MockPool();
+    const getPlaybookSource: CliServices['getPlaybookSource'] = {
+      handle: async () => {
+        throw new Error('Secret source show failure');
+      },
+    };
+    const io = new MockIo();
+
+    expect(
+      await runCli(
+        [...args, '--output', 'json'],
+        envReader,
+        io,
+        createMockDependencies(createMockServices({ pool, getPlaybookSource })),
+      ),
+    ).toBe(ExitCode.UNEXPECTED_ERROR);
+    expect(io.stdout).toContain('An unexpected error occurred.');
+    expect(io.stdout).not.toContain('Secret source show failure');
     expect(io.stderr).toBe('');
     expect(pool.closeCalled).toBe(1);
   });

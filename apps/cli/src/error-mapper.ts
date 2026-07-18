@@ -17,6 +17,7 @@ export function mapErrorToExitCode(errorCode: string): ExitCode {
 
     case 'WORKSPACE_NOT_FOUND':
     case 'PLAYBOOK_NOT_FOUND':
+    case 'PLAYBOOK_SOURCE_NOT_FOUND':
       return ExitCode.NOT_FOUND;
 
     case 'WORKSPACE_ALREADY_INITIALIZED':
