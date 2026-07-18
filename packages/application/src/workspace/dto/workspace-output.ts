@@ -1,10 +1,10 @@
-import type { Workspace } from '@ai-playbook-engine/core';
+import type { Workspace, WorkspaceStatus } from '@ai-playbook-engine/core';
 
 export interface WorkspaceOutput {
   readonly workspaceId: string;
   readonly name: string;
   readonly normalizedName: string;
-  readonly status: string;
+  readonly status: WorkspaceStatus;
   readonly description: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;

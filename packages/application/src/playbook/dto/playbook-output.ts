@@ -1,11 +1,11 @@
-import type { Playbook } from '@ai-playbook-engine/core';
+import type { Playbook, PlaybookStatus } from '@ai-playbook-engine/core';
 
 export interface PlaybookOutput {
   readonly playbookId: string;
   readonly workspaceId: string;
   readonly name: string;
   readonly normalizedName: string;
-  readonly status: string;
+  readonly status: PlaybookStatus;
   readonly description: string | null;
   readonly activeVersionId: string | null;
   readonly createdAt: string;

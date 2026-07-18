@@ -56,17 +56,20 @@ export class InitializeWorkspaceHandler {
     const workspaceId = this.#workspaceIdGenerator.generate();
     const now = this.#clock.now();
 
-    const createInput: Record<string, unknown> = {
-      workspaceId,
-      name: nameResult.value,
-      createdAt: now,
-    };
+    const workspaceResult =
+      command.description === undefined
+        ? Workspace.create({
+            workspaceId,
+            name: nameResult.value,
+            createdAt: now,
+          })
+        : Workspace.create({
+            workspaceId,
+            name: nameResult.value,
+            description: command.description,
+            createdAt: now,
+          });
 
-    if (command.description !== undefined) {
-      createInput.description = command.description;
-    }
-
-    const workspaceResult = Workspace.create(createInput as Parameters<typeof Workspace.create>[0]);
     if (!workspaceResult.success) {
       return workspaceResult;
     }

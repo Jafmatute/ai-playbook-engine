@@ -95,18 +95,22 @@ export class CreatePlaybookHandler {
     const playbookId = this.#playbookIdGenerator.generate();
     const now = this.#clock.now();
 
-    const createInput: Record<string, unknown> = {
-      playbookId,
-      workspaceId,
-      name: nameResult.value,
-      createdAt: now,
-    };
+    const playbookResult =
+      command.description === undefined
+        ? Playbook.create({
+            playbookId,
+            workspaceId,
+            name: nameResult.value,
+            createdAt: now,
+          })
+        : Playbook.create({
+            playbookId,
+            workspaceId,
+            name: nameResult.value,
+            description: command.description,
+            createdAt: now,
+          });
 
-    if (command.description !== undefined) {
-      createInput.description = command.description;
-    }
-
-    const playbookResult = Playbook.create(createInput as Parameters<typeof Playbook.create>[0]);
     if (!playbookResult.success) {
       return playbookResult;
     }

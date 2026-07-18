@@ -6,14 +6,15 @@ import type {
   CurrentWorkspaceUnavailableError,
 } from '../../ports/index.js';
 import type { PlaybookRepository } from '../ports/playbook-repository.js';
+import type { WorkspaceRepository } from '../../workspace/ports/workspace-repository.js';
 import type { PlaybookListFilter } from '../playbook-list-filter.js';
 import type { PlaybookOutput } from '../dto/playbook-output.js';
 import { toPlaybookOutput } from '../dto/playbook-output.js';
 import { createPage } from '../../pagination/index.js';
 import type { PaginationRequest, Page } from '../../pagination/index.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
-import { paginationInvalid } from '../../errors/index.js';
-import type { PaginationInvalidError } from '../../errors/index.js';
+import { paginationInvalid, workspaceNotFound } from '../../errors/index.js';
+import type { PaginationInvalidError, WorkspaceNotFoundError } from '../../errors/index.js';
 
 export interface ListPlaybooksQuery {
   readonly status?: PlaybookStatus;
@@ -24,17 +25,23 @@ export interface ListPlaybooksQuery {
 }
 
 type ListPlaybooksError =
-  CurrentWorkspaceUnavailableError | PaginationInvalidError | PersistenceOperationFailedError;
+  | CurrentWorkspaceUnavailableError
+  | WorkspaceNotFoundError
+  | PaginationInvalidError
+  | PersistenceOperationFailedError;
 
 export class ListPlaybooksHandler {
   readonly #currentWorkspaceProvider: CurrentWorkspaceProvider;
+  readonly #workspaceRepository: WorkspaceRepository;
   readonly #playbookRepository: PlaybookRepository;
 
   constructor(
     currentWorkspaceProvider: CurrentWorkspaceProvider,
+    workspaceRepository: WorkspaceRepository,
     playbookRepository: PlaybookRepository,
   ) {
     this.#currentWorkspaceProvider = currentWorkspaceProvider;
+    this.#workspaceRepository = workspaceRepository;
     this.#playbookRepository = playbookRepository;
   }
 
@@ -54,33 +61,37 @@ export class ListPlaybooksHandler {
       return workspaceIdResult;
     }
 
-    const filter: PlaybookListFilter = {};
+    const workspaceId = workspaceIdResult.value;
 
-    if (query.status !== undefined) {
-      (filter as { status: PlaybookStatus }).status = query.status;
+    const workspaceResult = await this.#workspaceRepository.findById(workspaceId);
+    if (!workspaceResult.success) {
+      return workspaceResult;
     }
 
+    if (workspaceResult.value === null) {
+      return err(workspaceNotFound());
+    }
+
+    let normalizedNamePrefix: string | undefined;
     if (query.namePrefix !== undefined) {
       const trimmed = query.namePrefix.trim().toLowerCase();
       if (trimmed.length > 0) {
-        (filter as { normalizedNamePrefix: string }).normalizedNamePrefix = trimmed;
+        normalizedNamePrefix = trimmed;
       }
     }
 
-    if (query.hasActiveVersion !== undefined) {
-      (filter as { hasActiveVersion: boolean }).hasActiveVersion = query.hasActiveVersion;
-    }
+    const filter: PlaybookListFilter = Object.freeze({
+      ...(query.status === undefined ? {} : { status: query.status }),
+      ...(normalizedNamePrefix === undefined ? {} : { normalizedNamePrefix }),
+      ...(query.hasActiveVersion === undefined ? {} : { hasActiveVersion: query.hasActiveVersion }),
+    });
 
     const paginationRequest: PaginationRequest = Object.freeze({
       offset: query.offset,
       limit: query.limit,
     });
 
-    const listResult = await this.#playbookRepository.list(
-      workspaceIdResult.value,
-      filter,
-      paginationRequest,
-    );
+    const listResult = await this.#playbookRepository.list(workspaceId, filter, paginationRequest);
     if (!listResult.success) {
       return listResult;
     }
