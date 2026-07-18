@@ -2,8 +2,8 @@ export { SystemClock } from './time/index.js';
 export { CryptoWorkspaceIdGenerator, CryptoPlaybookIdGenerator } from './identifiers/index.js';
 export { ConfiguredCurrentWorkspaceProvider } from './workspace/index.js';
 export { DatabasePool } from './postgresql/connection/index.js';
-export { runMigrations } from './postgresql/migrations/index.js';
-export type { MigrationResult } from './postgresql/migrations/index.js';
+export { runMigrations, MIGRATION_FAILED, migrationFailed } from './postgresql/migrations/index.js';
+export type { MigrationResult, MigrationFailedError } from './postgresql/migrations/index.js';
 export {
   PostgresWorkspaceRepository,
   PostgresPlaybookRepository,

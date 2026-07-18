@@ -31,7 +31,6 @@ export type PersistenceOperation =
   | 'knowledgeItem.findBySourceStableKey'
   | 'knowledgeItem.countByVersion'
   | 'knowledgeItem.listByVersion'
-  | 'migration'
   | 'validationAttempt.findById'
   | 'validationAttempt.findByPlaybookVersionId'
   | 'knowledgeRelationship.listBySourceItem'

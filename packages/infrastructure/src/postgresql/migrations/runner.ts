@@ -1,11 +1,9 @@
 import { ok, err, type Result } from '@ai-playbook-engine/shared';
-import {
-  persistenceOperationFailed,
-  type PersistenceOperationFailedError,
-} from '@ai-playbook-engine/application';
 
 import type { DatabasePool } from '../connection/pool.js';
 import { VERSION, UP } from './001-initial.js';
+import type { MigrationFailedError } from './migration-error.js';
+import { migrationFailed } from './migration-error.js';
 
 interface Migration {
   readonly version: number;
@@ -22,7 +20,7 @@ export interface MigrationResult {
 
 export async function runMigrations(
   pool: DatabasePool,
-): Promise<Result<MigrationResult, PersistenceOperationFailedError>> {
+): Promise<Result<MigrationResult, MigrationFailedError>> {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -31,46 +29,47 @@ export async function runMigrations(
       )
     `);
 
-    const currentResult = await pool.query(
-      'SELECT COALESCE(MAX(version), 0) AS current_version FROM schema_migrations',
+    const appliedResult = await pool.query('SELECT version FROM schema_migrations');
+    const appliedVersions = new Set<number>(
+      appliedResult.rows.map((row: Record<string, unknown>) => Number(row.version)),
     );
-    const currentVersion: number = currentResult.rows[0]?.current_version ?? 0;
 
-    const pending = MIGRATIONS.filter((m) => m.version > currentVersion).sort(
+    const pending = MIGRATIONS.filter((m) => !appliedVersions.has(m.version)).sort(
       (a, b) => a.version - b.version,
     );
 
     if (pending.length === 0) {
-      return ok({ appliedVersions: [] });
+      return ok(Object.freeze({ appliedVersions: Object.freeze([]) }));
     }
 
-    const appliedVersions: number[] = [];
+    const applied: number[] = [];
 
     for (const migration of pending) {
-      const client = await pool.pool.connect();
+      const client = await pool.connect();
 
       try {
         await client.query('BEGIN');
-
         await client.query(migration.up);
-
         await client.query(
           'INSERT INTO schema_migrations (version, applied_at) VALUES ($1, NOW())',
           [migration.version],
         );
-
         await client.query('COMMIT');
-        appliedVersions.push(migration.version);
-      } catch (e) {
-        await client.query('ROLLBACK');
-        throw e;
+        applied.push(migration.version);
+      } catch {
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          // ignore rollback errors
+        }
+        return err(migrationFailed());
       } finally {
         client.release();
       }
     }
 
-    return ok(Object.freeze({ appliedVersions: Object.freeze(appliedVersions) }));
+    return ok(Object.freeze({ appliedVersions: Object.freeze(applied) }));
   } catch {
-    return err(persistenceOperationFailed('migration'));
+    return err(migrationFailed());
   }
 }
