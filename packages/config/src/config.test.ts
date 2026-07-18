@@ -194,7 +194,8 @@ describe('loadConfig', () => {
 
   it('normalizes workspaceId override (spaces, casing)', () => {
     const reader = new MapEnvReader(new Map());
-    const overrideUuidWithSpacesAndCasing = '  de305d54-75b4-431b-adb2-eb6b9e546014  '.toUpperCase();
+    const overrideUuidWithSpacesAndCasing =
+      '  de305d54-75b4-431b-adb2-eb6b9e546014  '.toUpperCase();
     const result = loadConfig(reader, { workspaceId: overrideUuidWithSpacesAndCasing });
 
     expect(result.success).toBe(true);

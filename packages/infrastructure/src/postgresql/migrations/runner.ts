@@ -34,7 +34,9 @@ export async function runMigrations(
       )
     `);
 
-    const appliedResult = await pool.query<AppliedMigrationRow>('SELECT version FROM schema_migrations');
+    const appliedResult = await pool.query<AppliedMigrationRow>(
+      'SELECT version FROM schema_migrations',
+    );
     const versions: number[] = [];
     for (const row of appliedResult.rows) {
       const v = row.version;

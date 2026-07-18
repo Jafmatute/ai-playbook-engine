@@ -53,6 +53,13 @@ importers:
       '@ai-playbook-engine/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.11.14
+        version: 8.20.0
+      pg:
+        specifier: ^8.15.10
+        version: 8.22.0
 
   packages/application:
     dependencies:

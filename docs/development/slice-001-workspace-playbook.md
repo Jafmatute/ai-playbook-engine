@@ -15,6 +15,7 @@ AI_PLAYBOOK_ENGINE_DATABASE_URL=postgresql://user:password@localhost:5432/ai_pla
 ```
 
 > [!IMPORTANT]
+>
 > - `.env.example` is only a reference.
 > - The Engine does NOT load `.env` files.
 > - The variables must be set in the process environment (e.g. your shell environment).
@@ -145,6 +146,7 @@ Error responses use:
 ## Running Tests
 
 ### Unit Tests
+
 Unit tests do not require a database and can be run with:
 
 ```bash
@@ -158,6 +160,7 @@ pnpm test
 ```
 
 ### Integration and E2E Tests
+
 Integration and E2E tests require a real PostgreSQL database. Set the test database URL in your process environment:
 
 ```bash

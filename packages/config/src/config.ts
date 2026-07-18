@@ -65,11 +65,7 @@ export function loadConfig(
   if (overrides?.workspaceId !== undefined) {
     effectiveWorkspaceId = overrides.workspaceId.trim().toLowerCase();
     if (!isCanonicalUuid(effectiveWorkspaceId)) {
-      return err(
-        configurationInvalid(
-          `AI_PLAYBOOK_ENGINE_WORKSPACE_ID must be a canonical UUID.`,
-        ),
-      );
+      return err(configurationInvalid(`AI_PLAYBOOK_ENGINE_WORKSPACE_ID must be a canonical UUID.`));
     }
   } else {
     effectiveWorkspaceId = workspaceIdResult.value;
@@ -87,7 +83,9 @@ export function loadConfig(
   );
 }
 
-export function requireDatabaseUrl(raw: RawConfig): Result<DatabaseConfig, ConfigurationMissingError> {
+export function requireDatabaseUrl(
+  raw: RawConfig,
+): Result<DatabaseConfig, ConfigurationMissingError> {
   if (raw.databaseUrl === undefined) {
     return err(configurationMissing('AI_PLAYBOOK_ENGINE_DATABASE_URL'));
   }
@@ -179,11 +177,7 @@ function readOutput(reader: EnvReader): Result<CliOutput, ConfigurationInvalidEr
 }
 
 function isEnvironment(value: string): value is Environment {
-  return (
-    value === 'development' ||
-    value === 'test' ||
-    value === 'production'
-  );
+  return value === 'development' || value === 'test' || value === 'production';
 }
 
 function isCliOutput(value: string): value is CliOutput {

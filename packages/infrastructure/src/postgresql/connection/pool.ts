@@ -18,15 +18,10 @@ export class DatabasePool {
     values?: readonly PostgresParameter[],
   ): Promise<pg.QueryResult<Row>> {
     if (values === undefined) {
-      return this.#pool.query<Row>(
-        queryText,
-      );
+      return this.#pool.query<Row>(queryText);
     }
 
-    return this.#pool.query<Row>(
-      queryText,
-      [...values],
-    );
+    return this.#pool.query<Row>(queryText, [...values]);
   }
 
   async connect(): Promise<pg.PoolClient> {
