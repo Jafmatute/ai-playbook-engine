@@ -60,7 +60,7 @@ describe('parseArgs', () => {
     expect(result.value.flags.get('description')).toBe('A test playbook');
   });
 
-  it('rejects empty flag names', () => {
+  it('rejects empty flag names and returns a frozen error', () => {
     const result = parseArgs(['--=value']);
 
     expect(result.success).toBe(false);
@@ -68,9 +68,10 @@ describe('parseArgs', () => {
 
     expect(result.error.code).toBe('INVALID_FLAG');
     expect(result.error.message).toBe('Invalid flag: "--=value".');
+    expect(Object.isFrozen(result.error)).toBe(true);
   });
 
-  it('rejects bare double dash', () => {
+  it('rejects bare double dash and returns a frozen error', () => {
     const result = parseArgs(['--']);
 
     expect(result.success).toBe(false);
@@ -78,9 +79,10 @@ describe('parseArgs', () => {
 
     expect(result.error.code).toBe('INVALID_FLAG');
     expect(result.error.message).toBe('Invalid flag: "--".');
+    expect(Object.isFrozen(result.error)).toBe(true);
   });
 
-  it('rejects duplicate flags', () => {
+  it('rejects duplicate flags and returns a frozen error', () => {
     const cases = [
       { args: ['--output', 'json', '--output', 'human'], flag: 'output' },
       { args: ['--name', 'A', '--name', 'B'], flag: 'name' },
@@ -94,10 +96,11 @@ describe('parseArgs', () => {
       if (result.success) continue;
       expect(result.error.code).toBe('DUPLICATE_FLAG');
       expect(result.error.message).toBe(`Duplicate flag: "${c.flag}".`);
+      expect(Object.isFrozen(result.error)).toBe(true);
     }
   });
 
-  it('rejects empty flag values for required flags', () => {
+  it('rejects empty flag values for required flags and returns a frozen error', () => {
     const cases = [
       { args: ['--name='], flag: 'name' },
       { args: ['--name', ''], flag: 'name' },
@@ -123,6 +126,18 @@ describe('parseArgs', () => {
       expect(result.success).toBe(false);
       if (result.success) continue;
       expect(result.error.code).toBe('INVALID_FLAG');
+      expect(Object.isFrozen(result.error)).toBe(true);
     }
+  });
+
+  it('returns a frozen success result with frozen command and flags', () => {
+    const result = parseArgs(['playbook', 'create', '--name', 'test']);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    expect(Object.isFrozen(result.value)).toBe(true);
+    expect(Object.isFrozen(result.value.command)).toBe(true);
+    expect(Object.isFrozen(result.value.flags)).toBe(true);
   });
 });

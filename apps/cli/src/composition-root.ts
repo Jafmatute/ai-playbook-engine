@@ -37,9 +37,7 @@ export interface BuildServicesError {
   readonly error: { readonly code: string; readonly message: string; readonly details: unknown };
 }
 
-export function buildServices(
-  config: RawConfig,
-): Result<Services, BuildServicesError> {
+export function buildServices(config: RawConfig): Result<Services, BuildServicesError> {
   const dbUrlResult = requireDatabaseUrl(config);
   if (!dbUrlResult.success) {
     return err({ kind: 'config', error: dbUrlResult.error });

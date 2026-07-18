@@ -1,7 +1,7 @@
 import { err, ok, type Result } from '@ai-playbook-engine/shared';
 
 export interface ParsedArgs {
-  readonly command: string[];
+  readonly command: readonly string[];
   readonly flags: ReadonlyMap<string, string | boolean>;
 }
 
@@ -20,6 +20,20 @@ const VALUE_REQUIRED_FLAGS = new Set<string>([
   'status',
   'has-active-version',
 ]);
+
+function invalidFlag(message: string): CliParseError {
+  return Object.freeze({
+    code: 'INVALID_FLAG',
+    message,
+  });
+}
+
+function duplicateFlag(message: string): CliParseError {
+  return Object.freeze({
+    code: 'DUPLICATE_FLAG',
+    message,
+  });
+}
 
 export function parseArgs(argv: readonly string[]): Result<ParsedArgs, CliParseError> {
   const command: string[] = [];
@@ -40,24 +54,15 @@ export function parseArgs(argv: readonly string[]): Result<ParsedArgs, CliParseE
         const value = arg.slice(eqIndex + 1);
 
         if (name.length === 0) {
-          return err({
-            code: 'INVALID_FLAG',
-            message: `Invalid flag: "${arg}".`,
-          });
+          return err(invalidFlag(`Invalid flag: "${arg}".`));
         }
 
         if (flags.has(name)) {
-          return err({
-            code: 'DUPLICATE_FLAG',
-            message: `Duplicate flag: "${name}".`,
-          });
+          return err(duplicateFlag(`Duplicate flag: "${name}".`));
         }
 
         if (value.length === 0) {
-          return err({
-            code: 'INVALID_FLAG',
-            message: `Flag "${name}" cannot have an empty value.`,
-          });
+          return err(invalidFlag(`Flag "${name}" cannot have an empty value.`));
         }
 
         flags.set(name, value);
@@ -65,36 +70,24 @@ export function parseArgs(argv: readonly string[]): Result<ParsedArgs, CliParseE
         const name = arg.slice(2);
 
         if (name.length === 0) {
-          return err({
-            code: 'INVALID_FLAG',
-            message: `Invalid flag: "${arg}".`,
-          });
+          return err(invalidFlag(`Invalid flag: "${arg}".`));
         }
 
         if (flags.has(name)) {
-          return err({
-            code: 'DUPLICATE_FLAG',
-            message: `Duplicate flag: "${name}".`,
-          });
+          return err(duplicateFlag(`Duplicate flag: "${name}".`));
         }
 
         const next = argv[i + 1];
 
         if (next !== undefined && !next.startsWith('--')) {
           if (next.length === 0) {
-            return err({
-              code: 'INVALID_FLAG',
-              message: `Flag "${name}" cannot have an empty value.`,
-            });
+            return err(invalidFlag(`Flag "${name}" cannot have an empty value.`));
           }
           flags.set(name, next);
           i++;
         } else {
           if (VALUE_REQUIRED_FLAGS.has(name)) {
-            return err({
-              code: 'INVALID_FLAG',
-              message: `Flag "${name}" requires a value.`,
-            });
+            return err(invalidFlag(`Flag "${name}" requires a value.`));
           }
           flags.set(name, true);
         }
@@ -106,5 +99,47 @@ export function parseArgs(argv: readonly string[]): Result<ParsedArgs, CliParseE
     i++;
   }
 
-  return ok({ command, flags });
+  const frozenCommand = Object.freeze([...command]);
+
+  const copy = new Map(flags);
+  const immutableFlags: ReadonlyMap<string, string | boolean> = Object.freeze({
+    get size() {
+      return copy.size;
+    },
+    has(key: string) {
+      return copy.has(key);
+    },
+    get(key: string) {
+      return copy.get(key);
+    },
+    forEach(
+      callbackfn: (
+        value: string | boolean,
+        key: string,
+        map: ReadonlyMap<string, string | boolean>,
+      ) => void,
+      thisArg?: unknown,
+    ) {
+      copy.forEach((v, k) => callbackfn.call(thisArg, v, k, immutableFlags));
+    },
+    entries() {
+      return copy.entries();
+    },
+    keys() {
+      return copy.keys();
+    },
+    values() {
+      return copy.values();
+    },
+    [Symbol.iterator]() {
+      return copy.entries();
+    },
+  });
+
+  return ok(
+    Object.freeze({
+      command: frozenCommand,
+      flags: immutableFlags,
+    }),
+  );
 }

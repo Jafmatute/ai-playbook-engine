@@ -22,7 +22,7 @@
     "build": "tsc --build",
     "typecheck": "tsc --noEmit",
     "test": "pnpm test:unit && tsc --project tsconfig.test.json --noEmit",
-    "test:unit": "vitest run --exclude 'src/**/*.e2e.test.ts'",
+    "test:unit": "vitest run src --exclude 'src/**/*.e2e.test.ts'",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "clean": "rimraf dist tsconfig.tsbuildinfo"
   },
@@ -32,5 +32,9 @@
     "@ai-playbook-engine/shared": "workspace:*",
     "@ai-playbook-engine/config": "workspace:*",
     "@ai-playbook-engine/infrastructure": "workspace:*"
+  },
+  "devDependencies": {
+    "pg": "^8.15.10",
+    "@types/pg": "^8.11.14"
   }
 }

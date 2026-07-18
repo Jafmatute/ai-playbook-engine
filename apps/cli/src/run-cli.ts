@@ -11,13 +11,64 @@ import {
 import { renderJsonSuccess, renderJsonError } from './json-renderer.js';
 import { mapErrorToExitCode, getErrorMessage } from './error-mapper.js';
 import { buildServices } from './composition-root.js';
+import type { Result } from '@ai-playbook-engine/shared';
+import type { WorkspaceOutput, PlaybookOutput, Page } from '@ai-playbook-engine/application';
 
 export interface CliIo {
   writeStdout(value: string): void;
   writeStderr(value: string): void;
 }
 
-const ALLOWED_FLAGS: ReadonlyMap<string, ReadonlySet<string>> = new Map<string, ReadonlySet<string>>([
+export interface RunCliDependencies {
+  readonly buildServices: (config: RawConfig) => Result<
+    {
+      readonly pool: { close(): Promise<void> };
+      readonly initializeWorkspace: {
+        handle(input: {
+          name: string;
+          description?: string;
+        }): Promise<Result<unknown, { code: string; message: string }>>;
+      };
+      readonly getCurrentWorkspace: {
+        handle(): Promise<Result<unknown, { code: string; message: string }>>;
+      };
+      readonly createPlaybook: {
+        handle(input: {
+          name: string;
+          description?: string;
+        }): Promise<Result<unknown, { code: string; message: string }>>;
+      };
+      readonly getPlaybook: {
+        handle(input: {
+          playbookId: string;
+        }): Promise<Result<unknown, { code: string; message: string }>>;
+      };
+      readonly listPlaybooks: {
+        handle(input: {
+          status?: 'active' | 'archived';
+          namePrefix?: string;
+          hasActiveVersion?: boolean;
+          offset: number;
+          limit: number;
+        }): Promise<Result<unknown, { code: string; message: string }>>;
+      };
+      readonly migrate: () => Promise<Result<unknown, { code: string; message: string }>>;
+    },
+    {
+      readonly kind: 'config';
+      readonly error: { code: string; message: string };
+    }
+  >;
+}
+
+const defaultDependencies: RunCliDependencies = Object.freeze({
+  buildServices,
+});
+
+const ALLOWED_FLAGS: ReadonlyMap<string, ReadonlySet<string>> = new Map<
+  string,
+  ReadonlySet<string>
+>([
   ['database migrate', new Set<string>(['output', 'help'])],
   ['workspace initialize', new Set<string>(['name', 'description', 'output', 'help'])],
   ['workspace show', new Set<string>(['output', 'help'])],
@@ -54,14 +105,16 @@ export async function runCli(
   argv: readonly string[],
   envReader: EnvReader,
   io: CliIo,
+  dependencies: RunCliDependencies = defaultDependencies,
 ): Promise<ExitCode> {
   let cliOutputOverride: CliOutput | undefined;
-  
+
   try {
     const argsResult = parseArgs(argv);
 
     if (!argsResult.success) {
-      const isJson = argv.includes('--output=json') ||
+      const isJson =
+        argv.includes('--output=json') ||
         (argv.indexOf('--output') !== -1 && argv[argv.indexOf('--output') + 1] === 'json');
 
       if (isJson) {
@@ -133,22 +186,22 @@ export async function runCli(
 
     switch (subcommand) {
       case 'database migrate': {
-        return await runDatabaseMigrate(config, output, io);
+        return await runDatabaseMigrate(config, output, io, dependencies);
       }
       case 'workspace initialize': {
-        return await runWorkspaceInitialize(config, output, flags, io);
+        return await runWorkspaceInitialize(config, output, flags, io, dependencies);
       }
       case 'workspace show': {
-        return await runWorkspaceShow(config, output, io);
+        return await runWorkspaceShow(config, output, io, dependencies);
       }
       case 'playbook create': {
-        return await runPlaybookCreate(config, output, flags, io);
+        return await runPlaybookCreate(config, output, flags, io, dependencies);
       }
       case 'playbook list': {
-        return await runPlaybookList(config, output, flags, io);
+        return await runPlaybookList(config, output, flags, io, dependencies);
       }
       case 'playbook show': {
-        return await runPlaybookShow(config, output, flags, io);
+        return await runPlaybookShow(config, output, flags, io, dependencies);
       }
       default: {
         return await handleError(`Unknown command: "${subcommand}".`, 'INVALID_INPUT', output, io);
@@ -156,7 +209,12 @@ export async function runCli(
     }
   } catch {
     const fallbackOutput = cliOutputOverride ?? 'human';
-    return await handleError('An unexpected error occurred.', 'UNEXPECTED_ERROR', fallbackOutput, io);
+    return await handleError(
+      'An unexpected error occurred.',
+      'UNEXPECTED_ERROR',
+      fallbackOutput,
+      io,
+    );
   }
 }
 
@@ -164,8 +222,9 @@ async function runDatabaseMigrate(
   config: RawConfig,
   output: CliOutput,
   io: CliIo,
+  dependencies: RunCliDependencies,
 ): Promise<ExitCode> {
-  const servicesResult = buildServices(config);
+  const servicesResult = dependencies.buildServices(config);
   if (!servicesResult.success) {
     return await handleStructuredError(servicesResult.error, output, io);
   }
@@ -177,7 +236,8 @@ async function runDatabaseMigrate(
       return await handleMigrationError(result.error, output, io);
     }
 
-    if (result.value.appliedVersions.length === 0) {
+    const migrationVal = result.value as { appliedVersions: readonly number[] };
+    if (migrationVal.appliedVersions.length === 0) {
       if (output === 'json') {
         io.writeStdout(renderJsonSuccess({ appliedVersions: [] }) + '\n');
       } else {
@@ -185,9 +245,9 @@ async function runDatabaseMigrate(
       }
     } else {
       if (output === 'json') {
-        io.writeStdout(renderJsonSuccess({ appliedVersions: result.value.appliedVersions }) + '\n');
+        io.writeStdout(renderJsonSuccess({ appliedVersions: migrationVal.appliedVersions }) + '\n');
       } else {
-        io.writeStdout(`Applied migrations: ${result.value.appliedVersions.join(', ')}\n`);
+        io.writeStdout(`Applied migrations: ${migrationVal.appliedVersions.join(', ')}\n`);
       }
     }
 
@@ -202,6 +262,7 @@ async function runWorkspaceInitialize(
   output: CliOutput,
   flags: ReadonlyMap<string, string | boolean>,
   io: CliIo,
+  dependencies: RunCliDependencies,
 ): Promise<ExitCode> {
   const name = flags.get('name');
   if (typeof name !== 'string' || name.length === 0) {
@@ -211,7 +272,7 @@ async function runWorkspaceInitialize(
   const description = flags.get('description');
   const desc = typeof description === 'string' ? description : undefined;
 
-  const servicesResult = buildServices(config);
+  const servicesResult = dependencies.buildServices(config);
   if (!servicesResult.success) {
     return await handleStructuredError(servicesResult.error, output, io);
   }
@@ -230,7 +291,7 @@ async function runWorkspaceInitialize(
     if (output === 'json') {
       io.writeStdout(renderJsonSuccess(result.value) + '\n');
     } else {
-      io.writeStdout(renderWorkspaceInitialized(result.value) + '\n');
+      io.writeStdout(renderWorkspaceInitialized(result.value as WorkspaceOutput) + '\n');
     }
 
     return ExitCode.SUCCESS;
@@ -243,8 +304,9 @@ async function runWorkspaceShow(
   config: RawConfig,
   output: CliOutput,
   io: CliIo,
+  dependencies: RunCliDependencies,
 ): Promise<ExitCode> {
-  const servicesResult = buildServices(config);
+  const servicesResult = dependencies.buildServices(config);
   if (!servicesResult.success) {
     return await handleStructuredError(servicesResult.error, output, io);
   }
@@ -260,7 +322,7 @@ async function runWorkspaceShow(
     if (output === 'json') {
       io.writeStdout(renderJsonSuccess(result.value) + '\n');
     } else {
-      io.writeStdout(renderWorkspace(result.value) + '\n');
+      io.writeStdout(renderWorkspace(result.value as WorkspaceOutput) + '\n');
     }
 
     return ExitCode.SUCCESS;
@@ -274,6 +336,7 @@ async function runPlaybookCreate(
   output: CliOutput,
   flags: ReadonlyMap<string, string | boolean>,
   io: CliIo,
+  dependencies: RunCliDependencies,
 ): Promise<ExitCode> {
   const name = flags.get('name');
   if (typeof name !== 'string' || name.length === 0) {
@@ -283,7 +346,7 @@ async function runPlaybookCreate(
   const description = flags.get('description');
   const desc = typeof description === 'string' ? description : undefined;
 
-  const servicesResult = buildServices(config);
+  const servicesResult = dependencies.buildServices(config);
   if (!servicesResult.success) {
     return await handleStructuredError(servicesResult.error, output, io);
   }
@@ -302,7 +365,7 @@ async function runPlaybookCreate(
     if (output === 'json') {
       io.writeStdout(renderJsonSuccess(result.value) + '\n');
     } else {
-      io.writeStdout(renderPlaybook(result.value) + '\n');
+      io.writeStdout(renderPlaybook(result.value as PlaybookOutput) + '\n');
     }
 
     return ExitCode.SUCCESS;
@@ -316,6 +379,7 @@ async function runPlaybookList(
   output: CliOutput,
   flags: ReadonlyMap<string, string | boolean>,
   io: CliIo,
+  dependencies: RunCliDependencies,
 ): Promise<ExitCode> {
   const statusFlag = flags.get('status');
   const status =
@@ -325,7 +389,12 @@ async function runPlaybookList(
         : undefined
       : undefined;
   if (statusFlag !== undefined && status === undefined) {
-    return await handleError('--status must be "active" or "archived"', 'INVALID_INPUT', output, io);
+    return await handleError(
+      '--status must be "active" or "archived"',
+      'INVALID_INPUT',
+      output,
+      io,
+    );
   }
 
   const namePrefix = flags.get('name-prefix');
@@ -339,7 +408,12 @@ async function runPlaybookList(
     } else if (hasActiveVersionFlag === 'false') {
       hasActiveVersion = false;
     } else {
-      return await handleError('--has-active-version must be "true" or "false"', 'INVALID_INPUT', output, io);
+      return await handleError(
+        '--has-active-version must be "true" or "false"',
+        'INVALID_INPUT',
+        output,
+        io,
+      );
     }
   }
 
@@ -347,11 +421,21 @@ async function runPlaybookList(
   let offset = 0;
   if (offsetRaw !== undefined) {
     if (typeof offsetRaw !== 'string') {
-      return await handleError('--offset must be a non-negative integer', 'INVALID_INPUT', output, io);
+      return await handleError(
+        '--offset must be a non-negative integer',
+        'INVALID_INPUT',
+        output,
+        io,
+      );
     }
     const parsed = parseStrictInteger(offsetRaw);
     if (parsed === null || parsed < 0) {
-      return await handleError('--offset must be a non-negative integer', 'INVALID_INPUT', output, io);
+      return await handleError(
+        '--offset must be a non-negative integer',
+        'INVALID_INPUT',
+        output,
+        io,
+      );
     }
     offset = parsed;
   }
@@ -360,16 +444,26 @@ async function runPlaybookList(
   let limit = 25;
   if (limitRaw !== undefined) {
     if (typeof limitRaw !== 'string') {
-      return await handleError('--limit must be an integer between 1 and 100', 'INVALID_INPUT', output, io);
+      return await handleError(
+        '--limit must be an integer between 1 and 100',
+        'INVALID_INPUT',
+        output,
+        io,
+      );
     }
     const parsed = parseStrictInteger(limitRaw);
     if (parsed === null || parsed < 1 || parsed > 100) {
-      return await handleError('--limit must be an integer between 1 and 100', 'INVALID_INPUT', output, io);
+      return await handleError(
+        '--limit must be an integer between 1 and 100',
+        'INVALID_INPUT',
+        output,
+        io,
+      );
     }
     limit = parsed;
   }
 
-  const servicesResult = buildServices(config);
+  const servicesResult = dependencies.buildServices(config);
   if (!servicesResult.success) {
     return await handleStructuredError(servicesResult.error, output, io);
   }
@@ -388,18 +482,26 @@ async function runPlaybookList(
       return await handleUseCaseError(result.error, output, io);
     }
 
+    const listVal = result.value as {
+      items: readonly unknown[];
+      offset: number;
+      limit: number;
+      hasMore: boolean;
+      totalCount: number;
+    };
+
     if (output === 'json') {
       io.writeStdout(
         renderJsonSuccess({
-          items: result.value.items,
-          offset: result.value.offset,
-          limit: result.value.limit,
-          hasMore: result.value.hasMore,
-          totalCount: result.value.totalCount,
+          items: listVal.items,
+          offset: listVal.offset,
+          limit: listVal.limit,
+          hasMore: listVal.hasMore,
+          totalCount: listVal.totalCount,
         }) + '\n',
       );
     } else {
-      io.writeStdout(renderPlaybookList(result.value) + '\n');
+      io.writeStdout(renderPlaybookList(listVal as Page<PlaybookOutput>) + '\n');
     }
 
     return ExitCode.SUCCESS;
@@ -413,13 +515,14 @@ async function runPlaybookShow(
   output: CliOutput,
   flags: ReadonlyMap<string, string | boolean>,
   io: CliIo,
+  dependencies: RunCliDependencies,
 ): Promise<ExitCode> {
   const id = flags.get('id');
   if (typeof id !== 'string' || id.length === 0) {
     return await handleError('--id is required', 'INVALID_INPUT', output, io);
   }
 
-  const servicesResult = buildServices(config);
+  const servicesResult = dependencies.buildServices(config);
   if (!servicesResult.success) {
     return await handleStructuredError(servicesResult.error, output, io);
   }
@@ -437,7 +540,7 @@ async function runPlaybookShow(
     if (output === 'json') {
       io.writeStdout(renderJsonSuccess(result.value) + '\n');
     } else {
-      io.writeStdout(renderPlaybook(result.value) + '\n');
+      io.writeStdout(renderPlaybook(result.value as PlaybookOutput) + '\n');
     }
 
     return ExitCode.SUCCESS;
@@ -457,6 +560,9 @@ async function handleError(
   } else {
     io.writeStderr(`Error: ${message}\n`);
   }
+  if (errorCode === 'INVALID_INPUT') {
+    return ExitCode.INVALID_INPUT;
+  }
   return mapErrorToExitCode(errorCode);
 }
 
@@ -466,7 +572,9 @@ async function handleStructuredError(
   io: CliIo,
 ): Promise<ExitCode> {
   if (output === 'json') {
-    io.writeStdout(renderJsonError(error.error.code, error.error.message, error.error.details) + '\n');
+    io.writeStdout(
+      renderJsonError(error.error.code, error.error.message, error.error.details) + '\n',
+    );
   } else {
     io.writeStderr(`Error: ${error.error.message}\n`);
   }
