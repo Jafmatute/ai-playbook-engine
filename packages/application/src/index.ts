@@ -3,7 +3,11 @@ export const APPLICATION_PACKAGE_NAME = '@ai-playbook-engine/application' as con
 export { PERSISTENCE_OPERATION_FAILED, persistenceOperationFailed } from './persistence/index.js';
 export type { PersistenceOperation, PersistenceOperationFailedError } from './persistence/index.js';
 export type { WorkspaceRepository } from './workspace/index.js';
-export type { FindPlaybookByNormalizedNameOptions, PlaybookRepository } from './playbook/index.js';
+export type {
+  FindPlaybookByNormalizedNameOptions,
+  PlaybookListFilter,
+  PlaybookRepository,
+} from './playbook/index.js';
 export type { PlaybookSourceRepository } from './playbook-source/index.js';
 export type {
   SynchronizationRunListFilter,
