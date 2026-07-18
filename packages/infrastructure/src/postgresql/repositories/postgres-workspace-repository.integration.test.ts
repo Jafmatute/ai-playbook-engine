@@ -73,7 +73,10 @@ describe.runIf(TEST_DATABASE_URL)('PostgresWorkspaceRepository', () => {
     expect(found.success).toBe(true);
     if (found.success) {
       expect(found.value).not.toBeNull();
-      expect(found.value!.id).toEqual(ws.id);
+      const workspace = found.value;
+      if (workspace !== null) {
+        expect(workspace.id).toEqual(ws.id);
+      }
     }
   });
 
@@ -126,10 +129,7 @@ describe.runIf(TEST_DATABASE_URL)('PostgresWorkspaceRepository', () => {
     });
     if (!ws2.success) throw new Error('Failed to create second workspace fixture.');
 
-    const [res1, res2] = await Promise.all([
-      repo.insert(ws1),
-      repo.insert(ws2.value),
-    ]);
+    const [res1, res2] = await Promise.all([repo.insert(ws1), repo.insert(ws2.value)]);
 
     const successes = [res1, res2].filter((r) => r.success);
     const failures = [res1, res2].filter((r) => !r.success);
@@ -137,12 +137,40 @@ describe.runIf(TEST_DATABASE_URL)('PostgresWorkspaceRepository', () => {
     expect(successes).toHaveLength(1);
     expect(failures).toHaveLength(1);
 
-    const failError = failures[0]!;
-    if (failError.success === false) {
-      expect(failError.error.code).toBe(WORKSPACE_ALREADY_INITIALIZED);
+    const failure = failures[0];
+    expect(failure).toBeDefined();
+    if (failure === undefined || failure.success) {
+      throw new Error('Expected one failed initialization.');
+    }
+    expect(failure.error.code).toBe(WORKSPACE_ALREADY_INITIALIZED);
+
+    const success = successes[0];
+    expect(success).toBeDefined();
+    if (success === undefined || !success.success) {
+      throw new Error('Expected one successful initialization.');
     }
 
-    const countResult = await pool.query<{ count: string }>('SELECT COUNT(*) AS count FROM workspaces');
-    expect(Number(countResult.rows[0]?.count ?? 0)).toBe(1);
+    const countResult = await pool.query<{ count: string }>(
+      'SELECT COUNT(*) AS count FROM workspaces',
+    );
+    const countRow = countResult.rows[0];
+    expect(Number(countRow?.count ?? 0)).toBe(1);
+
+    const found1 = await repo.findById(ws1.id);
+    expect(found1.success).toBe(true);
+    if (!found1.success) {
+      throw new Error('Failed to query workspace 1');
+    }
+
+    if (found1.value !== null) {
+      expect(found1.value.id).toEqual(ws1.id);
+    } else {
+      const found2 = await repo.findById(ws2.value.id);
+      expect(found2.success).toBe(true);
+      if (!found2.success || found2.value === null) {
+        throw new Error('Expected second workspace to be initialized in DB.');
+      }
+      expect(found2.value.id).toEqual(ws2.value.id);
+    }
   });
 });
