@@ -2347,16 +2347,23 @@ describe('SynchronizationRunRepository', () => {
         return;
       }
 
+      expect(result.value.items).toHaveLength(1);
       expect(result.value.items[0]).toBe(completedRun);
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(1);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(1);
       expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
     });
   });
 
   describe('listByPlaybookSourceId — empty page', () => {
     it('returns a frozen empty page when there are no runs', async () => {
-      const repository = StubSynchronizationRunRepository.returningEmptyListByPlaybookSourceIdPage(
-        Object.freeze({ offset: 0, limit: 25 }),
-      );
+      const pagination: PaginationRequest = Object.freeze({ offset: 0, limit: 25 });
+      const filter: SynchronizationRunListFilter = Object.freeze({});
+      const repository =
+        StubSynchronizationRunRepository.returningEmptyListByPlaybookSourceIdPage(pagination);
       const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
       if (!workspaceId.success) {
         throw new Error('Expected a valid workspace ID fixture.');
@@ -2369,8 +2376,8 @@ describe('SynchronizationRunRepository', () => {
       const result = await repository.listByPlaybookSourceId(
         workspaceId.value,
         playbookSourceId.value,
-        Object.freeze({}),
-        Object.freeze({ offset: 0, limit: 25 }),
+        filter,
+        pagination,
       );
 
       expect(result.success).toBe(true);
@@ -2483,6 +2490,7 @@ describe('SynchronizationRunRepository', () => {
 
       expect(result.value.items).toHaveLength(1);
       expect(result.value.items[0]).toBe(runA);
+      expect(result.value.items).not.toContain(runB);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
     });
@@ -2543,9 +2551,9 @@ describe('SynchronizationRunRepository', () => {
       expect(runInWorkspaceA.workspaceId).toBe(workspaceAResult.value);
       expect(runInWorkspaceA.workspaceId).not.toBe(workspaceBResult.value);
 
-      const repository = StubSynchronizationRunRepository.returningEmptyListByPlaybookSourceIdPage(
-        Object.freeze({ offset: 0, limit: 25 }),
-      );
+      const pagination: PaginationRequest = Object.freeze({ offset: 0, limit: 25 });
+      const repository =
+        StubSynchronizationRunRepository.returningEmptyListByPlaybookSourceIdPage(pagination);
       const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
       if (!playbookSourceId.success) {
         throw new Error('Expected a valid playbook source ID fixture.');
@@ -2555,7 +2563,7 @@ describe('SynchronizationRunRepository', () => {
         workspaceBResult.value,
         playbookSourceId.value,
         Object.freeze({}),
-        Object.freeze({ offset: 0, limit: 25 }),
+        pagination,
       );
 
       expect(result.success).toBe(true);
@@ -2564,6 +2572,10 @@ describe('SynchronizationRunRepository', () => {
       }
 
       expect(result.value.items).toHaveLength(0);
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(25);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(0);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
     });
