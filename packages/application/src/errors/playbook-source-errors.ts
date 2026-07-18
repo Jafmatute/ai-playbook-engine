@@ -1,7 +1,8 @@
-import type { PlaybookId } from '@ai-playbook-engine/core';
+import type { PlaybookId, PlaybookSourceId } from '@ai-playbook-engine/core';
 
 export const ENABLED_PLAYBOOK_SOURCE_CONFLICT = 'ENABLED_PLAYBOOK_SOURCE_CONFLICT';
 export const PLAYBOOK_SOURCE_TYPE_UNSUPPORTED = 'PLAYBOOK_SOURCE_TYPE_UNSUPPORTED';
+export const PLAYBOOK_SOURCE_NOT_FOUND = 'PLAYBOOK_SOURCE_NOT_FOUND';
 
 export interface EnabledPlaybookSourceConflictError {
   readonly code: typeof ENABLED_PLAYBOOK_SOURCE_CONFLICT;
@@ -15,6 +16,23 @@ export function enabledPlaybookSourceConflict(
     code: ENABLED_PLAYBOOK_SOURCE_CONFLICT,
     message: 'An enabled playbook source already exists for this playbook.',
     details: Object.freeze({ playbookId }),
+  });
+}
+
+export interface PlaybookSourceNotFoundError {
+  readonly code: typeof PLAYBOOK_SOURCE_NOT_FOUND;
+  readonly message: string;
+  readonly details: {
+    readonly playbookSourceId: string;
+  };
+}
+export function playbookSourceNotFound(
+  playbookSourceId: PlaybookSourceId,
+): PlaybookSourceNotFoundError {
+  return Object.freeze({
+    code: PLAYBOOK_SOURCE_NOT_FOUND,
+    message: 'The playbook source was not found in the current workspace.',
+    details: Object.freeze({ playbookSourceId }),
   });
 }
 
