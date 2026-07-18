@@ -75,6 +75,7 @@ export type {
 export type {
   CreatePlaybookCommand,
   RenamePlaybookCommand,
+  ArchivePlaybookCommand,
   GetPlaybookQuery,
   ListPlaybooksQuery,
   PlaybookOutput,
@@ -82,6 +83,7 @@ export type {
 export {
   CreatePlaybookHandler,
   RenamePlaybookHandler,
+  ArchivePlaybookHandler,
   GetPlaybookHandler,
   ListPlaybooksHandler,
   toPlaybookOutput,
