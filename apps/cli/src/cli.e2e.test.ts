@@ -398,5 +398,164 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     expect(showAfterArchiveConflictRes.stdout).toContain('Status:            archived');
     expect(showAfterArchiveConflictRes.stdout).toContain('Archived At:');
     assertSafeOutput(showAfterArchiveConflictRes.stdout);
+
+    // 19. An archived name can be reused by an active Playbook.
+    const reuseNameRes = runCli(
+      [
+        'playbook',
+        'rename',
+        '--id',
+        playbookId2,
+        '--name',
+        'Playbook renombrado',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(reuseNameRes.status).toBe(0);
+    expect(reuseNameRes.stderr).toBe('');
+    assertSafeOutput(reuseNameRes.stdout);
+    const reuseNameJson: unknown = JSON.parse(reuseNameRes.stdout);
+    if (
+      reuseNameJson !== null &&
+      typeof reuseNameJson === 'object' &&
+      'success' in reuseNameJson &&
+      reuseNameJson.success === true &&
+      'data' in reuseNameJson &&
+      reuseNameJson.data !== null &&
+      typeof reuseNameJson.data === 'object' &&
+      'playbookId' in reuseNameJson.data &&
+      'name' in reuseNameJson.data
+    ) {
+      expect(reuseNameJson.data.playbookId).toBe(playbookId2);
+      expect(reuseNameJson.data.name).toBe('Playbook renombrado');
+    } else throw new Error('Invalid rename reuse json output structure');
+
+    // 20. Restore rejects duplicate active names without partial update.
+    const restoreConflictRes = runCli(
+      ['playbook', 'restore', '--id', playbookId, '--output', 'json'],
+      {
+        AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+      },
+    );
+    expect(restoreConflictRes.status).toBe(4);
+    expect(restoreConflictRes.stderr).toBe('');
+    assertSafeOutput(restoreConflictRes.stdout);
+    const restoreConflictJson: unknown = JSON.parse(restoreConflictRes.stdout);
+    if (
+      restoreConflictJson !== null &&
+      typeof restoreConflictJson === 'object' &&
+      'success' in restoreConflictJson &&
+      'error' in restoreConflictJson &&
+      restoreConflictJson.error !== null &&
+      typeof restoreConflictJson.error === 'object' &&
+      'code' in restoreConflictJson.error
+    ) {
+      expect(restoreConflictJson.success).toBe(false);
+      expect(restoreConflictJson.error.code).toBe('PLAYBOOK_NAME_CONFLICT');
+    } else throw new Error('Invalid restore conflict json output structure');
+    const showRestoreConflictRes = runCli(['playbook', 'show', '--id', playbookId], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(showRestoreConflictRes.status).toBe(0);
+    expect(showRestoreConflictRes.stderr).toBe('');
+    expect(showRestoreConflictRes.stdout).toContain('Status:            archived');
+    expect(showRestoreConflictRes.stdout).toContain('Playbook renombrado');
+    expect(showRestoreConflictRes.stdout).toContain('Archived At:');
+    assertSafeOutput(showRestoreConflictRes.stdout);
+
+    // 21. Release name, then restore archived Playbook.
+    const releaseNameRes = runCli(
+      [
+        'playbook',
+        'rename',
+        '--id',
+        playbookId2,
+        '--name',
+        'Segundo Playbook liberado',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(releaseNameRes.status).toBe(0);
+    expect(releaseNameRes.stderr).toBe('');
+    assertSafeOutput(releaseNameRes.stdout);
+    const restoreRes = runCli(['playbook', 'restore', '--id', playbookId, '--output', 'json'], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(restoreRes.status).toBe(0);
+    expect(restoreRes.stderr).toBe('');
+    assertSafeOutput(restoreRes.stdout);
+    const restoreJson: unknown = JSON.parse(restoreRes.stdout);
+    if (
+      restoreJson !== null &&
+      typeof restoreJson === 'object' &&
+      'success' in restoreJson &&
+      restoreJson.success === true &&
+      'data' in restoreJson &&
+      restoreJson.data !== null &&
+      typeof restoreJson.data === 'object' &&
+      'playbookId' in restoreJson.data &&
+      'name' in restoreJson.data &&
+      'status' in restoreJson.data &&
+      'archivedAt' in restoreJson.data &&
+      'updatedAt' in restoreJson.data
+    ) {
+      expect(restoreJson.data.playbookId).toBe(playbookId);
+      expect(restoreJson.data.name).toBe('Playbook renombrado');
+      expect(restoreJson.data.status).toBe('active');
+      expect(restoreJson.data.archivedAt).toBeNull();
+      expect(typeof restoreJson.data.updatedAt).toBe('string');
+      expect(restoreJson.data.updatedAt).not.toBe('');
+      expect('revision' in restoreJson.data).toBe(false);
+    } else throw new Error('Invalid restore json output structure');
+
+    // 22. Verify restored state, filters, and rejected repeat transition.
+    const showRestoredRes = runCli(['playbook', 'show', '--id', playbookId], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(showRestoredRes.status).toBe(0);
+    expect(showRestoredRes.stderr).toBe('');
+    expect(showRestoredRes.stdout).toContain('Playbook renombrado');
+    expect(showRestoredRes.stdout).toContain('Status:            active');
+    expect(showRestoredRes.stdout).not.toContain('Archived At:');
+    assertSafeOutput(showRestoredRes.stdout);
+    const restoredActiveListRes = runCli(['playbook', 'list', '--status', 'active'], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(restoredActiveListRes.status).toBe(0);
+    expect(restoredActiveListRes.stderr).toBe('');
+    expect(restoredActiveListRes.stdout).toContain('Playbook renombrado');
+    expect(restoredActiveListRes.stdout).toContain('Segundo Playbook liberado');
+    assertSafeOutput(restoredActiveListRes.stdout);
+    const restoredArchivedListRes = runCli(['playbook', 'list', '--status', 'archived'], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(restoredArchivedListRes.status).toBe(0);
+    expect(restoredArchivedListRes.stderr).toBe('');
+    expect(restoredArchivedListRes.stdout).not.toContain('Playbook renombrado');
+    assertSafeOutput(restoredArchivedListRes.stdout);
+    const restoreAgainRes = runCli(
+      ['playbook', 'restore', '--id', playbookId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(restoreAgainRes.status).toBe(4);
+    expect(restoreAgainRes.stderr).toBe('');
+    assertSafeOutput(restoreAgainRes.stdout);
+    const restoreAgainJson: unknown = JSON.parse(restoreAgainRes.stdout);
+    if (
+      restoreAgainJson !== null &&
+      typeof restoreAgainJson === 'object' &&
+      'success' in restoreAgainJson &&
+      'error' in restoreAgainJson &&
+      restoreAgainJson.error !== null &&
+      typeof restoreAgainJson.error === 'object' &&
+      'code' in restoreAgainJson.error
+    ) {
+      expect(restoreAgainJson.success).toBe(false);
+      expect(restoreAgainJson.error.code).toBe('PLAYBOOK_NOT_ARCHIVED');
+    } else throw new Error('Invalid restore repeat json output structure');
   });
 });
