@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { parseStrictInteger, runCli } from './run-cli.js';
 import { MapEnvReader } from '@ai-playbook-engine/config';
+import type { RawConfig } from '@ai-playbook-engine/config';
 import { ExitCode } from './exit-codes.js';
 import { ok, err } from '@ai-playbook-engine/shared';
+import type { CliServices, RunCliDependencies } from './run-cli.js';
+import type { WorkspaceOutput, PlaybookOutput, Page } from '@ai-playbook-engine/application';
+import {
+  workspaceAlreadyInitialized,
+  persistenceOperationFailed,
+} from '@ai-playbook-engine/application';
+import { migrationFailed } from '@ai-playbook-engine/infrastructure';
+import type { BuildServicesError } from './composition-root.js';
 
 class MockPool {
   closeCalled = 0;
@@ -13,42 +22,85 @@ class MockPool {
 
 interface MockServicesOverrides {
   readonly pool?: MockPool;
-  readonly migrate?: () => Promise<unknown>;
-  readonly initializeWorkspace?: unknown;
-  readonly getCurrentWorkspace?: unknown;
-  readonly createPlaybook?: unknown;
-  readonly getPlaybook?: unknown;
-  readonly listPlaybooks?: unknown;
+  readonly migrate?: CliServices['migrate'];
+  readonly initializeWorkspace?: CliServices['initializeWorkspace'];
+  readonly getCurrentWorkspace?: CliServices['getCurrentWorkspace'];
+  readonly createPlaybook?: CliServices['createPlaybook'];
+  readonly getPlaybook?: CliServices['getPlaybook'];
+  readonly listPlaybooks?: CliServices['listPlaybooks'];
 }
 
-function createMockServices(overrides: MockServicesOverrides = {}) {
+function createWorkspaceOutputFixture(overrides: Partial<WorkspaceOutput> = {}): WorkspaceOutput {
+  return {
+    workspaceId: '00000000-0000-0000-0000-000000000001',
+    name: 'Workspace Name',
+    normalizedName: 'workspace-name',
+    status: 'active',
+    description: '(none)',
+    createdAt: '2026-07-12T10:00:00.000Z',
+    updatedAt: '2026-07-12T10:00:00.000Z',
+    archivedAt: null,
+    ...overrides,
+  };
+}
+
+function createPlaybookOutputFixture(overrides: Partial<PlaybookOutput> = {}): PlaybookOutput {
+  return {
+    playbookId: '00000000-0000-0000-0000-000000000002',
+    workspaceId: '00000000-0000-0000-0000-000000000001',
+    name: 'Playbook Name',
+    normalizedName: 'playbook-name',
+    status: 'active',
+    description: '(none)',
+    activeVersionId: null,
+    createdAt: '2026-07-12T10:00:00.000Z',
+    updatedAt: '2026-07-12T10:00:00.000Z',
+    archivedAt: null,
+    ...overrides,
+  };
+}
+
+function createPlaybookPageFixture(
+  overrides: Partial<Page<PlaybookOutput>> = {},
+): Page<PlaybookOutput> {
+  return {
+    items: [],
+    offset: 0,
+    limit: 25,
+    hasMore: false,
+    totalCount: 0,
+    ...overrides,
+  };
+}
+
+function createMockServices(overrides: MockServicesOverrides = {}): CliServices {
   const pool = overrides.pool ?? new MockPool();
   return {
     pool,
     migrate: overrides.migrate ?? (async () => ok({ appliedVersions: [1] })),
     initializeWorkspace: overrides.initializeWorkspace ?? {
-      handle: async () => ok({ workspaceId: 'ws-123', name: 'WS Name', createdAt: new Date() }),
+      handle: async () => ok(createWorkspaceOutputFixture()),
     },
     getCurrentWorkspace: overrides.getCurrentWorkspace ?? {
-      handle: async () => ok({ workspaceId: 'ws-123', name: 'WS Name', createdAt: new Date() }),
+      handle: async () => ok(createWorkspaceOutputFixture()),
     },
     createPlaybook: overrides.createPlaybook ?? {
-      handle: async () =>
-        ok({ playbookId: 'pb-123', name: 'PB Name', status: 'active', createdAt: new Date() }),
+      handle: async () => ok(createPlaybookOutputFixture()),
     },
     getPlaybook: overrides.getPlaybook ?? {
-      handle: async () =>
-        ok({ playbookId: 'pb-123', name: 'PB Name', status: 'active', createdAt: new Date() }),
+      handle: async () => ok(createPlaybookOutputFixture()),
     },
     listPlaybooks: overrides.listPlaybooks ?? {
-      handle: async () => ok({ items: [], offset: 0, limit: 25, hasMore: false, totalCount: 0 }),
+      handle: async () => ok(createPlaybookPageFixture()),
     },
   };
 }
 
-function createMockDependencies(services: ReturnType<typeof createMockServices>) {
+function createMockDependencies(
+  services: CliServices,
+): RunCliDependencies & { getBuildCalled(): number } {
   let buildCalled = 0;
-  const buildServices = (_config: unknown) => {
+  const buildServices = (_config: RawConfig) => {
     buildCalled++;
     return ok(services);
   };
@@ -60,15 +112,16 @@ function createMockDependencies(services: ReturnType<typeof createMockServices>)
   };
 }
 
-function createFailingMockDependencies(error: { code: string; message: string }) {
+function createFailingMockDependencies(
+  error: BuildServicesError['error'],
+): RunCliDependencies & { getBuildCalled(): number } {
   let buildCalled = 0;
-  const buildServices = (_config: unknown) => {
+  const buildServices = (_config: RawConfig) => {
     buildCalled++;
-    const failure: { readonly kind: 'config'; readonly error: { code: string; message: string } } =
-      {
-        kind: 'config',
-        error,
-      };
+    const failure: BuildServicesError = {
+      kind: 'config',
+      error,
+    };
     return err(failure);
   };
   return {
@@ -341,9 +394,8 @@ describe('runCli pool closure verification', () => {
 
   it('closes pool on use case expected error', async () => {
     const pool = new MockPool();
-    const initializeWorkspace = {
-      handle: async () =>
-        err({ code: 'WORKSPACE_ALREADY_INITIALIZED', message: 'Workspace already initialized.' }),
+    const initializeWorkspace: CliServices['initializeWorkspace'] = {
+      handle: async () => err(workspaceAlreadyInitialized()),
     };
     const services = createMockServices({ pool, initializeWorkspace });
     const deps = createMockDependencies(services);
@@ -356,9 +408,8 @@ describe('runCli pool closure verification', () => {
 
   it('closes pool on persistence operation error', async () => {
     const pool = new MockPool();
-    const createPlaybook = {
-      handle: async () =>
-        err({ code: 'PERSISTENCE_OPERATION_FAILED', message: 'Persistence failed.' }),
+    const createPlaybook: CliServices['createPlaybook'] = {
+      handle: async () => err(persistenceOperationFailed('playbook.insert')),
     };
     const services = createMockServices({ pool, createPlaybook });
     const deps = createMockDependencies(services);
@@ -373,7 +424,7 @@ describe('runCli pool closure verification', () => {
     const pool = new MockPool();
     const services = createMockServices({
       pool,
-      migrate: async () => err({ code: 'MIGRATION_FAILED', message: 'Migration failed.' }),
+      migrate: async () => err(migrationFailed()),
     });
     const deps = createMockDependencies(services);
     const io = new MockIo();
@@ -385,7 +436,7 @@ describe('runCli pool closure verification', () => {
 
   it('closes pool on unexpected exception within handler', async () => {
     const pool = new MockPool();
-    const getPlaybook = {
+    const getPlaybook: CliServices['getPlaybook'] = {
       handle: async () => {
         throw new Error('DB exploded internally');
       },
@@ -428,13 +479,16 @@ describe('runCli unexpected exception and pool non-creation', () => {
     expect(deps.getBuildCalled()).toBe(0);
   });
 
-  it('does not invoke the builder when config missing database URL', async () => {
+  it('invokes the builder but returns CONFIG_ERROR and does not create a pool when database URL is missing', async () => {
     const envReader = new MapEnvReader(new Map());
     const io = new MockIo();
-    const deps = createFailingMockDependencies({
-      code: 'CONFIGURATION_MISSING',
-      message: 'DB URL is missing',
-    });
+    const deps = createFailingMockDependencies(
+      Object.freeze({
+        code: 'CONFIGURATION_MISSING',
+        message: 'DB URL is missing',
+        details: Object.freeze({}),
+      }),
+    );
 
     const code = await runCli(['database', 'migrate'], envReader, io, deps);
     expect(code).toBe(ExitCode.CONFIG_ERROR);

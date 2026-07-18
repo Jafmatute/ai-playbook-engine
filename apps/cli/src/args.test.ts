@@ -139,5 +139,24 @@ describe('parseArgs', () => {
     expect(Object.isFrozen(result.value)).toBe(true);
     expect(Object.isFrozen(result.value.command)).toBe(true);
     expect(Object.isFrozen(result.value.flags)).toBe(true);
+
+    expect('set' in result.value.flags).toBe(false);
+    expect('delete' in result.value.flags).toBe(false);
+    expect('clear' in result.value.flags).toBe(false);
+  });
+
+  it('performs defensive copy of argv command and flags', () => {
+    const argv = ['playbook', 'create', '--name', 'Original'];
+    const result = parseArgs(argv);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    argv[0] = 'changed';
+    argv.push('--status', 'archived');
+
+    expect(result.value.command).toEqual(['playbook', 'create']);
+    expect(result.value.flags.get('name')).toBe('Original');
+    expect(result.value.flags.has('status')).toBe(false);
   });
 });

@@ -11,54 +11,26 @@ import {
 import { renderJsonSuccess, renderJsonError } from './json-renderer.js';
 import { mapErrorToExitCode, getErrorMessage } from './error-mapper.js';
 import { buildServices } from './composition-root.js';
+import type { Services, BuildServicesError } from './composition-root.js';
 import type { Result } from '@ai-playbook-engine/shared';
-import type { WorkspaceOutput, PlaybookOutput, Page } from '@ai-playbook-engine/application';
 
 export interface CliIo {
   writeStdout(value: string): void;
   writeStderr(value: string): void;
 }
 
+export interface CliServices {
+  readonly pool: Pick<Services['pool'], 'close'>;
+  readonly initializeWorkspace: Pick<Services['initializeWorkspace'], 'handle'>;
+  readonly getCurrentWorkspace: Pick<Services['getCurrentWorkspace'], 'handle'>;
+  readonly createPlaybook: Pick<Services['createPlaybook'], 'handle'>;
+  readonly getPlaybook: Pick<Services['getPlaybook'], 'handle'>;
+  readonly listPlaybooks: Pick<Services['listPlaybooks'], 'handle'>;
+  readonly migrate: Services['migrate'];
+}
+
 export interface RunCliDependencies {
-  readonly buildServices: (config: RawConfig) => Result<
-    {
-      readonly pool: { close(): Promise<void> };
-      readonly initializeWorkspace: {
-        handle(input: {
-          name: string;
-          description?: string;
-        }): Promise<Result<unknown, { code: string; message: string }>>;
-      };
-      readonly getCurrentWorkspace: {
-        handle(): Promise<Result<unknown, { code: string; message: string }>>;
-      };
-      readonly createPlaybook: {
-        handle(input: {
-          name: string;
-          description?: string;
-        }): Promise<Result<unknown, { code: string; message: string }>>;
-      };
-      readonly getPlaybook: {
-        handle(input: {
-          playbookId: string;
-        }): Promise<Result<unknown, { code: string; message: string }>>;
-      };
-      readonly listPlaybooks: {
-        handle(input: {
-          status?: 'active' | 'archived';
-          namePrefix?: string;
-          hasActiveVersion?: boolean;
-          offset: number;
-          limit: number;
-        }): Promise<Result<unknown, { code: string; message: string }>>;
-      };
-      readonly migrate: () => Promise<Result<unknown, { code: string; message: string }>>;
-    },
-    {
-      readonly kind: 'config';
-      readonly error: { code: string; message: string };
-    }
-  >;
+  readonly buildServices: (config: RawConfig) => Result<CliServices, BuildServicesError>;
 }
 
 const defaultDependencies: RunCliDependencies = Object.freeze({
@@ -236,8 +208,7 @@ async function runDatabaseMigrate(
       return await handleMigrationError(result.error, output, io);
     }
 
-    const migrationVal = result.value as { appliedVersions: readonly number[] };
-    if (migrationVal.appliedVersions.length === 0) {
+    if (result.value.appliedVersions.length === 0) {
       if (output === 'json') {
         io.writeStdout(renderJsonSuccess({ appliedVersions: [] }) + '\n');
       } else {
@@ -245,9 +216,9 @@ async function runDatabaseMigrate(
       }
     } else {
       if (output === 'json') {
-        io.writeStdout(renderJsonSuccess({ appliedVersions: migrationVal.appliedVersions }) + '\n');
+        io.writeStdout(renderJsonSuccess({ appliedVersions: result.value.appliedVersions }) + '\n');
       } else {
-        io.writeStdout(`Applied migrations: ${migrationVal.appliedVersions.join(', ')}\n`);
+        io.writeStdout(`Applied migrations: ${result.value.appliedVersions.join(', ')}\n`);
       }
     }
 
@@ -291,7 +262,7 @@ async function runWorkspaceInitialize(
     if (output === 'json') {
       io.writeStdout(renderJsonSuccess(result.value) + '\n');
     } else {
-      io.writeStdout(renderWorkspaceInitialized(result.value as WorkspaceOutput) + '\n');
+      io.writeStdout(renderWorkspaceInitialized(result.value) + '\n');
     }
 
     return ExitCode.SUCCESS;
@@ -322,7 +293,7 @@ async function runWorkspaceShow(
     if (output === 'json') {
       io.writeStdout(renderJsonSuccess(result.value) + '\n');
     } else {
-      io.writeStdout(renderWorkspace(result.value as WorkspaceOutput) + '\n');
+      io.writeStdout(renderWorkspace(result.value) + '\n');
     }
 
     return ExitCode.SUCCESS;
@@ -365,7 +336,7 @@ async function runPlaybookCreate(
     if (output === 'json') {
       io.writeStdout(renderJsonSuccess(result.value) + '\n');
     } else {
-      io.writeStdout(renderPlaybook(result.value as PlaybookOutput) + '\n');
+      io.writeStdout(renderPlaybook(result.value) + '\n');
     }
 
     return ExitCode.SUCCESS;
@@ -482,26 +453,18 @@ async function runPlaybookList(
       return await handleUseCaseError(result.error, output, io);
     }
 
-    const listVal = result.value as {
-      items: readonly unknown[];
-      offset: number;
-      limit: number;
-      hasMore: boolean;
-      totalCount: number;
-    };
-
     if (output === 'json') {
       io.writeStdout(
         renderJsonSuccess({
-          items: listVal.items,
-          offset: listVal.offset,
-          limit: listVal.limit,
-          hasMore: listVal.hasMore,
-          totalCount: listVal.totalCount,
+          items: result.value.items,
+          offset: result.value.offset,
+          limit: result.value.limit,
+          hasMore: result.value.hasMore,
+          totalCount: result.value.totalCount,
         }) + '\n',
       );
     } else {
-      io.writeStdout(renderPlaybookList(listVal as Page<PlaybookOutput>) + '\n');
+      io.writeStdout(renderPlaybookList(result.value) + '\n');
     }
 
     return ExitCode.SUCCESS;
@@ -540,7 +503,7 @@ async function runPlaybookShow(
     if (output === 'json') {
       io.writeStdout(renderJsonSuccess(result.value) + '\n');
     } else {
-      io.writeStdout(renderPlaybook(result.value as PlaybookOutput) + '\n');
+      io.writeStdout(renderPlaybook(result.value) + '\n');
     }
 
     return ExitCode.SUCCESS;
@@ -567,7 +530,7 @@ async function handleError(
 }
 
 async function handleStructuredError(
-  error: { kind: string; error: { code: string; message: string; details: unknown } },
+  error: BuildServicesError,
   output: CliOutput,
   io: CliIo,
 ): Promise<ExitCode> {
