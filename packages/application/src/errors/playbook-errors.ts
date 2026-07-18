@@ -1,4 +1,19 @@
+import type { PlaybookId } from '@ai-playbook-engine/core';
+
 export const PLAYBOOK_NAME_CONFLICT = 'PLAYBOOK_NAME_CONFLICT' as const;
+export const PLAYBOOK_ARCHIVED = 'PLAYBOOK_ARCHIVED';
+export interface PlaybookArchivedError {
+  readonly code: typeof PLAYBOOK_ARCHIVED;
+  readonly message: string;
+  readonly details: { readonly playbookId: string };
+}
+export function playbookArchived(playbookId: PlaybookId): PlaybookArchivedError {
+  return Object.freeze({
+    code: PLAYBOOK_ARCHIVED,
+    message: 'The playbook is archived and cannot accept new sources.',
+    details: Object.freeze({ playbookId }),
+  });
+}
 
 export interface PlaybookNameConflictError {
   readonly code: typeof PLAYBOOK_NAME_CONFLICT;

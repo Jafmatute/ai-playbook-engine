@@ -1,5 +1,9 @@
 export { SystemClock } from './time/index.js';
-export { CryptoWorkspaceIdGenerator, CryptoPlaybookIdGenerator } from './identifiers/index.js';
+export {
+  CryptoWorkspaceIdGenerator,
+  CryptoPlaybookIdGenerator,
+  CryptoPlaybookSourceIdGenerator,
+} from './identifiers/index.js';
 export { ConfiguredCurrentWorkspaceProvider } from './workspace/index.js';
 export { DatabasePool } from './postgresql/connection/index.js';
 export { runMigrations, MIGRATION_FAILED, migrationFailed } from './postgresql/migrations/index.js';

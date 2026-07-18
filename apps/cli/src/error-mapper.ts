@@ -10,6 +10,9 @@ export function mapErrorToExitCode(errorCode: string): ExitCode {
     case 'PLAYBOOK_NAME_INVALID':
     case 'PLAYBOOK_DESCRIPTION_INVALID':
     case 'PAGINATION_INVALID':
+    case 'PLAYBOOK_SOURCE_TYPE_UNSUPPORTED':
+    case 'PLAYBOOK_SOURCE_EXTERNAL_ROOT_REFERENCE_INVALID':
+    case 'PLAYBOOK_SOURCE_CONFIGURATION_REFERENCE_INVALID':
       return ExitCode.INVALID_INPUT;
 
     case 'WORKSPACE_NOT_FOUND':
@@ -23,6 +26,8 @@ export function mapErrorToExitCode(errorCode: string): ExitCode {
     case 'PLAYBOOK_OPERATION_NOT_ALLOWED':
     case 'PLAYBOOK_ALREADY_ARCHIVED':
     case 'PLAYBOOK_NOT_ARCHIVED':
+    case 'ENABLED_PLAYBOOK_SOURCE_CONFLICT':
+    case 'PLAYBOOK_ARCHIVED':
       return ExitCode.CONFLICT;
 
     case 'CURRENT_WORKSPACE_UNAVAILABLE':

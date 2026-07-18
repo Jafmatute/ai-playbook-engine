@@ -156,6 +156,23 @@ function createMockServices(overrides: MockServicesOverrides = {}): CliServices 
     restorePlaybook: overrides.restorePlaybook ?? {
       handle: async () => ok(createPlaybookOutputFixture()),
     },
+    registerPlaybookSource: {
+      handle: async () =>
+        ok({
+          playbookSourceId: '00000000-0000-0000-0000-000000000003',
+          workspaceId: '00000000-0000-0000-0000-000000000001',
+          playbookId: '00000000-0000-0000-0000-000000000002',
+          type: 'notion',
+          status: 'enabled',
+          externalRootReference: 'root',
+          configurationReference: 'config',
+          createdAt: '2026-07-12T10:00:00.000Z',
+          lastSuccessfulSynchronizationRunId: null,
+          lastSuccessfulSynchronizationAt: null,
+          lastFailedSynchronizationRunId: null,
+          lastFailedSynchronizationAt: null,
+        }),
+    },
     getPlaybook: overrides.getPlaybook ?? {
       handle: async () => ok(createPlaybookOutputFixture()),
     },

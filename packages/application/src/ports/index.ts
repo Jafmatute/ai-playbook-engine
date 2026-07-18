@@ -1,5 +1,9 @@
 export type { Clock } from './clock.js';
-export type { WorkspaceIdGenerator, PlaybookIdGenerator } from './id-generator.js';
+export type {
+  WorkspaceIdGenerator,
+  PlaybookIdGenerator,
+  PlaybookSourceIdGenerator,
+} from './id-generator.js';
 export {
   CURRENT_WORKSPACE_UNAVAILABLE,
   currentWorkspaceUnavailable,

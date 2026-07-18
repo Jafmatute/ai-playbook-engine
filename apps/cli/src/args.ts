@@ -19,6 +19,10 @@ const VALUE_REQUIRED_FLAGS = new Set<string>([
   'limit',
   'status',
   'has-active-version',
+  'playbook-id',
+  'type',
+  'external-root-reference',
+  'configuration-reference',
 ]);
 
 function invalidFlag(message: string): CliParseError {

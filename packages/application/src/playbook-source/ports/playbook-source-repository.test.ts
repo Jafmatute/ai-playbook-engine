@@ -70,6 +70,9 @@ const DEFAULT_EMPTY_PLAYBOOK_SOURCE_PAGE: Page<PlaybookSource> = Object.freeze({
 });
 
 class StubPlaybookSourceRepository implements PlaybookSourceRepository {
+  async insert(_source: PlaybookSource): Promise<Result<void, PersistenceOperationFailedError>> {
+    return ok(undefined);
+  }
   readonly #findByIdResult: FindByIdStubResult;
   readonly #findEnabledByPlaybookIdResult: FindEnabledByPlaybookIdStubResult;
   readonly #listByPlaybookIdResult: ListByPlaybookIdStubResult;

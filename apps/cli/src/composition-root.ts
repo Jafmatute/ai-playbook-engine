@@ -7,9 +7,11 @@ import {
   SystemClock,
   CryptoWorkspaceIdGenerator,
   CryptoPlaybookIdGenerator,
+  CryptoPlaybookSourceIdGenerator,
   ConfiguredCurrentWorkspaceProvider,
   PostgresWorkspaceRepository,
   PostgresPlaybookRepository,
+  PostgresPlaybookSourceRepository,
   runMigrations,
 } from '@ai-playbook-engine/infrastructure';
 import type { MigrationResult, MigrationFailedError } from '@ai-playbook-engine/infrastructure';
@@ -23,6 +25,7 @@ import {
   RestorePlaybookHandler,
   GetPlaybookHandler,
   ListPlaybooksHandler,
+  RegisterPlaybookSourceHandler,
 } from '@ai-playbook-engine/application';
 
 export interface Services {
@@ -35,6 +38,7 @@ export interface Services {
   readonly restorePlaybook: RestorePlaybookHandler;
   readonly getPlaybook: GetPlaybookHandler;
   readonly listPlaybooks: ListPlaybooksHandler;
+  readonly registerPlaybookSource: RegisterPlaybookSourceHandler;
   readonly migrate: () => Promise<Result<MigrationResult, MigrationFailedError>>;
 }
 
@@ -54,11 +58,13 @@ export function buildServices(config: RawConfig): Result<Services, BuildServices
   const clock = new SystemClock();
   const workspaceIdGenerator = new CryptoWorkspaceIdGenerator();
   const playbookIdGenerator = new CryptoPlaybookIdGenerator();
+  const playbookSourceIdGenerator = new CryptoPlaybookSourceIdGenerator();
 
   const currentWorkspaceProvider = new ConfiguredCurrentWorkspaceProvider(config.workspaceId);
 
   const workspaceRepository = new PostgresWorkspaceRepository(pool);
   const playbookRepository = new PostgresPlaybookRepository(pool);
+  const playbookSourceRepository = new PostgresPlaybookSourceRepository(pool);
 
   const initializeWorkspace = new InitializeWorkspaceHandler(
     workspaceRepository,
@@ -100,6 +106,15 @@ export function buildServices(config: RawConfig): Result<Services, BuildServices
     clock,
   );
 
+  const registerPlaybookSource = new RegisterPlaybookSourceHandler(
+    currentWorkspaceProvider,
+    workspaceRepository,
+    playbookRepository,
+    playbookSourceRepository,
+    clock,
+    playbookSourceIdGenerator,
+  );
+
   const getPlaybook = new GetPlaybookHandler(
     currentWorkspaceProvider,
     workspaceRepository,
@@ -120,6 +135,7 @@ export function buildServices(config: RawConfig): Result<Services, BuildServices
     renamePlaybook,
     archivePlaybook,
     restorePlaybook,
+    registerPlaybookSource,
     getPlaybook,
     listPlaybooks,
     migrate: () => runMigrations(pool),

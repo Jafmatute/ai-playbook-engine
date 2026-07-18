@@ -1,1 +1,5 @@
-export { CryptoWorkspaceIdGenerator, CryptoPlaybookIdGenerator } from './crypto-id-generators.js';
+export {
+  CryptoWorkspaceIdGenerator,
+  CryptoPlaybookIdGenerator,
+  CryptoPlaybookSourceIdGenerator,
+} from './crypto-id-generators.js';

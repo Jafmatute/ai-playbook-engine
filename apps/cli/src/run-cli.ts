@@ -7,6 +7,7 @@ import {
   renderWorkspace,
   renderPlaybook,
   renderPlaybookList,
+  renderPlaybookSource,
 } from './human-renderer.js';
 import { renderJsonSuccess, renderJsonError } from './json-renderer.js';
 import { mapErrorToExitCode, getErrorMessage } from './error-mapper.js';
@@ -27,6 +28,7 @@ export interface CliServices {
   readonly renamePlaybook: Pick<Services['renamePlaybook'], 'handle'>;
   readonly archivePlaybook: Pick<Services['archivePlaybook'], 'handle'>;
   readonly restorePlaybook: Pick<Services['restorePlaybook'], 'handle'>;
+  readonly registerPlaybookSource: Pick<Services['registerPlaybookSource'], 'handle'>;
   readonly getPlaybook: Pick<Services['getPlaybook'], 'handle'>;
   readonly listPlaybooks: Pick<Services['listPlaybooks'], 'handle'>;
   readonly migrate: Services['migrate'];
@@ -64,6 +66,17 @@ const ALLOWED_FLAGS: ReadonlyMap<string, ReadonlySet<string>> = new Map<
   ['playbook rename', new Set<string>(['id', 'name', 'output', 'help'])],
   ['playbook archive', new Set<string>(['id', 'output', 'help'])],
   ['playbook restore', new Set<string>(['id', 'output', 'help'])],
+  [
+    'playbook source register',
+    new Set<string>([
+      'playbook-id',
+      'type',
+      'external-root-reference',
+      'configuration-reference',
+      'output',
+      'help',
+    ]),
+  ],
 ]);
 
 const GLOBAL_FLAGS = new Set<string>(['output', 'workspace-id', 'help']);
@@ -189,6 +202,9 @@ export async function runCli(
       }
       case 'playbook restore': {
         return await runPlaybookRestore(config, output, flags, io, dependencies);
+      }
+      case 'playbook source register': {
+        return await runPlaybookSourceRegister(config, output, flags, io, dependencies);
       }
       default: {
         return await handleError(`Unknown command: "${subcommand}".`, 'INVALID_INPUT', output, io);
@@ -642,6 +658,44 @@ async function runPlaybookRestore(
   }
 }
 
+async function runPlaybookSourceRegister(
+  config: RawConfig,
+  output: CliOutput,
+  flags: ReadonlyMap<string, string | boolean>,
+  io: CliIo,
+  dependencies: RunCliDependencies,
+): Promise<ExitCode> {
+  const playbookId = flags.get('playbook-id');
+  if (typeof playbookId !== 'string' || playbookId.length === 0)
+    return await handleError('--playbook-id is required', 'INVALID_INPUT', output, io);
+  const type = flags.get('type');
+  if (typeof type !== 'string' || type.length === 0)
+    return await handleError('--type is required', 'INVALID_INPUT', output, io);
+  const externalRootReference = flags.get('external-root-reference');
+  if (typeof externalRootReference !== 'string' || externalRootReference.length === 0)
+    return await handleError('--external-root-reference is required', 'INVALID_INPUT', output, io);
+  const configurationReference = flags.get('configuration-reference');
+  if (typeof configurationReference !== 'string' || configurationReference.length === 0)
+    return await handleError('--configuration-reference is required', 'INVALID_INPUT', output, io);
+  const servicesResult = dependencies.buildServices(config);
+  if (!servicesResult.success) return await handleStructuredError(servicesResult.error, output, io);
+  const services = servicesResult.value;
+  try {
+    const result = await services.registerPlaybookSource.handle({
+      playbookId,
+      type,
+      externalRootReference,
+      configurationReference,
+    });
+    if (!result.success) return await handleUseCaseError(result.error, output, io);
+    if (output === 'json') io.writeStdout(renderJsonSuccess(result.value) + '\n');
+    else io.writeStdout(renderPlaybookSource(result.value) + '\n');
+    return ExitCode.SUCCESS;
+  } finally {
+    await services.pool.close();
+  }
+}
+
 async function handleError(
   message: string,
   errorCode: string,
@@ -714,6 +768,7 @@ Usage:
   playbook rename        --id <uuid> --name <value>  Rename a playbook
   playbook archive       --id <uuid>       Archive a playbook
   playbook restore       --id <uuid>       Restore an archived playbook
+  playbook source register  --playbook-id <uuid> --type <type>  Register a playbook source
 
 Global flags:
   --workspace-id <uuid>  Override the current workspace ID

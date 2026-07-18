@@ -1,9 +1,14 @@
-import { createPage, persistenceOperationFailed } from '@ai-playbook-engine/application';
+import {
+  createPage,
+  enabledPlaybookSourceConflict,
+  persistenceOperationFailed,
+} from '@ai-playbook-engine/application';
 import type {
   Page,
   PaginationRequest,
   PersistenceOperationFailedError,
   PlaybookSourceRepository,
+  PlaybookSourceRepositoryInsertError,
 } from '@ai-playbook-engine/application';
 import type {
   PlaybookId,
@@ -22,6 +27,39 @@ export class PostgresPlaybookSourceRepository implements PlaybookSourceRepositor
   readonly #pool: DatabasePool;
   constructor(pool: DatabasePool) {
     this.#pool = pool;
+  }
+
+  async insert(source: PlaybookSource): Promise<Result<void, PlaybookSourceRepositoryInsertError>> {
+    try {
+      const snapshot = source.toSnapshot();
+      const result = await this.#pool.query<{ playbook_source_id: string }>(
+        `INSERT INTO playbook_sources (playbook_source_id, workspace_id, playbook_id, type, status, external_root_reference, configuration_reference, created_at, last_successful_synchronization_run_id, last_successful_synchronization_at, last_failed_synchronization_run_id, last_failed_synchronization_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING playbook_source_id`,
+        [
+          snapshot.playbookSourceId,
+          snapshot.workspaceId,
+          snapshot.playbookId,
+          snapshot.type,
+          snapshot.status,
+          snapshot.externalRootReference,
+          snapshot.configurationReference,
+          snapshot.createdAt,
+          snapshot.lastSuccessfulSynchronizationRunId,
+          snapshot.lastSuccessfulSynchronizationAt,
+          snapshot.lastFailedSynchronizationRunId,
+          snapshot.lastFailedSynchronizationAt,
+        ],
+      );
+      if (
+        result.rows.length !== 1 ||
+        result.rows[0]?.playbook_source_id !== snapshot.playbookSourceId
+      )
+        return err(persistenceOperationFailed('playbookSource.insert'));
+      return ok(undefined);
+    } catch (error) {
+      if (isUniqueConstraintViolation(error, 'idx_playbook_sources_one_enabled_per_playbook'))
+        return err(enabledPlaybookSourceConflict(source.playbookId));
+      return err(persistenceOperationFailed('playbookSource.insert'));
+    }
   }
 
   async findById(
@@ -99,4 +137,15 @@ export class PostgresPlaybookSourceRepository implements PlaybookSourceRepositor
       return err(persistenceOperationFailed(operation));
     }
   }
+}
+
+function isUniqueConstraintViolation(error: unknown, constraint: string): boolean {
+  return (
+    error !== null &&
+    typeof error === 'object' &&
+    'code' in error &&
+    error.code === '23505' &&
+    'constraint' in error &&
+    error.constraint === constraint
+  );
 }

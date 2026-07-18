@@ -22,6 +22,7 @@ export type {
   Clock,
   WorkspaceIdGenerator,
   PlaybookIdGenerator,
+  PlaybookSourceIdGenerator,
   CurrentWorkspaceProvider,
 } from './ports/index.js';
 export { CURRENT_WORKSPACE_UNAVAILABLE, currentWorkspaceUnavailable } from './ports/index.js';
@@ -34,12 +35,18 @@ export {
   WORKSPACE_NOT_ACTIVE,
   PLAYBOOK_NAME_CONFLICT,
   PLAYBOOK_NOT_FOUND,
+  PLAYBOOK_ARCHIVED,
   PAGINATION_INVALID,
   workspaceAlreadyInitialized,
   workspaceNotFound,
   workspaceNotActive,
   playbookNameConflict,
   playbookNotFound,
+  playbookArchived,
+  ENABLED_PLAYBOOK_SOURCE_CONFLICT,
+  PLAYBOOK_SOURCE_TYPE_UNSUPPORTED,
+  enabledPlaybookSourceConflict,
+  playbookSourceTypeUnsupported,
   paginationInvalid,
 } from './errors/index.js';
 export type {
@@ -48,6 +55,9 @@ export type {
   WorkspaceNotActiveError,
   PlaybookNameConflictError,
   PlaybookNotFoundError,
+  PlaybookArchivedError,
+  EnabledPlaybookSourceConflictError,
+  PlaybookSourceTypeUnsupportedError,
   PaginationInvalidError,
 } from './errors/index.js';
 
@@ -92,7 +102,13 @@ export {
 } from './playbook/index.js';
 
 // Other repository types (unchanged)
-export type { PlaybookSourceRepository } from './playbook-source/index.js';
+export type {
+  PlaybookSourceRepository,
+  PlaybookSourceRepositoryInsertError,
+  PlaybookSourceOutput,
+  RegisterPlaybookSourceCommand,
+} from './playbook-source/index.js';
+export { toPlaybookSourceOutput, RegisterPlaybookSourceHandler } from './playbook-source/index.js';
 export type {
   SynchronizationRunListFilter,
   SynchronizationRunRepository,

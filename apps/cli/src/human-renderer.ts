@@ -1,4 +1,8 @@
-import type { WorkspaceOutput, PlaybookOutput } from '@ai-playbook-engine/application';
+import type {
+  WorkspaceOutput,
+  PlaybookOutput,
+  PlaybookSourceOutput,
+} from '@ai-playbook-engine/application';
 import type { Page } from '@ai-playbook-engine/application';
 
 export function renderWorkspace(output: WorkspaceOutput): string {
@@ -45,6 +49,23 @@ export function renderPlaybook(output: PlaybookOutput): string {
   }
 
   return lines.join('\n');
+}
+
+export function renderPlaybookSource(output: PlaybookSourceOutput): string {
+  return [
+    'Playbook Source:',
+    `  ID:                       ${output.playbookSourceId}`,
+    `  Playbook ID:              ${output.playbookId}`,
+    `  Type:                     ${output.type}`,
+    `  Status:                   ${output.status}`,
+    `  External Root Reference:  ${output.externalRootReference}`,
+    `  Configuration Reference:  ${output.configurationReference}`,
+    `  Created At:               ${output.createdAt}`,
+    `  Last Successful Run ID:   ${output.lastSuccessfulSynchronizationRunId ?? '(none)'}`,
+    `  Last Successful At:       ${output.lastSuccessfulSynchronizationAt ?? '(none)'}`,
+    `  Last Failed Run ID:       ${output.lastFailedSynchronizationRunId ?? '(none)'}`,
+    `  Last Failed At:           ${output.lastFailedSynchronizationAt ?? '(none)'}`,
+  ].join('\n');
 }
 
 export function renderPlaybookList(page: Page<PlaybookOutput>): string {

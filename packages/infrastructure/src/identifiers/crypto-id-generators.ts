@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
-import type { PlaybookIdGenerator, WorkspaceIdGenerator } from '@ai-playbook-engine/application';
-import { parseWorkspaceId, parsePlaybookId } from '@ai-playbook-engine/core';
+import type {
+  PlaybookIdGenerator,
+  PlaybookSourceIdGenerator,
+  WorkspaceIdGenerator,
+} from '@ai-playbook-engine/application';
+import { parseWorkspaceId, parsePlaybookId, parsePlaybookSourceId } from '@ai-playbook-engine/core';
 
 export class CryptoWorkspaceIdGenerator implements WorkspaceIdGenerator {
   generate() {
@@ -23,6 +27,17 @@ export class CryptoPlaybookIdGenerator implements PlaybookIdGenerator {
       throw new Error('CryptoPlaybookIdGenerator: randomUUID produced an invalid PlaybookId.');
     }
 
+    return result.value;
+  }
+}
+
+export class CryptoPlaybookSourceIdGenerator implements PlaybookSourceIdGenerator {
+  generate() {
+    const result = parsePlaybookSourceId(randomUUID());
+    if (!result.success)
+      throw new Error(
+        'CryptoPlaybookSourceIdGenerator: randomUUID produced an invalid PlaybookSourceId.',
+      );
     return result.value;
   }
 }
