@@ -222,28 +222,80 @@ describe('RestorePlaybookHandler', () => {
     expect(value.playbooks.findByIdCalls).toHaveLength(0);
     expect(value.clock.calls).toBe(0);
   });
-  it('short-circuits unavailable, failed, missing, and inactive workspaces', async () => {
+  it('returns current workspace unavailable without consulting dependencies', async () => {
     const unavailable = subject({ providerAvailable: false });
-    const failed = subject({ workspace: err(persistenceOperationFailed('workspace.findById')) });
+
+    const result = await unavailable.handler.handle({ playbookId: playbookIdFixture });
+
+    expect(result.success).toBe(false);
+    if (result.success) {
+      throw new Error('Expected current workspace failure.');
+    }
+    expect(result.error.code).toBe('CURRENT_WORKSPACE_UNAVAILABLE');
+    expect(unavailable.workspace.findByIdCalls).toHaveLength(0);
+    expect(unavailable.playbooks.findByIdCalls).toHaveLength(0);
+    expect(unavailable.clock.calls).toBe(0);
+  });
+  it('preserves workspace lookup failure and short-circuits dependencies', async () => {
+    const error = persistenceOperationFailed('workspace.findById');
+    const failed = subject({ workspace: err(error) });
+
+    const result = await failed.handler.handle({ playbookId: playbookIdFixture });
+
+    expect(result.success).toBe(false);
+    if (result.success) {
+      throw new Error('Expected workspace persistence failure.');
+    }
+    expect(result.error).toEqual(error);
+    expect(failed.playbooks.findByIdCalls).toHaveLength(0);
+    expect(failed.clock.calls).toBe(0);
+  });
+  it('returns missing and inactive workspace errors without loading a playbook', async () => {
     const missing = subject({ workspace: ok(null) });
     const archived = activeWorkspace();
     archived.archive({ archivedAt });
     const inactive = subject({ workspace: ok(archived) });
-    for (const value of [unavailable, failed, missing, inactive])
-      await value.handler.handle({ playbookId: playbookIdFixture });
-    for (const value of [unavailable, failed, missing, inactive]) {
+
+    const missingResult = await missing.handler.handle({ playbookId: playbookIdFixture });
+    const inactiveResult = await inactive.handler.handle({ playbookId: playbookIdFixture });
+
+    expect(missingResult.success).toBe(false);
+    if (missingResult.success) throw new Error('Expected missing workspace failure.');
+    expect(missingResult.error.code).toBe('WORKSPACE_NOT_FOUND');
+    expect(inactiveResult.success).toBe(false);
+    if (inactiveResult.success) throw new Error('Expected inactive workspace failure.');
+    expect(inactiveResult.error.code).toBe('WORKSPACE_NOT_ACTIVE');
+    expect(inactiveResult.error.details).toEqual({
+      workspaceId: workspaceIdFixture,
+      status: 'archived',
+    });
+    for (const value of [missing, inactive]) {
       expect(value.playbooks.findByIdCalls).toHaveLength(0);
       expect(value.clock.calls).toBe(0);
+      expect(value.playbooks.updateCalls).toHaveLength(0);
     }
   });
-  it('loads exact parsed identifiers and short-circuits lookup errors', async () => {
-    const failed = subject({ find: err(persistenceOperationFailed('playbook.findById')) });
+  it('loads exact parsed identifiers and preserves playbook lookup failures', async () => {
+    const error = persistenceOperationFailed('playbook.findById');
+    const failed = subject({ find: err(error) });
     const missing = subject({ find: ok(null) });
-    await failed.handler.handle({ playbookId: playbookIdFixture });
-    await missing.handler.handle({ playbookId: playbookIdFixture });
+
+    const failedResult = await failed.handler.handle({ playbookId: playbookIdFixture });
+    const missingResult = await missing.handler.handle({ playbookId: playbookIdFixture });
+
     expect(failed.playbooks.findByIdCalls).toEqual([[workspaceIdFixture, playbookIdFixture]]);
+    expect(failedResult.success).toBe(false);
+    if (failedResult.success) throw new Error('Expected playbook persistence failure.');
+    expect(failedResult.error).toEqual(error);
+    expect(failed.playbooks.findByNormalizedNameCalls).toHaveLength(0);
     expect(failed.clock.calls).toBe(0);
+    expect(failed.playbooks.updateCalls).toHaveLength(0);
+    expect(missingResult.success).toBe(false);
+    if (missingResult.success) throw new Error('Expected missing playbook failure.');
+    expect(missingResult.error.code).toBe('PLAYBOOK_NOT_FOUND');
+    expect(missing.playbooks.findByNormalizedNameCalls).toHaveLength(0);
     expect(missing.clock.calls).toBe(0);
+    expect(missing.playbooks.updateCalls).toHaveLength(0);
   });
   it('prechecks loaded normalized name and rejects another active playbook without mutation', async () => {
     const playbook = archivedPlaybook();
@@ -252,9 +304,13 @@ describe('RestorePlaybookHandler', () => {
       find: ok(createPersistedAggregate(playbook, revision(7))),
       name: ok(conflict),
     });
+    const expectedError = playbookNameConflict();
     const result = await value.handler.handle({ playbookId: playbookIdFixture });
     expect(result.success).toBe(false);
-    if (!result.success) expect(result.error.code).toBe('PLAYBOOK_NAME_CONFLICT');
+    if (result.success) throw new Error('Expected playbook name conflict.');
+    expect(result.error.code).toBe('PLAYBOOK_NAME_CONFLICT');
+    expect(result.error.message).toBe(expectedError.message);
+    expect(result.error.details).toEqual(expectedError.details);
     expect(value.playbooks.findByNormalizedNameCalls).toEqual([
       [workspaceIdFixture, playbook.name.normalizedValue, { includeArchived: false }],
     ]);
@@ -290,15 +346,23 @@ describe('RestorePlaybookHandler', () => {
     expect(value.playbooks.updateCalls).toEqual([[playbook, expected]]);
     expect(value.playbooks.insertCalls).toHaveLength(0);
   });
-  it('propagates precheck and update errors without retry', async () => {
+  it('preserves precheck and update errors without retry', async () => {
+    const precheckError = persistenceOperationFailed('playbook.findByNormalizedName');
+    const precheckPlaybook = archivedPlaybook();
     const precheck = subject({
-      find: ok(createPersistedAggregate(archivedPlaybook(), revision(7))),
-      name: err(persistenceOperationFailed('playbook.findByNormalizedName')),
+      find: ok(createPersistedAggregate(precheckPlaybook, revision(7))),
+      name: err(precheckError),
     });
     const precheckResult = await precheck.handler.handle({ playbookId: playbookIdFixture });
     expect(precheckResult.success).toBe(false);
+    if (precheckResult.success) {
+      throw new Error('Expected normalized-name lookup failure.');
+    }
+    expect(precheckResult.error).toEqual(precheckError);
     expect(precheck.clock.calls).toBe(0);
+    expect(precheckPlaybook.status).toBe('archived');
     expect(precheck.playbooks.updateCalls).toHaveLength(0);
+    expect(precheck.playbooks.insertCalls).toHaveLength(0);
     const errors: PlaybookRepositoryUpdateError[] = [
       playbookNotFound(),
       playbookNameConflict(),
@@ -312,8 +376,14 @@ describe('RestorePlaybookHandler', () => {
       });
       const result = await value.handler.handle({ playbookId: playbookIdFixture });
       expect(result.success).toBe(false);
+      if (result.success) {
+        throw new Error('Expected update failure.');
+      }
+      expect(result.error).toEqual(error);
       expect(value.playbooks.updateCalls).toHaveLength(1);
       expect(value.playbooks.findByIdCalls).toHaveLength(1);
+      expect(value.playbooks.findByNormalizedNameCalls).toHaveLength(1);
+      expect(value.clock.calls).toBe(1);
       expect(value.playbooks.insertCalls).toHaveLength(0);
     }
   });

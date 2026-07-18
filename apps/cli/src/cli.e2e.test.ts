@@ -482,6 +482,23 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     expect(releaseNameRes.status).toBe(0);
     expect(releaseNameRes.stderr).toBe('');
     assertSafeOutput(releaseNameRes.stdout);
+    const releaseNameJson: unknown = JSON.parse(releaseNameRes.stdout);
+    if (
+      releaseNameJson !== null &&
+      typeof releaseNameJson === 'object' &&
+      'success' in releaseNameJson &&
+      releaseNameJson.success === true &&
+      'data' in releaseNameJson &&
+      releaseNameJson.data !== null &&
+      typeof releaseNameJson.data === 'object' &&
+      'playbookId' in releaseNameJson.data &&
+      'name' in releaseNameJson.data
+    ) {
+      expect(releaseNameJson.data.playbookId).toBe(playbookId2);
+      expect(releaseNameJson.data.name).toBe('Segundo Playbook liberado');
+    } else {
+      throw new Error('Invalid release-name json output structure');
+    }
     const restoreRes = runCli(['playbook', 'restore', '--id', playbookId, '--output', 'json'], {
       AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
     });
@@ -557,5 +574,14 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(restoreAgainJson.success).toBe(false);
       expect(restoreAgainJson.error.code).toBe('PLAYBOOK_NOT_ARCHIVED');
     } else throw new Error('Invalid restore repeat json output structure');
+    const showAfterRestoreAgainRes = runCli(['playbook', 'show', '--id', playbookId], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(showAfterRestoreAgainRes.status).toBe(0);
+    expect(showAfterRestoreAgainRes.stderr).toBe('');
+    expect(showAfterRestoreAgainRes.stdout).toContain('Playbook renombrado');
+    expect(showAfterRestoreAgainRes.stdout).toContain('Status:            active');
+    expect(showAfterRestoreAgainRes.stdout).not.toContain('Archived At:');
+    assertSafeOutput(showAfterRestoreAgainRes.stdout);
   });
 });
