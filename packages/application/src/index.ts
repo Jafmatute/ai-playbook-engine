@@ -12,3 +12,4 @@ export type { NormalizationAttemptRepository } from './normalization-attempt/ind
 export type { KnowledgeItemRepository } from './knowledge-item/index.js';
 export type { ValidationAttemptRepository } from './validation-attempt/index.js';
 export type { KnowledgeRelationshipRepository } from './knowledge-relationship/index.js';
+export type { Page, PaginationRequest } from './pagination/index.js';
