@@ -270,20 +270,7 @@ function createValidPlaybook(options?: Partial<PlaybookFixtureOptions>): Playboo
   }
 
   const playbook = playbookResult.value;
-
   const status = options?.status ?? 'active';
-
-  if (status === 'archived') {
-    const archivedAtResult = Instant.parse('2026-07-16T10:00:00.000Z');
-    if (!archivedAtResult.success) {
-      throw new Error('Expected a valid instant fixture.');
-    }
-    const archiveResult = playbook.archive({ archivedAt: archivedAtResult.value });
-    if (!archiveResult.success) {
-      throw new Error('Expected the archive transition to succeed.');
-    }
-  }
-
   const activeVersionId = options?.activeVersionId ?? null;
 
   if (activeVersionId !== null) {
@@ -297,6 +284,17 @@ function createValidPlaybook(options?: Partial<PlaybookFixtureOptions>): Playboo
     });
     if (!activateResult.success) {
       throw new Error('Expected the activate version transition to succeed.');
+    }
+  }
+
+  if (status === 'archived') {
+    const archivedAtResult = Instant.parse('2026-07-16T10:00:00.000Z');
+    if (!archivedAtResult.success) {
+      throw new Error('Expected a valid instant fixture.');
+    }
+    const archiveResult = playbook.archive({ archivedAt: archivedAtResult.value });
+    if (!archiveResult.success) {
+      throw new Error('Expected the archive transition to succeed.');
     }
   }
 
@@ -708,6 +706,9 @@ describe('PlaybookRepository', () => {
       expect(archivedPb.status).toBe('archived');
 
       const filter: PlaybookListFilter = Object.freeze({ status: 'active' });
+      expect('status' in filter).toBe(true);
+      expect(filter.status).toBe('active');
+
       const configuredPage: Page<Playbook> = {
         items: [activePb],
         offset: 0,
@@ -735,13 +736,13 @@ describe('PlaybookRepository', () => {
       expect(result.value.items).toHaveLength(1);
       expect(result.value.items[0]).toBe(activePb);
       expect(result.value.items[0]?.status).toBe('active');
+      expect(result.value.items).not.toContain(archivedPb);
       expect(result.value.offset).toBe(0);
       expect(result.value.limit).toBe(1);
       expect(result.value.hasMore).toBe(false);
       expect(result.value.totalCount).toBe(1);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
-      void archivedPb;
     });
   });
 
@@ -759,6 +760,9 @@ describe('PlaybookRepository', () => {
       });
 
       const filter: PlaybookListFilter = Object.freeze({ status: 'archived' });
+      expect('status' in filter).toBe(true);
+      expect(filter.status).toBe('archived');
+
       const configuredPage: Page<Playbook> = {
         items: [archivedPb],
         offset: 0,
@@ -786,19 +790,19 @@ describe('PlaybookRepository', () => {
       expect(result.value.items).toHaveLength(1);
       expect(result.value.items[0]).toBe(archivedPb);
       expect(result.value.items[0]?.status).toBe('archived');
+      expect(result.value.items).not.toContain(activePb);
       expect(result.value.offset).toBe(0);
       expect(result.value.limit).toBe(1);
       expect(result.value.hasMore).toBe(false);
       expect(result.value.totalCount).toBe(1);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
-      void activePb;
     });
   });
 
   describe('list — filter by normalizedNamePrefix', () => {
     it('returns playbooks whose normalized name starts with the prefix', async () => {
-      const prefix = 'ai ';
+      const normalizedNamePrefix = 'ai ';
 
       const aiEngineering = createValidPlaybook({
         playbookId: '00000000-0000-0000-0000-000000000001',
@@ -816,7 +820,9 @@ describe('PlaybookRepository', () => {
         status: 'active',
       });
 
-      const filter: PlaybookListFilter = Object.freeze({ normalizedNamePrefix: prefix });
+      const filter: PlaybookListFilter = Object.freeze({ normalizedNamePrefix });
+      expect(filter.normalizedNamePrefix).toBe(normalizedNamePrefix);
+
       const configuredPage: Page<Playbook> = {
         items: [aiEngineering, aiOperations],
         offset: 0,
@@ -842,18 +848,20 @@ describe('PlaybookRepository', () => {
       }
 
       expect(result.value.items).toHaveLength(2);
+      expect(result.value.items[0]).toBe(aiEngineering);
+      expect(result.value.items[1]).toBe(aiOperations);
 
       for (const pb of result.value.items) {
-        expect(pb.name.normalizedValue.startsWith(prefix)).toBe(true);
+        expect(pb.name.normalizedValue.startsWith(normalizedNamePrefix)).toBe(true);
       }
 
+      expect(result.value.items).not.toContain(legacy);
       expect(result.value.offset).toBe(0);
       expect(result.value.limit).toBe(2);
       expect(result.value.hasMore).toBe(false);
       expect(result.value.totalCount).toBe(2);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
-      void legacy;
     });
   });
 
@@ -882,6 +890,7 @@ describe('PlaybookRepository', () => {
 
       const filter: PlaybookListFilter = Object.freeze({ hasActiveVersion: true });
       expect('hasActiveVersion' in filter).toBe(true);
+      expect(filter.hasActiveVersion).toBe(true);
 
       const configuredPage: Page<Playbook> = {
         items: [withActiveVersion],
@@ -908,14 +917,17 @@ describe('PlaybookRepository', () => {
       }
 
       expect(result.value.items).toHaveLength(1);
-      expect(result.value.items[0]).toBe(withActiveVersion);
+      const returnedPlaybook = result.value.items[0];
+      expect(returnedPlaybook).toBe(withActiveVersion);
+      expect(returnedPlaybook?.activeVersionId).not.toBeNull();
+      expect(returnedPlaybook?.activeVersionId).toBe(versionIdResult.value);
+      expect(result.value.items).not.toContain(withoutActiveVersion);
       expect(result.value.offset).toBe(0);
       expect(result.value.limit).toBe(1);
       expect(result.value.hasMore).toBe(false);
       expect(result.value.totalCount).toBe(1);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
-      void withoutActiveVersion;
     });
   });
 
@@ -967,14 +979,16 @@ describe('PlaybookRepository', () => {
       }
 
       expect(result.value.items).toHaveLength(1);
-      expect(result.value.items[0]).toBe(withoutActiveVersion);
+      const returnedPlaybook = result.value.items[0];
+      expect(returnedPlaybook).toBe(withoutActiveVersion);
+      expect(returnedPlaybook?.activeVersionId).toBeNull();
+      expect(result.value.items).not.toContain(withActiveVersion);
       expect(result.value.offset).toBe(0);
       expect(result.value.limit).toBe(1);
       expect(result.value.hasMore).toBe(false);
       expect(result.value.totalCount).toBe(1);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
-      void withActiveVersion;
     });
   });
 
@@ -991,18 +1005,19 @@ describe('PlaybookRepository', () => {
         status: 'active',
         activeVersionId: versionIdResult.value,
       });
-      const _wrongStatus = createValidPlaybook({
+      const wrongStatus = createValidPlaybook({
         playbookId: '00000000-0000-0000-0000-000000000002',
         name: 'ai engineering playbook',
         status: 'archived',
+        activeVersionId: versionIdResult.value,
       });
-      const _wrongPrefix = createValidPlaybook({
+      const wrongPrefix = createValidPlaybook({
         playbookId: '00000000-0000-0000-0000-000000000003',
         name: 'legacy playbook',
         status: 'active',
         activeVersionId: versionIdResult.value,
       });
-      const _noVersion = createValidPlaybook({
+      const noVersion = createValidPlaybook({
         playbookId: '00000000-0000-0000-0000-000000000004',
         name: 'ai engineering playbook',
         status: 'active',
@@ -1010,16 +1025,9 @@ describe('PlaybookRepository', () => {
 
       const filter: PlaybookListFilter = Object.freeze({
         status: 'active',
-        normalizedNamePrefix: 'ai ',
+        normalizedNamePrefix: 'ai engineering',
         hasActiveVersion: true,
       });
-
-      expect(matching.status).toBe(filter.status);
-      if (filter.normalizedNamePrefix === undefined) {
-        throw new Error('Expected a normalized name prefix filter.');
-      }
-      expect(matching.name.normalizedValue.startsWith(filter.normalizedNamePrefix)).toBe(true);
-      expect((matching.activeVersionId !== null) === filter.hasActiveVersion).toBe(true);
 
       const configuredPage: Page<Playbook> = {
         items: [matching],
@@ -1046,7 +1054,21 @@ describe('PlaybookRepository', () => {
       }
 
       expect(result.value.items).toHaveLength(1);
-      expect(result.value.items[0]).toBe(matching);
+      const returnedPlaybook = result.value.items[0];
+      expect(returnedPlaybook).toBe(matching);
+      expect(returnedPlaybook?.status).toBe(filter.status);
+
+      if (filter.normalizedNamePrefix === undefined) {
+        throw new Error('Expected a normalized name prefix filter.');
+      }
+      expect(returnedPlaybook?.name.normalizedValue.startsWith(filter.normalizedNamePrefix)).toBe(
+        true,
+      );
+      expect((returnedPlaybook?.activeVersionId !== null) === filter.hasActiveVersion).toBe(true);
+
+      expect(result.value.items).not.toContain(wrongStatus);
+      expect(result.value.items).not.toContain(wrongPrefix);
+      expect(result.value.items).not.toContain(noVersion);
       expect(result.value.offset).toBe(0);
       expect(result.value.limit).toBe(1);
       expect(result.value.hasMore).toBe(false);
@@ -1155,7 +1177,7 @@ describe('PlaybookRepository', () => {
   });
 
   describe('list — defensive copy', () => {
-    it('is not affected by external mutations to the source array after configuration', async () => {
+    it('is not affected by external mutations to the source array or page object after configuration', async () => {
       const pbA = createValidPlaybook({
         playbookId: '00000000-0000-0000-0000-000000000001',
         name: 'A Playbook',
@@ -1168,7 +1190,7 @@ describe('PlaybookRepository', () => {
       });
 
       const configuredItems: Playbook[] = [pbA];
-      const configuredPage: Page<Playbook> = {
+      const configuredPage = {
         items: configuredItems,
         offset: 0,
         limit: 25,
@@ -1177,6 +1199,10 @@ describe('PlaybookRepository', () => {
       };
       const repository = StubPlaybookRepository.returningListPage(configuredPage);
       configuredItems.push(pbB);
+      configuredPage.offset = 100;
+      configuredPage.limit = 1;
+      configuredPage.hasMore = true;
+      configuredPage.totalCount = 2;
 
       const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
       if (!workspaceId.success) {
@@ -1197,6 +1223,10 @@ describe('PlaybookRepository', () => {
       expect(result.value.items).toHaveLength(1);
       expect(result.value.items[0]).toBe(pbA);
       expect(result.value.items).not.toContain(pbB);
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(25);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(1);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
     });
@@ -1305,6 +1335,9 @@ describe('PlaybookRepository', () => {
       expect(call.workspaceId).toBe(workspaceId.value);
       expect(call.filter).toBe(filter);
       expect(call.pagination).toBe(pagination);
+      expect('normalizedNamePrefix' in call.filter).toBe(false);
+      expect('status' in call.filter).toBe(true);
+      expect(call.filter.status).toBe('active');
       expect('hasActiveVersion' in call.filter).toBe(true);
       expect(call.filter.hasActiveVersion).toBe(false);
       expect(Object.isFrozen(call)).toBe(true);
@@ -1427,10 +1460,10 @@ describe('PlaybookRepository', () => {
     });
   });
 
-  describe('list — findById does not affect list', () => {
-    it('returns a default empty page when only findById is configured (alternative direction)', async () => {
+  describe('list — findByNormalizedName configured does not affect list', () => {
+    it('returns a default empty page when only findByNormalizedName is configured', async () => {
       const pb = createValidPlaybook();
-      const repository = StubPlaybookRepository.returningPlaybook(pb);
+      const repository = StubPlaybookRepository.returningPlaybookByNormalizedName(pb);
       const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
       if (!workspaceId.success) {
         throw new Error('Expected a valid workspace ID fixture.');
@@ -1454,33 +1487,6 @@ describe('PlaybookRepository', () => {
       expect(result.value.totalCount).toBe(0);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
-    });
-  });
-
-  describe('list — returningListPage does not affect findByNormalizedName', () => {
-    it('returns null from findByNormalizedName when a list page is configured', async () => {
-      const pb = createValidPlaybook();
-      const page: Page<Playbook> = {
-        items: [pb],
-        offset: 0,
-        limit: 25,
-        hasMore: false,
-        totalCount: 1,
-      };
-      const repository = StubPlaybookRepository.returningListPage(page);
-      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
-      if (!workspaceId.success) {
-        throw new Error('Expected a valid workspace ID fixture.');
-      }
-
-      const findResult = await repository.findById(workspaceId.value, pb.id);
-
-      expect(findResult.success).toBe(true);
-      if (!findResult.success) {
-        return;
-      }
-
-      expect(findResult.value).toBeNull();
     });
   });
 });

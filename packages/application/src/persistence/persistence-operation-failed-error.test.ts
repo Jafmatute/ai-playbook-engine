@@ -6,6 +6,7 @@ const operations = [
   'workspace.findById',
   'workspace.hasAnyWorkspace',
   'playbook.findById',
+  'playbook.list',
   'playbookSource.findById',
   'synchronizationRun.findById',
   'playbookVersion.findById',
@@ -34,7 +35,6 @@ const operations = [
   'synchronizationRun.findStaleRunning',
   'synchronizationRun.listByPlaybookSourceId',
   'playbookVersion.listByPlaybookId',
-  'playbook.list',
 ] as const;
 
 describe('persistenceOperationFailed', () => {

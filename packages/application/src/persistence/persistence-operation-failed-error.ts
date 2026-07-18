@@ -4,6 +4,7 @@ export type PersistenceOperation =
   | 'workspace.findById'
   | 'workspace.hasAnyWorkspace'
   | 'playbook.findById'
+  | 'playbook.list'
   | 'playbookSource.findById'
   | 'synchronizationRun.findById'
   | 'playbookVersion.findById'
@@ -31,8 +32,7 @@ export type PersistenceOperation =
   | 'playbookSource.listByPlaybookId'
   | 'synchronizationRun.findStaleRunning'
   | 'synchronizationRun.listByPlaybookSourceId'
-  | 'playbookVersion.listByPlaybookId'
-  | 'playbook.list';
+  | 'playbookVersion.listByPlaybookId';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;
