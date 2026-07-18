@@ -18,6 +18,7 @@ import {
   InitializeWorkspaceHandler,
   GetCurrentWorkspaceHandler,
   CreatePlaybookHandler,
+  RenamePlaybookHandler,
   GetPlaybookHandler,
   ListPlaybooksHandler,
 } from '@ai-playbook-engine/application';
@@ -27,6 +28,7 @@ export interface Services {
   readonly initializeWorkspace: InitializeWorkspaceHandler;
   readonly getCurrentWorkspace: GetCurrentWorkspaceHandler;
   readonly createPlaybook: CreatePlaybookHandler;
+  readonly renamePlaybook: RenamePlaybookHandler;
   readonly getPlaybook: GetPlaybookHandler;
   readonly listPlaybooks: ListPlaybooksHandler;
   readonly migrate: () => Promise<Result<MigrationResult, MigrationFailedError>>;
@@ -73,6 +75,13 @@ export function buildServices(config: RawConfig): Result<Services, BuildServices
     playbookIdGenerator,
   );
 
+  const renamePlaybook = new RenamePlaybookHandler(
+    currentWorkspaceProvider,
+    workspaceRepository,
+    playbookRepository,
+    clock,
+  );
+
   const getPlaybook = new GetPlaybookHandler(
     currentWorkspaceProvider,
     workspaceRepository,
@@ -90,6 +99,7 @@ export function buildServices(config: RawConfig): Result<Services, BuildServices
     initializeWorkspace,
     getCurrentWorkspace,
     createPlaybook,
+    renamePlaybook,
     getPlaybook,
     listPlaybooks,
     migrate: () => runMigrations(pool),

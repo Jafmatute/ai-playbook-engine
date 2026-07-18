@@ -26,6 +26,7 @@ interface MockServicesOverrides {
   readonly initializeWorkspace?: CliServices['initializeWorkspace'];
   readonly getCurrentWorkspace?: CliServices['getCurrentWorkspace'];
   readonly createPlaybook?: CliServices['createPlaybook'];
+  readonly renamePlaybook?: CliServices['renamePlaybook'];
   readonly getPlaybook?: CliServices['getPlaybook'];
   readonly listPlaybooks?: CliServices['listPlaybooks'];
 }
@@ -85,6 +86,9 @@ function createMockServices(overrides: MockServicesOverrides = {}): CliServices 
       handle: async () => ok(createWorkspaceOutputFixture()),
     },
     createPlaybook: overrides.createPlaybook ?? {
+      handle: async () => ok(createPlaybookOutputFixture()),
+    },
+    renamePlaybook: overrides.renamePlaybook ?? {
       handle: async () => ok(createPlaybookOutputFixture()),
     },
     getPlaybook: overrides.getPlaybook ?? {
@@ -493,5 +497,313 @@ describe('runCli unexpected exception and pool non-creation', () => {
     const code = await runCli(['database', 'migrate'], envReader, io, deps);
     expect(code).toBe(ExitCode.CONFIG_ERROR);
     expect(deps.getBuildCalled()).toBe(1);
+  });
+});
+
+describe('runCli playbook rename command', () => {
+  const envReader = new MapEnvReader(
+    new Map([['AI_PLAYBOOK_ENGINE_DATABASE_URL', 'postgres://localhost:5432/db']]),
+  );
+
+  // 1. Comando reconocido
+  // 2. Ayuda incluye playbook rename
+  it('includes playbook rename command in printHelp and matches command', async () => {
+    const io = new MockIo();
+    const deps = createMockDependencies(createMockServices());
+    const code = await runCli(['--help'], envReader, io, deps);
+    expect(code).toBe(ExitCode.SUCCESS);
+    expect(io.stdout).toContain(
+      'playbook rename        --id <uuid> --name <value>  Rename a playbook',
+    );
+  });
+
+  // 3. --id ausente
+  it('returns invalid input error when --id is missing', async () => {
+    const io = new MockIo();
+    const deps = createMockDependencies(createMockServices());
+    const code = await runCli(['playbook', 'rename', '--name', 'New Name'], envReader, io, deps);
+    expect(code).toBe(ExitCode.INVALID_INPUT);
+    expect(io.stderr).toContain('--id is required');
+    // 7. No se construyen servicios cuando falta entrada
+    expect(deps.getBuildCalled()).toBe(0);
+  });
+
+  // 4. --name ausente
+  it('returns invalid input error when --name is missing', async () => {
+    const io = new MockIo();
+    const deps = createMockDependencies(createMockServices());
+    const code = await runCli(
+      ['playbook', 'rename', '--id', '00000000-0000-0000-0000-000000000002'],
+      envReader,
+      io,
+      deps,
+    );
+    expect(code).toBe(ExitCode.INVALID_INPUT);
+    expect(io.stderr).toContain('--name is required');
+    expect(deps.getBuildCalled()).toBe(0);
+  });
+
+  // 5. Flag sin valor
+  it('rejects flag without value', async () => {
+    const io = new MockIo();
+    const deps = createMockDependencies(createMockServices());
+    const code = await runCli(
+      ['playbook', 'rename', '--id', '--name', 'New Name'],
+      envReader,
+      io,
+      deps,
+    );
+    expect(code).toBe(ExitCode.INVALID_INPUT);
+    expect(io.stderr).toContain('Flag "id" requires a value');
+    expect(deps.getBuildCalled()).toBe(0);
+  });
+
+  // 6. Flag desconocido
+  it('rejects unknown flag', async () => {
+    const io = new MockIo();
+    const deps = createMockDependencies(createMockServices());
+    const code = await runCli(
+      [
+        'playbook',
+        'rename',
+        '--id',
+        '00000000-0000-0000-0000-000000000002',
+        '--name',
+        'New Name',
+        '--extra',
+      ],
+      envReader,
+      io,
+      deps,
+    );
+    expect(code).toBe(ExitCode.INVALID_INPUT);
+    expect(io.stderr).toContain('Unknown flag: --extra');
+    expect(deps.getBuildCalled()).toBe(0);
+  });
+
+  // 8. Se envía el command exacto: playbookId, newName
+  it('invokes handler with exact command properties', async () => {
+    const pool = new MockPool();
+    const renamePlaybook = {
+      handle: async (cmd: { playbookId: string; newName: string }) => {
+        expect(cmd.playbookId).toBe('00000000-0000-0000-0000-000000000002');
+        expect(cmd.newName).toBe('New Name');
+        return ok(createPlaybookOutputFixture({ name: cmd.newName }));
+      },
+    };
+    const services = createMockServices({ pool, renamePlaybook });
+    const deps = createMockDependencies(services);
+    const io = new MockIo();
+
+    const code = await runCli(
+      ['playbook', 'rename', '--id', '00000000-0000-0000-0000-000000000002', '--name', 'New Name'],
+      envReader,
+      io,
+      deps,
+    );
+    expect(code).toBe(ExitCode.SUCCESS);
+    // 19. El pool se cierra en éxito
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  // 9. Éxito human
+  it('writes human success output to stdout', async () => {
+    const pool = new MockPool();
+    const services = createMockServices({ pool });
+    const deps = createMockDependencies(services);
+    const io = new MockIo();
+
+    const code = await runCli(
+      [
+        'playbook',
+        'rename',
+        '--id',
+        '00000000-0000-0000-0000-000000000002',
+        '--name',
+        'New Name',
+        '--output',
+        'human',
+      ],
+      envReader,
+      io,
+      deps,
+    );
+    expect(code).toBe(ExitCode.SUCCESS);
+    expect(io.stdout).toContain('Playbook:');
+    expect(io.stdout).toContain('Playbook Name');
+    expect(io.stderr).toBe('');
+  });
+
+  // 10. Éxito JSON
+  it('writes json success output to stdout', async () => {
+    const pool = new MockPool();
+    const services = createMockServices({ pool });
+    const deps = createMockDependencies(services);
+    const io = new MockIo();
+
+    const code = await runCli(
+      [
+        'playbook',
+        'rename',
+        '--id',
+        '00000000-0000-0000-0000-000000000002',
+        '--name',
+        'New Name',
+        '--output',
+        'json',
+      ],
+      envReader,
+      io,
+      deps,
+    );
+    expect(code).toBe(ExitCode.SUCCESS);
+    expect(io.stdout).toContain('"success": true');
+    // 17. JSON escribe exclusivamente en stdout
+    expect(io.stderr).toBe('');
+  });
+
+  // 11. PLAYBOOK_NOT_FOUND
+  it('maps PLAYBOOK_NOT_FOUND to exit code NOT_FOUND (3)', async () => {
+    const pool = new MockPool();
+    const renamePlaybook = {
+      handle: async () =>
+        err({ code: 'PLAYBOOK_NOT_FOUND' as const, message: 'Playbook not found', details: {} }),
+    };
+    const services = createMockServices({ pool, renamePlaybook });
+    const deps = createMockDependencies(services);
+    const io = new MockIo();
+
+    const code = await runCli(
+      ['playbook', 'rename', '--id', '00000000-0000-0000-0000-000000000002', '--name', 'New Name'],
+      envReader,
+      io,
+      deps,
+    );
+    expect(code).toBe(ExitCode.NOT_FOUND);
+    // 18. Human error escribe en stderr
+    expect(io.stderr).toContain('Playbook not found');
+    expect(io.stdout).toBe('');
+    // 20. El pool se cierra cuando el Handler retorna error
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  // 12. PLAYBOOK_NAME_CONFLICT
+  // 16. El exit code de conflictos es 4
+  it('maps PLAYBOOK_NAME_CONFLICT to exit code CONFLICT (4)', async () => {
+    const pool = new MockPool();
+    const renamePlaybook = {
+      handle: async () =>
+        err({ code: 'PLAYBOOK_NAME_CONFLICT' as const, message: 'Name conflict', details: {} }),
+    };
+    const services = createMockServices({ pool, renamePlaybook });
+    const deps = createMockDependencies(services);
+    const io = new MockIo();
+
+    const code = await runCli(
+      ['playbook', 'rename', '--id', '00000000-0000-0000-0000-000000000002', '--name', 'New Name'],
+      envReader,
+      io,
+      deps,
+    );
+    expect(code).toBe(ExitCode.CONFLICT);
+    expect(io.stderr).toContain('Name conflict');
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  // 13. PERSISTENCE_REVISION_CONFLICT
+  it('maps PERSISTENCE_REVISION_CONFLICT to exit code CONFLICT (4)', async () => {
+    const pool = new MockPool();
+    const renamePlaybook = {
+      handle: async () =>
+        err({
+          code: 'PERSISTENCE_REVISION_CONFLICT' as const,
+          message: 'Revision conflict',
+          details: { operation: 'playbook.update' as const, expectedRevision: 1 },
+        }),
+    };
+    const services = createMockServices({ pool, renamePlaybook });
+    const deps = createMockDependencies(services);
+    const io = new MockIo();
+
+    const code = await runCli(
+      ['playbook', 'rename', '--id', '00000000-0000-0000-0000-000000000002', '--name', 'New Name'],
+      envReader,
+      io,
+      deps,
+    );
+    expect(code).toBe(ExitCode.CONFLICT);
+    expect(io.stderr).toContain('Revision conflict');
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  // 14. PLAYBOOK_OPERATION_NOT_ALLOWED
+  it('maps PLAYBOOK_OPERATION_NOT_ALLOWED to exit code CONFLICT (4)', async () => {
+    const pool = new MockPool();
+    const renamePlaybook = {
+      handle: async () =>
+        err({
+          code: 'PLAYBOOK_OPERATION_NOT_ALLOWED' as const,
+          message: 'Operation not allowed',
+          details: { currentStatus: 'archived' as const, operation: 'rename' as const },
+        }),
+    };
+    const services = createMockServices({ pool, renamePlaybook });
+    const deps = createMockDependencies(services);
+    const io = new MockIo();
+
+    const code = await runCli(
+      ['playbook', 'rename', '--id', '00000000-0000-0000-0000-000000000002', '--name', 'New Name'],
+      envReader,
+      io,
+      deps,
+    );
+    expect(code).toBe(ExitCode.CONFLICT);
+    expect(io.stderr).toContain('Operation not allowed');
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  // 15. PERSISTENCE_OPERATION_FAILED
+  it('maps PERSISTENCE_OPERATION_FAILED to exit code INFRASTRUCTURE_ERROR (6)', async () => {
+    const pool = new MockPool();
+    const renamePlaybook = {
+      handle: async () => err(persistenceOperationFailed('playbook.update')),
+    };
+    const services = createMockServices({ pool, renamePlaybook });
+    const deps = createMockDependencies(services);
+    const io = new MockIo();
+
+    const code = await runCli(
+      ['playbook', 'rename', '--id', '00000000-0000-0000-0000-000000000002', '--name', 'New Name'],
+      envReader,
+      io,
+      deps,
+    );
+    expect(code).toBe(ExitCode.INFRASTRUCTURE_ERROR);
+    expect(io.stderr).toContain('Persistence operation failed');
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  // 21. No se filtran detalles sensibles
+  it('does not leak internal error message details when unexpected exception occurs', async () => {
+    const pool = new MockPool();
+    const renamePlaybook = {
+      handle: async () => {
+        throw new Error('Secret DB crash details');
+      },
+    };
+    const services = createMockServices({ pool, renamePlaybook });
+    const deps = createMockDependencies(services);
+    const io = new MockIo();
+
+    const code = await runCli(
+      ['playbook', 'rename', '--id', '00000000-0000-0000-0000-000000000002', '--name', 'New Name'],
+      envReader,
+      io,
+      deps,
+    );
+    expect(code).toBe(1);
+    expect(io.stderr).toContain('An unexpected error occurred.');
+    expect(io.stderr).not.toContain('Secret DB crash details');
+    expect(pool.closeCalled).toBe(1);
   });
 });

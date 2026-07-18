@@ -160,5 +160,144 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     expect(showPbRes.stdout).toContain('Playbook con espacios');
     expect(showPbRes.stdout).toContain(playbookId);
     assertSafeOutput(showPbRes.stdout);
+
+    // 8. playbook rename --id <playbookId> --name <nuevo-nombre> --output json
+    const renameRes = runCli(
+      [
+        'playbook',
+        'rename',
+        '--id',
+        playbookId,
+        '--name',
+        'Playbook renombrado',
+        '--output',
+        'json',
+      ],
+      {
+        AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+      },
+    );
+    expect(renameRes.status).toBe(0);
+    expect(renameRes.stderr).toBe('');
+    assertSafeOutput(renameRes.stdout);
+
+    const renameJson: unknown = JSON.parse(renameRes.stdout);
+    expect(renameJson).not.toBeNull();
+    expect(typeof renameJson).toBe('object');
+    if (
+      renameJson !== null &&
+      typeof renameJson === 'object' &&
+      'success' in renameJson &&
+      renameJson.success === true &&
+      'data' in renameJson &&
+      renameJson.data !== null &&
+      typeof renameJson.data === 'object' &&
+      'playbookId' in renameJson.data &&
+      'name' in renameJson.data
+    ) {
+      expect(renameJson.data.playbookId).toBe(playbookId);
+      expect(renameJson.data.name).toBe('Playbook renombrado');
+    } else {
+      throw new Error('Invalid rename json output structure');
+    }
+
+    // 9. playbook show (human output, verify it shows the new name)
+    const showPbRenamedRes = runCli(['playbook', 'show', '--id', playbookId], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(showPbRenamedRes.status).toBe(0);
+    expect(showPbRenamedRes.stderr).toBe('');
+    expect(showPbRenamedRes.stdout).toContain('Playbook renombrado');
+    expect(showPbRenamedRes.stdout).not.toContain('Playbook con espacios');
+    assertSafeOutput(showPbRenamedRes.stdout);
+
+    // 10. playbook list (human output, verify it contains the new name and not the old name)
+    const listPbRenamedRes = runCli(['playbook', 'list'], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(listPbRenamedRes.status).toBe(0);
+    expect(listPbRenamedRes.stderr).toBe('');
+    expect(listPbRenamedRes.stdout).toContain('Playbook renombrado');
+    expect(listPbRenamedRes.stdout).not.toContain('Playbook con espacios');
+    assertSafeOutput(listPbRenamedRes.stdout);
+
+    // 11. Create a second Playbook
+    const createRes2 = runCli(
+      ['playbook', 'create', '--name', 'Segundo Playbook', '--output', 'json'],
+      {
+        AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+      },
+    );
+    expect(createRes2.status).toBe(0);
+    expect(createRes2.stderr).toBe('');
+    assertSafeOutput(createRes2.stdout);
+
+    const createJson2: unknown = JSON.parse(createRes2.stdout);
+    expect(createJson2).not.toBeNull();
+    expect(typeof createJson2).toBe('object');
+
+    let playbookId2 = '';
+    if (
+      createJson2 !== null &&
+      typeof createJson2 === 'object' &&
+      'success' in createJson2 &&
+      createJson2.success === true &&
+      'data' in createJson2 &&
+      createJson2.data !== null &&
+      typeof createJson2.data === 'object' &&
+      'playbookId' in createJson2.data &&
+      typeof createJson2.data.playbookId === 'string'
+    ) {
+      playbookId2 = createJson2.data.playbookId;
+    }
+    expect(playbookId2).not.toBe('');
+
+    // 12. Attempt to rename the second playbook to the name of the first playbook (conflict)
+    const renameConflictRes = runCli(
+      [
+        'playbook',
+        'rename',
+        '--id',
+        playbookId2,
+        '--name',
+        'Playbook renombrado',
+        '--output',
+        'json',
+      ],
+      {
+        AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+      },
+    );
+    expect(renameConflictRes.status).toBe(4);
+    expect(renameConflictRes.stderr).toBe('');
+    assertSafeOutput(renameConflictRes.stdout);
+
+    const renameConflictJson: unknown = JSON.parse(renameConflictRes.stdout);
+    expect(renameConflictJson).not.toBeNull();
+    expect(typeof renameConflictJson).toBe('object');
+    if (
+      renameConflictJson !== null &&
+      typeof renameConflictJson === 'object' &&
+      'success' in renameConflictJson &&
+      'error' in renameConflictJson &&
+      renameConflictJson.error !== null &&
+      typeof renameConflictJson.error === 'object' &&
+      'code' in renameConflictJson.error
+    ) {
+      expect(renameConflictJson.success).toBe(false);
+      expect(renameConflictJson.error.code).toBe('PLAYBOOK_NAME_CONFLICT');
+    } else {
+      throw new Error('Invalid rename conflict json output structure');
+    }
+
+    // 13. Verify that the second playbook preserves its original name (no partial update)
+    const showPb2Res = runCli(['playbook', 'show', '--id', playbookId2], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(showPb2Res.status).toBe(0);
+    expect(showPb2Res.stderr).toBe('');
+    expect(showPb2Res.stdout).toContain('Segundo Playbook');
+    expect(showPb2Res.stdout).not.toContain('Playbook renombrado');
+    assertSafeOutput(showPb2Res.stdout);
   });
 });
