@@ -1134,6 +1134,7 @@ describe('SynchronizationSnapshotRepository', () => {
         true,
       );
       expect(sourceASnapshot.playbookSourceId).not.toBe(newerSourceBSnapshot.playbookSourceId);
+      expect(newerSourceBSnapshot.createdAt.compare(sourceASnapshot.createdAt)).toBeGreaterThan(0);
 
       const repository =
         StubSynchronizationSnapshotRepository.returningLatestSynchronizationSnapshotByChecksum(
@@ -1177,9 +1178,35 @@ describe('SynchronizationSnapshotRepository', () => {
     it('returns the snapshot matching the requested checksum, not the most recent overall', async () => {
       const matchingSnapshot = createValidSynchronizationSnapshot({
         synchronizationSnapshotId: '00000000-0000-0000-0000-000000000001',
+        synchronizationRunId: '00000000-0000-0000-0000-000000000004',
         contentChecksum: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        storageReference: 'ss://path/to/matching',
         createdAt: '2026-07-15T10:00:00.000Z',
       });
+      const newerDifferentChecksumSnapshot = createValidSynchronizationSnapshot({
+        synchronizationSnapshotId: '00000000-0000-0000-0000-000000000006',
+        synchronizationRunId: '00000000-0000-0000-0000-000000000005',
+        contentChecksum: 'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        storageReference: 'ss://path/to/newer-different',
+        createdAt: '2026-07-15T12:00:00.000Z',
+      });
+
+      expect(matchingSnapshot.playbookSourceId).toBe(
+        newerDifferentChecksumSnapshot.playbookSourceId,
+      );
+      expect(
+        matchingSnapshot.contentChecksum.equals(newerDifferentChecksumSnapshot.contentChecksum),
+      ).toBe(false);
+      expect(
+        newerDifferentChecksumSnapshot.createdAt.compare(matchingSnapshot.createdAt),
+      ).toBeGreaterThan(0);
+      expect(matchingSnapshot.id).not.toBe(newerDifferentChecksumSnapshot.id);
+      expect(matchingSnapshot.synchronizationRunId).not.toBe(
+        newerDifferentChecksumSnapshot.synchronizationRunId,
+      );
+      expect(matchingSnapshot.storageReference.toString()).not.toBe(
+        newerDifferentChecksumSnapshot.storageReference.toString(),
+      );
 
       const repository =
         StubSynchronizationSnapshotRepository.returningLatestSynchronizationSnapshotByChecksum(
@@ -1206,6 +1233,7 @@ describe('SynchronizationSnapshotRepository', () => {
         checksumResult.value,
       );
 
+      expect(result.success).toBe(true);
       if (!result.success) {
         return;
       }
@@ -1214,7 +1242,11 @@ describe('SynchronizationSnapshotRepository', () => {
       }
 
       expect(result.value).toBe(matchingSnapshot);
-      expect(result.value.contentChecksum.equals(checksumResult.value)).toBe(true);
+      expect(result.value).not.toBe(newerDifferentChecksumSnapshot);
+      expect(result.value.contentChecksum.equals(matchingSnapshot.contentChecksum)).toBe(true);
+      expect(
+        result.value.contentChecksum.equals(newerDifferentChecksumSnapshot.contentChecksum),
+      ).toBe(false);
     });
   });
 
@@ -1303,6 +1335,7 @@ describe('SynchronizationSnapshotRepository', () => {
         return;
       }
 
+      expect(result.error).toBe(error);
       expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
       expect(result.error.details.operation).toBe('synchronizationSnapshot.findLatestByChecksum');
     });
