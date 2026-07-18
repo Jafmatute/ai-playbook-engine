@@ -35,6 +35,7 @@ describe('renderPlaybookSource', () => {
     expect(result).toContain('Status:                   enabled');
     expect(result).toContain('External Root Reference:  notion-root-page');
     expect(result).toContain('Configuration Reference:  notion/main');
+    expect(result).toContain('Created At:               2026-07-18T10:00:00.000Z');
     expect(result).toContain('Last Successful Run ID:   (none)');
     expect(result).toContain('Last Successful At:       (none)');
     expect(result).toContain('Last Failed Run ID:       (none)');
@@ -55,6 +56,7 @@ describe('renderPlaybookSource', () => {
     expect(result).toContain('Last Failed Run ID:       run-failed');
     expect(result).toContain('Last Failed At:           2026-07-18T12:00:00.000Z');
     expect(result).not.toMatch(/revision|token|credential|secret/i);
+    expect(result).not.toContain(sourceFixture.workspaceId);
   });
 });
 

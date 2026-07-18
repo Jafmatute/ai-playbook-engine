@@ -28,7 +28,13 @@ import type {
   PlaybookOperationNotAllowedError,
   PlaybookStateInvalidError,
 } from '@ai-playbook-engine/core';
-import { parsePlaybookId } from '@ai-playbook-engine/core';
+import {
+  Instant,
+  parsePlaybookId,
+  parseWorkspaceId,
+  Playbook,
+  PlaybookName,
+} from '@ai-playbook-engine/core';
 import { migrationFailed } from '@ai-playbook-engine/infrastructure';
 import type { BuildServicesError } from './composition-root.js';
 
@@ -136,41 +142,75 @@ function createPlaybookId(value: string) {
   return result.value;
 }
 
-function createRenameNotAllowedError(): PlaybookOperationNotAllowedError {
-  return Object.freeze({
-    code: 'PLAYBOOK_OPERATION_NOT_ALLOWED',
-    message: 'Playbook operation is not allowed.',
-    details: Object.freeze({
-      currentStatus: 'archived',
-      operation: 'rename',
-    }),
+function createInstant(value: string): Instant {
+  const result = Instant.parse(value);
+  if (!result.success) throw new Error('Expected a valid instant fixture.');
+  return result.value;
+}
+
+function createCorePlaybook(): Playbook {
+  const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000001');
+  const name = PlaybookName.create('Playbook Name');
+  if (!workspaceId.success || !name.success) {
+    throw new Error('Expected valid core playbook fixtures.');
+  }
+  const result = Playbook.create({
+    playbookId: createPlaybookId('00000000-0000-0000-0000-000000000002'),
+    workspaceId: workspaceId.value,
+    name: name.value,
+    createdAt: createInstant('2026-07-12T10:00:00.000Z'),
   });
+  if (!result.success) throw new Error('Expected a valid core playbook fixture.');
+  return result.value;
+}
+
+function createRenameNotAllowedError(): PlaybookOperationNotAllowedError {
+  const playbook = createCorePlaybook();
+  playbook.archive({ archivedAt: createInstant('2026-07-12T11:00:00.000Z') });
+  const name = PlaybookName.create('Renamed Playbook');
+  if (!name.success) throw new Error('Expected a valid playbook name fixture.');
+  const result = playbook.rename({
+    name: name.value,
+    updatedAt: createInstant('2026-07-12T12:00:00.000Z'),
+  });
+  if (result.success) throw new Error('Expected rename to be rejected for an archived playbook.');
+  if (result.error.code !== 'PLAYBOOK_OPERATION_NOT_ALLOWED') {
+    throw new Error('Expected a playbook operation-not-allowed error.');
+  }
+  return result.error;
 }
 
 function createPlaybookAlreadyArchivedError(): PlaybookAlreadyArchivedError {
-  return Object.freeze({
-    code: 'PLAYBOOK_ALREADY_ARCHIVED',
-    message: 'The playbook is already archived.',
-    details: Object.freeze({ currentStatus: 'archived' }),
-  });
+  const playbook = createCorePlaybook();
+  playbook.archive({ archivedAt: createInstant('2026-07-12T11:00:00.000Z') });
+  const result = playbook.archive({ archivedAt: createInstant('2026-07-12T12:00:00.000Z') });
+  if (result.success) throw new Error('Expected a second archive to be rejected.');
+  if (result.error.code !== 'PLAYBOOK_ALREADY_ARCHIVED') {
+    throw new Error('Expected a playbook already-archived error.');
+  }
+  return result.error;
 }
 
 function createPlaybookNotArchivedError(): PlaybookNotArchivedError {
-  return Object.freeze({
-    code: 'PLAYBOOK_NOT_ARCHIVED',
-    message: 'The playbook is not archived.',
-    details: Object.freeze({
-      currentStatus: 'active',
-    }),
+  const result = createCorePlaybook().restoreFromArchive({
+    restoredAt: createInstant('2026-07-12T11:00:00.000Z'),
   });
+  if (result.success) throw new Error('Expected restore to be rejected for an active playbook.');
+  if (result.error.code !== 'PLAYBOOK_NOT_ARCHIVED') {
+    throw new Error('Expected a playbook not-archived error.');
+  }
+  return result.error;
 }
 
 function createPlaybookStateInvalidError(): PlaybookStateInvalidError {
-  return Object.freeze({
-    code: 'PLAYBOOK_STATE_INVALID',
-    message: 'The playbook state is inconsistent.',
-    details: Object.freeze({ reason: 'TIMESTAMP_BEFORE_UPDATED_AT' }),
+  const result = createCorePlaybook().archive({
+    archivedAt: createInstant('2026-07-12T09:00:00.000Z'),
   });
+  if (result.success) throw new Error('Expected archive with a stale timestamp to be rejected.');
+  if (result.error.code !== 'PLAYBOOK_STATE_INVALID') {
+    throw new Error('Expected a playbook state-invalid error.');
+  }
+  return result.error;
 }
 
 function createMockServices(overrides: MockServicesOverrides = {}): CliServices {
@@ -925,20 +965,21 @@ describe('runCli playbook archive command', () => {
     expect(deps.getBuildCalled()).toBe(0);
   });
 
-  it('rejects a missing id, flag value, and unknown flag without constructing services', async () => {
-    for (const args of [
-      ['playbook', 'archive'],
-      ['playbook', 'archive', '--id'],
+  it.each([
+    ['a missing id', ['playbook', 'archive']],
+    ['an id flag without a value', ['playbook', 'archive', '--id']],
+    [
+      'an unknown flag',
       ['playbook', 'archive', '--id', '00000000-0000-0000-0000-000000000002', '--extra'],
-    ]) {
-      const io = new MockIo();
-      const deps = createMockDependencies(createMockServices());
+    ],
+  ])('rejects %s without constructing services', async (_scenario, args) => {
+    const io = new MockIo();
+    const deps = createMockDependencies(createMockServices());
 
-      const code = await runCli(args, envReader, io, deps);
+    const code = await runCli(args, envReader, io, deps);
 
-      expect(code).toBe(ExitCode.INVALID_INPUT);
-      expect(deps.getBuildCalled()).toBe(0);
-    }
+    expect(code).toBe(ExitCode.INVALID_INPUT);
+    expect(deps.getBuildCalled()).toBe(0);
   });
 
   it('invokes the handler with the exact archive command and closes the pool once', async () => {
@@ -1029,7 +1070,7 @@ describe('runCli playbook restore command', () => {
   );
   const args = ['playbook', 'restore', '--id', '00000000-0000-0000-0000-000000000002'];
 
-  it('includes help and rejects invalid input before services', async () => {
+  it('includes help', async () => {
     const help = new MockIo();
     expect(
       await runCli(['--help'], envReader, help, createMockDependencies(createMockServices())),
@@ -1037,17 +1078,18 @@ describe('runCli playbook restore command', () => {
     expect(help.stdout).toContain(
       'playbook restore       --id <uuid>       Restore an archived playbook',
     );
-    for (const invalid of [
-      ['playbook', 'restore'],
-      ['playbook', 'restore', '--id'],
-      [...args, '--extra'],
-    ]) {
-      const dependencies = createMockDependencies(createMockServices());
-      expect(await runCli(invalid, envReader, new MockIo(), dependencies)).toBe(
-        ExitCode.INVALID_INPUT,
-      );
-      expect(dependencies.getBuildCalled()).toBe(0);
-    }
+  });
+
+  it.each([
+    ['a missing id', ['playbook', 'restore']],
+    ['an id flag without a value', ['playbook', 'restore', '--id']],
+    ['an unknown flag', [...args, '--extra']],
+  ])('rejects %s before services are built', async (_scenario, invalid) => {
+    const dependencies = createMockDependencies(createMockServices());
+    expect(await runCli(invalid, envReader, new MockIo(), dependencies)).toBe(
+      ExitCode.INVALID_INPUT,
+    );
+    expect(dependencies.getBuildCalled()).toBe(0);
   });
 
   it('passes exact command, renders human and json, and closes pool once', async () => {
@@ -1146,7 +1188,7 @@ describe('runCli playbook source register command', () => {
     'notion/main',
   ];
 
-  it('includes help and rejects invalid input before building services', async () => {
+  it('includes help', async () => {
     const help = new MockIo();
     expect(
       await runCli(['--help'], envReader, help, createMockDependencies(createMockServices())),
@@ -1154,11 +1196,17 @@ describe('runCli playbook source register command', () => {
     expect(help.stdout).toContain(
       'playbook source register  --playbook-id <uuid> --type <type>  Register a playbook source',
     );
+  });
 
-    for (const invalid of [
-      ['playbook', 'source', 'register'],
-      ['playbook', 'source', 'register', '--playbook-id'],
+  it.each([
+    ['missing required flags', ['playbook', 'source', 'register']],
+    ['a playbook id flag without a value', ['playbook', 'source', 'register', '--playbook-id']],
+    [
+      'a missing external root reference',
       ['playbook', 'source', 'register', '--playbook-id', 'id', '--type', 'notion'],
+    ],
+    [
+      'a missing configuration reference',
       [
         'playbook',
         'source',
@@ -1170,14 +1218,14 @@ describe('runCli playbook source register command', () => {
         '--external-root-reference',
         'root',
       ],
-      [...args, '--unexpected'],
-    ]) {
-      const dependencies = createMockDependencies(createMockServices());
-      expect(await runCli(invalid, envReader, new MockIo(), dependencies)).toBe(
-        ExitCode.INVALID_INPUT,
-      );
-      expect(dependencies.getBuildCalled()).toBe(0);
-    }
+    ],
+    ['an unknown flag', [...args, '--unexpected']],
+  ])('rejects %s before building services', async (_scenario, invalid) => {
+    const dependencies = createMockDependencies(createMockServices());
+    expect(await runCli(invalid, envReader, new MockIo(), dependencies)).toBe(
+      ExitCode.INVALID_INPUT,
+    );
+    expect(dependencies.getBuildCalled()).toBe(0);
   });
 
   it('passes the exact command, renders safe human and JSON output, and closes once', async () => {

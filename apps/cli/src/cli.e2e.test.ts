@@ -9,6 +9,7 @@ const testDbUrl = process.env.AI_PLAYBOOK_ENGINE_TEST_DATABASE_URL;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const CLI_PATH = join(__dirname, '..', 'dist', 'main.js');
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function runCli(
   args: readonly string[],
@@ -99,6 +100,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     }
 
     expect(workspaceId).not.toBe('');
+    expect(workspaceId).toMatch(UUID_PATTERN);
 
     // 4. workspace show (human output, verify workspace details are correct)
     const showRes = runCli(['workspace', 'show'], {
@@ -141,6 +143,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     }
 
     expect(playbookId).not.toBe('');
+    expect(playbookId).toMatch(UUID_PATTERN);
 
     // 6. playbook list (human output, verify persistence and listing works)
     const listRes = runCli(['playbook', 'list'], {
@@ -250,7 +253,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     ) {
       playbookId2 = createJson2.data.playbookId;
     }
-    expect(playbookId2).not.toBe('');
+    expect(playbookId2).toMatch(UUID_PATTERN);
 
     // 12. Rename the second active Playbook to the first Playbook's name and verify the conflict.
     const renameConflictRes = runCli(
@@ -286,6 +289,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     ) {
       expect(renameConflictJson.success).toBe(false);
       expect(renameConflictJson.error.code).toBe('PLAYBOOK_NAME_CONFLICT');
+      expect('details' in renameConflictJson.error).toBe(true);
     } else {
       throw new Error('Invalid rename conflict json output structure');
     }
@@ -323,6 +327,8 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       'updatedAt' in archiveJson.data
     ) {
       expect(archiveJson.data.playbookId).toBe(playbookId);
+      expect(typeof archiveJson.data.playbookId).toBe('string');
+      expect(archiveJson.data.playbookId).toMatch(UUID_PATTERN);
       expect(archiveJson.data.name).toBe('Playbook renombrado');
       expect(archiveJson.data.status).toBe('archived');
       expect(typeof archiveJson.data.archivedAt).toBe('string');
@@ -384,6 +390,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     ) {
       expect(archiveAgainJson.success).toBe(false);
       expect(archiveAgainJson.error.code).toBe('PLAYBOOK_ALREADY_ARCHIVED');
+      expect('details' in archiveAgainJson.error).toBe(true);
     } else {
       throw new Error('Invalid archive conflict json output structure');
     }
@@ -726,6 +733,25 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     expect(archiveSecondRes.status).toBe(0);
     expect(archiveSecondRes.stderr).toBe('');
     assertSafeOutput(archiveSecondRes.stdout);
+    const archiveSecondJson: unknown = JSON.parse(archiveSecondRes.stdout);
+    if (
+      archiveSecondJson !== null &&
+      typeof archiveSecondJson === 'object' &&
+      'success' in archiveSecondJson &&
+      archiveSecondJson.success === true &&
+      'data' in archiveSecondJson &&
+      archiveSecondJson.data !== null &&
+      typeof archiveSecondJson.data === 'object' &&
+      'playbookId' in archiveSecondJson.data &&
+      'status' in archiveSecondJson.data &&
+      'archivedAt' in archiveSecondJson.data
+    ) {
+      expect(archiveSecondJson.data.playbookId).toBe(playbookId2);
+      expect(typeof archiveSecondJson.data.playbookId).toBe('string');
+      expect(archiveSecondJson.data.playbookId).toMatch(UUID_PATTERN);
+      expect(archiveSecondJson.data.status).toBe('archived');
+      expect(typeof archiveSecondJson.data.archivedAt).toBe('string');
+    } else throw new Error('Invalid second archive json output structure');
     const archivedSourceConflictRes = runCli(
       [
         'playbook',
