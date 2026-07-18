@@ -74,12 +74,14 @@ export type {
 } from './playbook/index.js';
 export type {
   CreatePlaybookCommand,
+  RenamePlaybookCommand,
   GetPlaybookQuery,
   ListPlaybooksQuery,
   PlaybookOutput,
 } from './playbook/index.js';
 export {
   CreatePlaybookHandler,
+  RenamePlaybookHandler,
   GetPlaybookHandler,
   ListPlaybooksHandler,
   toPlaybookOutput,
