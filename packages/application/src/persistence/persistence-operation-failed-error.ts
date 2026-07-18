@@ -31,7 +31,8 @@ export type PersistenceOperation =
   | 'playbookSource.listByPlaybookId'
   | 'synchronizationRun.findStaleRunning'
   | 'synchronizationRun.listByPlaybookSourceId'
-  | 'playbookVersion.listByPlaybookId';
+  | 'playbookVersion.listByPlaybookId'
+  | 'playbook.list';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;

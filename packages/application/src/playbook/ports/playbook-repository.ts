@@ -1,6 +1,8 @@
 import type { Playbook, PlaybookId, WorkspaceId } from '@ai-playbook-engine/core';
 import type { Result } from '@ai-playbook-engine/shared';
 
+import type { Page, PaginationRequest } from '../../pagination/index.js';
+import type { PlaybookListFilter } from '../playbook-list-filter.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
 
 export interface FindPlaybookByNormalizedNameOptions {
@@ -18,4 +20,10 @@ export interface PlaybookRepository {
     normalizedName: string,
     options: FindPlaybookByNormalizedNameOptions,
   ): Promise<Result<Playbook | null, PersistenceOperationFailedError>>;
+
+  list(
+    workspaceId: WorkspaceId,
+    filter: PlaybookListFilter,
+    pagination: PaginationRequest,
+  ): Promise<Result<Page<Playbook>, PersistenceOperationFailedError>>;
 }
