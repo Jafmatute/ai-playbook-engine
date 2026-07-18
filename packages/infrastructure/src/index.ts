@@ -7,5 +7,11 @@ export type { MigrationResult, MigrationFailedError } from './postgresql/migrati
 export {
   PostgresWorkspaceRepository,
   PostgresPlaybookRepository,
+  PostgresPlaybookSourceRepository,
 } from './postgresql/repositories/index.js';
-export { mapRowToWorkspace, mapRowToPlaybook } from './postgresql/mapping/index.js';
+export {
+  mapRowToWorkspace,
+  mapRowToPlaybook,
+  mapRowToPlaybookSource,
+} from './postgresql/mapping/index.js';
+export type { PlaybookSourceRow } from './postgresql/mapping/index.js';

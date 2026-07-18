@@ -52,8 +52,13 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.value.appliedVersions).toEqual([1, 2]);
+      expect(result.value.appliedVersions).toEqual([1, 2, 3]);
     }
+
+    const sourcesTable = await pool.query<{ table_name: string }>(
+      "SELECT table_name FROM information_schema.tables WHERE table_name = 'playbook_sources'",
+    );
+    expect(sourcesTable.rows).toHaveLength(1);
 
     // Verify playbooks table column structure
     const colInfo = await pool.query<{
@@ -126,7 +131,7 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
     const result = await runMigrations(pool);
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.value.appliedVersions).toEqual([2]);
+      expect(result.value.appliedVersions).toEqual([2, 3]);
     }
 
     // 4. Verify the existing playbook got revision = 1
