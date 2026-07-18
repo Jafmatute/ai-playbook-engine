@@ -19,7 +19,8 @@ export type PersistenceOperation =
   | 'playbookVersion.findBySequence'
   | 'playbookVersion.findLatestByPlaybookId'
   | 'normalizationAttempt.findLatestByPlaybookVersionId'
-  | 'normalizationAttempt.listByPlaybookVersionId';
+  | 'normalizationAttempt.listByPlaybookVersionId'
+  | 'knowledgeItem.findBySourceStableKey';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;
