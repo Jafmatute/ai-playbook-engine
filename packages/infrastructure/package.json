@@ -1,0 +1,35 @@
+{
+  "name": "@ai-playbook-engine/infrastructure",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run src && tsc --project tsconfig.test.json --noEmit",
+    "test:unit": "vitest run src",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "clean": "rimraf dist tsconfig.tsbuildinfo"
+  },
+  "dependencies": {
+    "@ai-playbook-engine/application": "workspace:*",
+    "@ai-playbook-engine/core": "workspace:*",
+    "@ai-playbook-engine/shared": "workspace:*",
+    "@ai-playbook-engine/config": "workspace:*",
+    "pg": "^8.15.10"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.14"
+  }
+}
