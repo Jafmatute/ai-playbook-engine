@@ -16,6 +16,7 @@
     "declaration": true,
     "declarationMap": true,
     "isolatedModules": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "types": ["node"]
   }
 }

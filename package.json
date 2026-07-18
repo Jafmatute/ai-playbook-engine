@@ -19,6 +19,7 @@
     "typecheck": "tsc --build --pretty",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "cli": "pnpm --filter @ai-playbook-engine/cli start --",
     "clean": "pnpm -r --if-present clean",
     "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "ci": "pnpm format && pnpm format:check && pnpm lint && pnpm typecheck && pnpm build"

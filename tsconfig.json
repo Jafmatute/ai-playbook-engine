@@ -8,10 +8,16 @@
       "path": "./packages/core"
     },
     {
+      "path": "./packages/config"
+    },
+    {
       "path": "./packages/application"
     },
     {
-      "path": "./packages/config"
+      "path": "./packages/infrastructure"
+    },
+    {
+      "path": "./apps/cli"
     }
   ]
 }
