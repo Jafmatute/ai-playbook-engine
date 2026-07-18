@@ -1235,6 +1235,10 @@ describe('PlaybookVersionRepository', () => {
       expect(result.value.items[1]).toBe(seq2);
       expect(result.value.items[2]).toBe(seq1);
 
+      expect(result.value.items[0]?.versionSequence.value).toBe(3);
+      expect(result.value.items[1]?.versionSequence.value).toBe(2);
+      expect(result.value.items[2]?.versionSequence.value).toBe(1);
+
       for (const v of result.value.items) {
         expect(v.workspaceId).toBe(workspaceId.value);
         expect(v.playbookId).toBe(playbookId.value);
@@ -1287,6 +1291,11 @@ describe('PlaybookVersionRepository', () => {
 
       expect(result.value.items).toHaveLength(1);
       expect(result.value.items[0]).toBe(version);
+      expect(result.value.items[0]?.status).toBe('draft');
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(1);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(1);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
     });
@@ -1358,12 +1367,12 @@ describe('PlaybookVersionRepository', () => {
 
       expect(version.versionSequence.compare(versionSequenceToResult.value)).toBe(0);
 
+      const pagination: PaginationRequest = Object.freeze({ offset: 0, limit: 25 });
       const filter: PlaybookVersionListFilter = Object.freeze({
         versionSequenceTo: versionSequenceToResult.value,
       });
-      const repository = StubPlaybookVersionRepository.returningEmptyListByPlaybookIdPage(
-        Object.freeze({ offset: 0, limit: 25 }),
-      );
+      const repository =
+        StubPlaybookVersionRepository.returningEmptyListByPlaybookIdPage(pagination);
       const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
       if (!workspaceId.success) {
         throw new Error('Expected a valid workspace ID fixture.');
@@ -1377,7 +1386,7 @@ describe('PlaybookVersionRepository', () => {
         workspaceId.value,
         playbookId.value,
         filter,
-        Object.freeze({ offset: 0, limit: 25 }),
+        pagination,
       );
 
       expect(result.success).toBe(true);
@@ -1386,6 +1395,10 @@ describe('PlaybookVersionRepository', () => {
       }
 
       expect(result.value.items).toHaveLength(0);
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(25);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(0);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
       void version;
@@ -1514,12 +1527,12 @@ describe('PlaybookVersionRepository', () => {
         throw new Error('Expected a valid instant fixture.');
       }
 
+      const pagination: PaginationRequest = Object.freeze({ offset: 0, limit: 25 });
       const filter: PlaybookVersionListFilter = Object.freeze({
         publishedAtFrom: publishedAtFrom.value,
       });
-      const repository = StubPlaybookVersionRepository.returningEmptyListByPlaybookIdPage(
-        Object.freeze({ offset: 0, limit: 25 }),
-      );
+      const repository =
+        StubPlaybookVersionRepository.returningEmptyListByPlaybookIdPage(pagination);
       const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
       if (!workspaceId.success) {
         throw new Error('Expected a valid workspace ID fixture.');
@@ -1533,7 +1546,7 @@ describe('PlaybookVersionRepository', () => {
         workspaceId.value,
         playbookId.value,
         filter,
-        Object.freeze({ offset: 0, limit: 25 }),
+        pagination,
       );
 
       expect(result.success).toBe(true);
@@ -1542,6 +1555,10 @@ describe('PlaybookVersionRepository', () => {
       }
 
       expect(result.value.items).toHaveLength(0);
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(25);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(0);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
       void draftVersion;
@@ -1574,6 +1591,8 @@ describe('PlaybookVersionRepository', () => {
         throw new Error('Expected a valid playbook ID fixture.');
       }
 
+      expect(version.synchronizationSnapshotId).toBe(synchronizationSnapshotId);
+
       const result = await repository.listByPlaybookId(
         workspaceId.value,
         playbookId.value,
@@ -1586,8 +1605,10 @@ describe('PlaybookVersionRepository', () => {
         return;
       }
 
+      expect(result.value.items).toHaveLength(1);
       expect(result.value.items[0]).toBe(version);
       expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
     });
   });
 
@@ -1855,9 +1876,9 @@ describe('PlaybookVersionRepository', () => {
 
   describe('listByPlaybookId — playbook does not exist', () => {
     it('returns a frozen empty page when the playbook does not exist', async () => {
-      const repository = StubPlaybookVersionRepository.returningEmptyListByPlaybookIdPage(
-        Object.freeze({ offset: 0, limit: 25 }),
-      );
+      const pagination: PaginationRequest = Object.freeze({ offset: 0, limit: 25 });
+      const repository =
+        StubPlaybookVersionRepository.returningEmptyListByPlaybookIdPage(pagination);
       const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
       if (!workspaceId.success) {
         throw new Error('Expected a valid workspace ID fixture.');
@@ -1871,7 +1892,7 @@ describe('PlaybookVersionRepository', () => {
         workspaceId.value,
         nonExistentPlaybookId.value,
         Object.freeze({}),
-        Object.freeze({ offset: 0, limit: 25 }),
+        pagination,
       );
 
       expect(result.success).toBe(true);
@@ -1880,6 +1901,10 @@ describe('PlaybookVersionRepository', () => {
       }
 
       expect(result.value.items).toHaveLength(0);
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(25);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(0);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
     });
