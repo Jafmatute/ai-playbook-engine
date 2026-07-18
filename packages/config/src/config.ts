@@ -17,8 +17,9 @@ export const AI_PLAYBOOK_ENGINE_CLI_OUTPUT = 'AI_PLAYBOOK_ENGINE_CLI_OUTPUT';
 
 export type CliOutput = 'human' | 'json';
 
-export const VALID_OUTPUTS: CliOutput[] = ['human', 'json'];
 export const DEFAULT_OUTPUT: CliOutput = 'human';
+
+const CANONICAL_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface RawConfig {
   readonly environment: Environment;
@@ -27,29 +28,52 @@ export interface RawConfig {
   readonly cliOutput: CliOutput;
 }
 
+export interface ConfigOverrides {
+  readonly workspaceId?: string;
+  readonly cliOutput?: CliOutput;
+}
+
 export function loadConfig(
   reader: EnvReader,
+  overrides?: ConfigOverrides,
 ): Result<RawConfig, ConfigurationInvalidError | ConfigurationMissingError> {
   const envResult = readEnvironment(reader);
   if (!envResult.success) {
     return envResult;
   }
 
-  const databaseUrl = reader.get(AI_PLAYBOOK_ENGINE_DATABASE_URL);
+  const dbUrlResult = readDatabaseUrl(reader);
+  if (!dbUrlResult.success) {
+    return dbUrlResult;
+  }
 
-  const workspaceId = reader.get(AI_PLAYBOOK_ENGINE_WORKSPACE_ID);
+  const workspaceIdResult = readWorkspaceId(reader);
+  if (!workspaceIdResult.success) {
+    return workspaceIdResult;
+  }
 
   const outputResult = readOutput(reader);
   if (!outputResult.success) {
     return outputResult;
   }
 
+  const effectiveWorkspaceId = overrides?.workspaceId ?? workspaceIdResult.value;
+  if (effectiveWorkspaceId !== undefined && !isCanonicalUuid(effectiveWorkspaceId)) {
+    return err(
+      configurationInvalid(
+        `AI_PLAYBOOK_ENGINE_WORKSPACE_ID must be a canonical UUID. Received: "${effectiveWorkspaceId}".`,
+      ),
+    );
+  }
+
+  const effectiveOutput = overrides?.cliOutput ?? outputResult.value;
+
   return ok(
     Object.freeze({
       environment: envResult.value,
-      databaseUrl: databaseUrl !== undefined && databaseUrl.length > 0 ? databaseUrl : undefined,
-      workspaceId: workspaceId !== undefined && workspaceId.length > 0 ? workspaceId : undefined,
-      cliOutput: outputResult.value,
+      databaseUrl: dbUrlResult.value,
+      workspaceId: effectiveWorkspaceId,
+      cliOutput: effectiveOutput,
     }),
   );
 }
@@ -76,15 +100,56 @@ function readEnvironment(reader: EnvReader): Result<Environment, ConfigurationIn
     return ok(DEFAULT_ENVIRONMENT);
   }
 
-  if (!(VALID_ENVIRONMENTS as readonly string[]).includes(raw)) {
+  if (!isEnvironment(raw)) {
     return err(
       configurationInvalid(
-        `AI_PLAYBOOK_ENGINE_ENV must be one of: ${VALID_ENVIRONMENTS.join(', ')}. Received: "${raw}".`,
+        `AI_PLAYBOOK_ENGINE_ENV must be one of: ${VALID_ENVIRONMENTS.join(', ')}.`,
       ),
     );
   }
 
-  return ok(raw as Environment);
+  return ok(raw);
+}
+
+function readDatabaseUrl(reader: EnvReader): Result<string | undefined, ConfigurationInvalidError> {
+  const raw = reader.get(AI_PLAYBOOK_ENGINE_DATABASE_URL);
+  if (raw === undefined || raw.length === 0) {
+    return ok(undefined);
+  }
+
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return err(configurationInvalid(`AI_PLAYBOOK_ENGINE_DATABASE_URL must not be empty.`));
+  }
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== 'postgres:' && url.protocol !== 'postgresql:') {
+      return err(
+        configurationInvalid(
+          `AI_PLAYBOOK_ENGINE_DATABASE_URL must use postgres: or postgresql: protocol.`,
+        ),
+      );
+    }
+  } catch {
+    return err(configurationInvalid(`AI_PLAYBOOK_ENGINE_DATABASE_URL is not a valid URL.`));
+  }
+
+  return ok(trimmed);
+}
+
+function readWorkspaceId(reader: EnvReader): Result<string | undefined, ConfigurationInvalidError> {
+  const raw = reader.get(AI_PLAYBOOK_ENGINE_WORKSPACE_ID);
+  if (raw === undefined || raw.length === 0) {
+    return ok(undefined);
+  }
+
+  const trimmed = raw.trim().toLowerCase();
+  if (!isCanonicalUuid(trimmed)) {
+    return err(configurationInvalid(`AI_PLAYBOOK_ENGINE_WORKSPACE_ID must be a canonical UUID.`));
+  }
+
+  return ok(trimmed);
 }
 
 function readOutput(reader: EnvReader): Result<CliOutput, ConfigurationInvalidError> {
@@ -93,13 +158,21 @@ function readOutput(reader: EnvReader): Result<CliOutput, ConfigurationInvalidEr
     return ok(DEFAULT_OUTPUT);
   }
 
-  if (!(VALID_OUTPUTS as readonly string[]).includes(raw)) {
-    return err(
-      configurationInvalid(
-        `AI_PLAYBOOK_ENGINE_CLI_OUTPUT must be one of: ${VALID_OUTPUTS.join(', ')}. Received: "${raw}".`,
-      ),
-    );
+  if (!isCliOutput(raw)) {
+    return err(configurationInvalid(`AI_PLAYBOOK_ENGINE_CLI_OUTPUT must be one of: human, json.`));
   }
 
-  return ok(raw as CliOutput);
+  return ok(raw);
+}
+
+function isEnvironment(value: string): value is Environment {
+  return (VALID_ENVIRONMENTS as readonly string[]).includes(value);
+}
+
+function isCliOutput(value: string): value is CliOutput {
+  return value === 'human' || value === 'json';
+}
+
+function isCanonicalUuid(value: string): boolean {
+  return CANONICAL_UUID_PATTERN.test(value);
 }

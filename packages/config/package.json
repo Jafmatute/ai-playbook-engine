@@ -17,6 +17,8 @@
   "scripts": {
     "build": "tsc --build",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run src && tsc --project tsconfig.test.json --noEmit",
+    "test:unit": "vitest run src",
     "clean": "rimraf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {

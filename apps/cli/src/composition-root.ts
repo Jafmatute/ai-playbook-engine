@@ -1,4 +1,4 @@
-import type { RawConfig, CliOutput } from '@ai-playbook-engine/config';
+import type { RawConfig } from '@ai-playbook-engine/config';
 import { requireDatabaseUrl } from '@ai-playbook-engine/config';
 import { err, ok, type Result } from '@ai-playbook-engine/shared';
 
@@ -12,7 +12,7 @@ import {
   PostgresPlaybookRepository,
   runMigrations,
 } from '@ai-playbook-engine/infrastructure';
-import type { MigrationResult } from '@ai-playbook-engine/infrastructure';
+import type { MigrationResult, MigrationFailedError } from '@ai-playbook-engine/infrastructure';
 
 import {
   InitializeWorkspaceHandler,
@@ -21,7 +21,6 @@ import {
   GetPlaybookHandler,
   ListPlaybooksHandler,
 } from '@ai-playbook-engine/application';
-import type { PersistenceOperationFailedError } from '@ai-playbook-engine/application';
 
 export interface Services {
   readonly pool: DatabasePool;
@@ -30,20 +29,24 @@ export interface Services {
   readonly createPlaybook: CreatePlaybookHandler;
   readonly getPlaybook: GetPlaybookHandler;
   readonly listPlaybooks: ListPlaybooksHandler;
-  readonly migrate: () => Promise<Result<MigrationResult, PersistenceOperationFailedError>>;
+  readonly migrate: () => Promise<Result<MigrationResult, MigrationFailedError>>;
+}
+
+export interface BuildServicesError {
+  readonly kind: 'config';
+  readonly error: { readonly code: string; readonly message: string; readonly details: unknown };
 }
 
 export function buildServices(
   config: RawConfig,
-  cliOutput: CliOutput,
   cliWorkspaceIdOverride?: string,
-): Result<Services, string> {
+): Result<Services, BuildServicesError> {
   const dbUrlResult = requireDatabaseUrl(config);
   if (!dbUrlResult.success) {
-    return err(dbUrlResult.error.message);
+    return err({ kind: 'config', error: dbUrlResult.error });
   }
 
-  const pool = new DatabasePool(dbUrlResult.value);
+  const pool = new DatabasePool({ connectionString: dbUrlResult.value });
 
   const clock = new SystemClock();
   const workspaceIdGenerator = new CryptoWorkspaceIdGenerator();
@@ -80,7 +83,11 @@ export function buildServices(
     playbookRepository,
   );
 
-  const listPlaybooks = new ListPlaybooksHandler(currentWorkspaceProvider, playbookRepository);
+  const listPlaybooks = new ListPlaybooksHandler(
+    currentWorkspaceProvider,
+    workspaceRepository,
+    playbookRepository,
+  );
 
   return ok({
     pool,
