@@ -5,12 +5,20 @@ import type { RawConfig } from '@ai-playbook-engine/config';
 import { ExitCode } from './exit-codes.js';
 import { ok, err } from '@ai-playbook-engine/shared';
 import type { CliServices, RunCliDependencies } from './run-cli.js';
-import type { WorkspaceOutput, PlaybookOutput, Page } from '@ai-playbook-engine/application';
+import type {
+  WorkspaceOutput,
+  PlaybookOutput,
+  PlaybookSourceOutput,
+  Page,
+} from '@ai-playbook-engine/application';
 import {
+  enabledPlaybookSourceConflict,
+  playbookArchived,
   workspaceAlreadyInitialized,
   persistenceOperationFailed,
   playbookNotFound,
   playbookNameConflict,
+  playbookSourceTypeUnsupported,
   persistenceRevisionConflict,
   PersistenceRevision,
 } from '@ai-playbook-engine/application';
@@ -20,6 +28,7 @@ import type {
   PlaybookOperationNotAllowedError,
   PlaybookStateInvalidError,
 } from '@ai-playbook-engine/core';
+import { parsePlaybookId } from '@ai-playbook-engine/core';
 import { migrationFailed } from '@ai-playbook-engine/infrastructure';
 import type { BuildServicesError } from './composition-root.js';
 
@@ -39,6 +48,7 @@ interface MockServicesOverrides {
   readonly renamePlaybook?: CliServices['renamePlaybook'];
   readonly archivePlaybook?: CliServices['archivePlaybook'];
   readonly restorePlaybook?: CliServices['restorePlaybook'];
+  readonly registerPlaybookSource?: CliServices['registerPlaybookSource'];
   readonly getPlaybook?: CliServices['getPlaybook'];
   readonly listPlaybooks?: CliServices['listPlaybooks'];
 }
@@ -86,11 +96,41 @@ function createPlaybookPageFixture(
   };
 }
 
+function createPlaybookSourceOutputFixture(
+  overrides: Partial<PlaybookSourceOutput> = {},
+): PlaybookSourceOutput {
+  return {
+    playbookSourceId: '00000000-0000-0000-0000-000000000003',
+    workspaceId: '00000000-0000-0000-0000-000000000001',
+    playbookId: '00000000-0000-0000-0000-000000000002',
+    type: 'notion',
+    status: 'enabled',
+    externalRootReference: 'notion-root',
+    configurationReference: 'notion/main',
+    createdAt: '2026-07-12T10:00:00.000Z',
+    lastSuccessfulSynchronizationRunId: null,
+    lastSuccessfulSynchronizationAt: null,
+    lastFailedSynchronizationRunId: null,
+    lastFailedSynchronizationAt: null,
+    ...overrides,
+  };
+}
+
 function createPersistenceRevision(value: number): PersistenceRevision {
   const result = PersistenceRevision.from(value);
 
   if (!result.success) {
     throw new Error('Expected a valid persistence revision fixture.');
+  }
+
+  return result.value;
+}
+
+function createPlaybookId(value: string) {
+  const result = parsePlaybookId(value);
+
+  if (!result.success) {
+    throw new Error('Expected a valid playbook ID fixture.');
   }
 
   return result.value;
@@ -156,22 +196,8 @@ function createMockServices(overrides: MockServicesOverrides = {}): CliServices 
     restorePlaybook: overrides.restorePlaybook ?? {
       handle: async () => ok(createPlaybookOutputFixture()),
     },
-    registerPlaybookSource: {
-      handle: async () =>
-        ok({
-          playbookSourceId: '00000000-0000-0000-0000-000000000003',
-          workspaceId: '00000000-0000-0000-0000-000000000001',
-          playbookId: '00000000-0000-0000-0000-000000000002',
-          type: 'notion',
-          status: 'enabled',
-          externalRootReference: 'root',
-          configurationReference: 'config',
-          createdAt: '2026-07-12T10:00:00.000Z',
-          lastSuccessfulSynchronizationRunId: null,
-          lastSuccessfulSynchronizationAt: null,
-          lastFailedSynchronizationRunId: null,
-          lastFailedSynchronizationAt: null,
-        }),
+    registerPlaybookSource: overrides.registerPlaybookSource ?? {
+      handle: async () => ok(createPlaybookSourceOutputFixture()),
     },
     getPlaybook: overrides.getPlaybook ?? {
       handle: async () => ok(createPlaybookOutputFixture()),
@@ -1098,6 +1124,155 @@ describe('runCli playbook restore command', () => {
     ).toBe(ExitCode.UNEXPECTED_ERROR);
     expect(io.stderr).toContain('An unexpected error occurred.');
     expect(io.stderr).not.toContain('Secret restore failure');
+    expect(pool.closeCalled).toBe(1);
+  });
+});
+
+describe('runCli playbook source register command', () => {
+  const envReader = new MapEnvReader(
+    new Map([['AI_PLAYBOOK_ENGINE_DATABASE_URL', 'postgres://localhost:5432/db']]),
+  );
+  const args = [
+    'playbook',
+    'source',
+    'register',
+    '--playbook-id',
+    '00000000-0000-0000-0000-000000000002',
+    '--type',
+    'notion',
+    '--external-root-reference',
+    'notion-root',
+    '--configuration-reference',
+    'notion/main',
+  ];
+
+  it('includes help and rejects invalid input before building services', async () => {
+    const help = new MockIo();
+    expect(
+      await runCli(['--help'], envReader, help, createMockDependencies(createMockServices())),
+    ).toBe(ExitCode.SUCCESS);
+    expect(help.stdout).toContain(
+      'playbook source register  --playbook-id <uuid> --type <type>  Register a playbook source',
+    );
+
+    for (const invalid of [
+      ['playbook', 'source', 'register'],
+      ['playbook', 'source', 'register', '--playbook-id'],
+      ['playbook', 'source', 'register', '--playbook-id', 'id', '--type', 'notion'],
+      [
+        'playbook',
+        'source',
+        'register',
+        '--playbook-id',
+        'id',
+        '--type',
+        'notion',
+        '--external-root-reference',
+        'root',
+      ],
+      [...args, '--unexpected'],
+    ]) {
+      const dependencies = createMockDependencies(createMockServices());
+      expect(await runCli(invalid, envReader, new MockIo(), dependencies)).toBe(
+        ExitCode.INVALID_INPUT,
+      );
+      expect(dependencies.getBuildCalled()).toBe(0);
+    }
+  });
+
+  it('passes the exact command, renders safe human and JSON output, and closes once', async () => {
+    const pool = new MockPool();
+    const registerPlaybookSource: CliServices['registerPlaybookSource'] = {
+      handle: async (command) => {
+        expect(command).toEqual({
+          playbookId: '00000000-0000-0000-0000-000000000002',
+          type: 'notion',
+          externalRootReference: 'notion-root',
+          configurationReference: 'notion/main',
+        });
+        return ok(createPlaybookSourceOutputFixture());
+      },
+    };
+    const human = new MockIo();
+    expect(
+      await runCli(
+        args,
+        envReader,
+        human,
+        createMockDependencies(createMockServices({ pool, registerPlaybookSource })),
+      ),
+    ).toBe(ExitCode.SUCCESS);
+    expect(human.stdout).toContain('Playbook Source:');
+    expect(human.stdout).toContain('Configuration Reference:  notion/main');
+    expect(human.stdout).not.toMatch(/credential|secret|token/i);
+    expect(human.stderr).toBe('');
+    expect(pool.closeCalled).toBe(1);
+
+    const json = new MockIo();
+    expect(
+      await runCli(
+        [...args, '--output', 'json'],
+        envReader,
+        json,
+        createMockDependencies(createMockServices()),
+      ),
+    ).toBe(ExitCode.SUCCESS);
+    expect(JSON.parse(json.stdout)).toMatchObject({
+      success: true,
+      data: { playbookSourceId: '00000000-0000-0000-0000-000000000003' },
+    });
+    expect(json.stderr).toBe('');
+  });
+
+  it.each([
+    [playbookSourceTypeUnsupported('unsupported'), ExitCode.INVALID_INPUT],
+    [playbookNotFound(), ExitCode.NOT_FOUND],
+    [playbookArchived(createPlaybookId('00000000-0000-0000-0000-000000000002')), ExitCode.CONFLICT],
+    [
+      enabledPlaybookSourceConflict(createPlaybookId('00000000-0000-0000-0000-000000000002')),
+      ExitCode.CONFLICT,
+    ],
+    [persistenceOperationFailed('playbookSource.insert'), ExitCode.INFRASTRUCTURE_ERROR],
+  ])('maps real $0.code errors to exits and closes once', async (error, expected) => {
+    const pool = new MockPool();
+    const registerPlaybookSource: CliServices['registerPlaybookSource'] = {
+      handle: async () => err(error),
+    };
+    const io = new MockIo();
+
+    expect(
+      await runCli(
+        args,
+        envReader,
+        io,
+        createMockDependencies(createMockServices({ pool, registerPlaybookSource })),
+      ),
+    ).toBe(expected);
+    expect(io.stderr).toContain(error.message);
+    expect(io.stdout).toBe('');
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  it('closes once and preserves privacy when the handler throws in JSON mode', async () => {
+    const pool = new MockPool();
+    const registerPlaybookSource: CliServices['registerPlaybookSource'] = {
+      handle: async () => {
+        throw new Error('Secret source registration failure');
+      },
+    };
+    const io = new MockIo();
+
+    expect(
+      await runCli(
+        [...args, '--output', 'json'],
+        envReader,
+        io,
+        createMockDependencies(createMockServices({ pool, registerPlaybookSource })),
+      ),
+    ).toBe(ExitCode.UNEXPECTED_ERROR);
+    expect(io.stdout).toContain('An unexpected error occurred.');
+    expect(io.stdout).not.toContain('Secret source registration failure');
+    expect(io.stderr).toBe('');
     expect(pool.closeCalled).toBe(1);
   });
 });

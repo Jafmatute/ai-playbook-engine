@@ -583,5 +583,193 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     expect(showAfterRestoreAgainRes.stdout).toContain('Status:            active');
     expect(showAfterRestoreAgainRes.stdout).not.toContain('Archived At:');
     assertSafeOutput(showAfterRestoreAgainRes.stdout);
+
+    // 23. Register a source for the restored active Playbook.
+    const registerSourceRes = runCli(
+      [
+        'playbook',
+        'source',
+        'register',
+        '--playbook-id',
+        playbookId,
+        '--type',
+        'notion',
+        '--external-root-reference',
+        'notion-root-1',
+        '--configuration-reference',
+        'notion/main',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(registerSourceRes.status).toBe(0);
+    expect(registerSourceRes.stderr).toBe('');
+    assertSafeOutput(registerSourceRes.stdout);
+    const registerSourceJson: unknown = JSON.parse(registerSourceRes.stdout);
+    if (
+      registerSourceJson !== null &&
+      typeof registerSourceJson === 'object' &&
+      'success' in registerSourceJson &&
+      registerSourceJson.success === true &&
+      'data' in registerSourceJson &&
+      registerSourceJson.data !== null &&
+      typeof registerSourceJson.data === 'object' &&
+      'playbookSourceId' in registerSourceJson.data &&
+      typeof registerSourceJson.data.playbookSourceId === 'string' &&
+      'workspaceId' in registerSourceJson.data &&
+      'playbookId' in registerSourceJson.data &&
+      'type' in registerSourceJson.data &&
+      'status' in registerSourceJson.data &&
+      'externalRootReference' in registerSourceJson.data &&
+      'configurationReference' in registerSourceJson.data &&
+      'createdAt' in registerSourceJson.data &&
+      'lastSuccessfulSynchronizationRunId' in registerSourceJson.data &&
+      'lastSuccessfulSynchronizationAt' in registerSourceJson.data &&
+      'lastFailedSynchronizationRunId' in registerSourceJson.data &&
+      'lastFailedSynchronizationAt' in registerSourceJson.data
+    ) {
+      expect(registerSourceJson.data.playbookSourceId).not.toBe('');
+      expect(registerSourceJson.data.workspaceId).toBe(workspaceId);
+      expect(registerSourceJson.data.playbookId).toBe(playbookId);
+      expect(registerSourceJson.data.type).toBe('notion');
+      expect(registerSourceJson.data.status).toBe('enabled');
+      expect(registerSourceJson.data.externalRootReference).toBe('notion-root-1');
+      expect(registerSourceJson.data.configurationReference).toBe('notion/main');
+      expect(typeof registerSourceJson.data.createdAt).toBe('string');
+      expect(registerSourceJson.data.lastSuccessfulSynchronizationRunId).toBeNull();
+      expect(registerSourceJson.data.lastSuccessfulSynchronizationAt).toBeNull();
+      expect(registerSourceJson.data.lastFailedSynchronizationRunId).toBeNull();
+      expect(registerSourceJson.data.lastFailedSynchronizationAt).toBeNull();
+      expect(Object.keys(registerSourceJson.data).sort()).toEqual([
+        'configurationReference',
+        'createdAt',
+        'externalRootReference',
+        'lastFailedSynchronizationRunId',
+        'lastFailedSynchronizationAt',
+        'lastSuccessfulSynchronizationRunId',
+        'lastSuccessfulSynchronizationAt',
+        'playbookId',
+        'playbookSourceId',
+        'status',
+        'type',
+        'workspaceId',
+      ]);
+    } else throw new Error('Invalid source registration json output structure');
+
+    // 24. Reject a second enabled source for the same Playbook.
+    const sourceConflictRes = runCli(
+      [
+        'playbook',
+        'source',
+        'register',
+        '--playbook-id',
+        playbookId,
+        '--type',
+        'notion',
+        '--external-root-reference',
+        'notion-root-conflict',
+        '--configuration-reference',
+        'notion/conflict',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(sourceConflictRes.status).toBe(4);
+    expect(sourceConflictRes.stderr).toBe('');
+    assertSafeOutput(sourceConflictRes.stdout);
+    const sourceConflictJson: unknown = JSON.parse(sourceConflictRes.stdout);
+    if (
+      sourceConflictJson !== null &&
+      typeof sourceConflictJson === 'object' &&
+      'success' in sourceConflictJson &&
+      'error' in sourceConflictJson &&
+      sourceConflictJson.error !== null &&
+      typeof sourceConflictJson.error === 'object' &&
+      'code' in sourceConflictJson.error
+    ) {
+      expect(sourceConflictJson.success).toBe(false);
+      expect(sourceConflictJson.error.code).toBe('ENABLED_PLAYBOOK_SOURCE_CONFLICT');
+    } else throw new Error('Invalid source conflict json output structure');
+
+    // 25. Register a source for the second active Playbook.
+    const registerSource2Res = runCli(
+      [
+        'playbook',
+        'source',
+        'register',
+        '--playbook-id',
+        playbookId2,
+        '--type',
+        'notion',
+        '--external-root-reference',
+        'notion-root-2',
+        '--configuration-reference',
+        'notion/second',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(registerSource2Res.status).toBe(0);
+    expect(registerSource2Res.stderr).toBe('');
+    assertSafeOutput(registerSource2Res.stdout);
+
+    // 26. An archived Playbook rejects source registration before checking existing sources.
+    const archiveSecondRes = runCli(
+      ['playbook', 'archive', '--id', playbookId2, '--output', 'json'],
+      {
+        AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+      },
+    );
+    expect(archiveSecondRes.status).toBe(0);
+    expect(archiveSecondRes.stderr).toBe('');
+    assertSafeOutput(archiveSecondRes.stdout);
+    const archivedSourceConflictRes = runCli(
+      [
+        'playbook',
+        'source',
+        'register',
+        '--playbook-id',
+        playbookId2,
+        '--type',
+        'notion',
+        '--external-root-reference',
+        'notion-root-archived',
+        '--configuration-reference',
+        'notion/archived',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(archivedSourceConflictRes.status).toBe(4);
+    expect(archivedSourceConflictRes.stderr).toBe('');
+    assertSafeOutput(archivedSourceConflictRes.stdout);
+    const archivedSourceConflictJson: unknown = JSON.parse(archivedSourceConflictRes.stdout);
+    if (
+      archivedSourceConflictJson !== null &&
+      typeof archivedSourceConflictJson === 'object' &&
+      'success' in archivedSourceConflictJson &&
+      'error' in archivedSourceConflictJson &&
+      archivedSourceConflictJson.error !== null &&
+      typeof archivedSourceConflictJson.error === 'object' &&
+      'code' in archivedSourceConflictJson.error
+    ) {
+      expect(archivedSourceConflictJson.success).toBe(false);
+      expect(archivedSourceConflictJson.error.code).toBe('PLAYBOOK_ARCHIVED');
+    } else throw new Error('Invalid archived source conflict json output structure');
+
+    // 27. The rejected registration leaves the archived Playbook unchanged.
+    const showAfterArchivedSourceConflictRes = runCli(['playbook', 'show', '--id', playbookId2], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(showAfterArchivedSourceConflictRes.status).toBe(0);
+    expect(showAfterArchivedSourceConflictRes.stderr).toBe('');
+    expect(showAfterArchivedSourceConflictRes.stdout).toContain('Segundo Playbook liberado');
+    expect(showAfterArchivedSourceConflictRes.stdout).toContain('Status:            archived');
+    expect(showAfterArchivedSourceConflictRes.stdout).toContain('Archived At:');
+    assertSafeOutput(showAfterArchivedSourceConflictRes.stdout);
   });
 });

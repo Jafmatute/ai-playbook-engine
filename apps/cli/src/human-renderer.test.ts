@@ -29,11 +29,16 @@ describe('renderPlaybookSource', () => {
   it('renders all fields and null synchronization metadata as (none)', () => {
     const result = renderPlaybookSource(sourceFixture);
     expect(result).toContain('Playbook Source:');
-    expect(result).toContain(sourceFixture.playbookSourceId);
-    expect(result).toContain(sourceFixture.playbookId);
-    expect(result).toContain('notion');
-    expect(result).toContain('notion-root-page');
-    expect(result).toContain('notion/main');
+    expect(result).toContain(`ID:                       ${sourceFixture.playbookSourceId}`);
+    expect(result).toContain(`Playbook ID:              ${sourceFixture.playbookId}`);
+    expect(result).toContain('Type:                     notion');
+    expect(result).toContain('Status:                   enabled');
+    expect(result).toContain('External Root Reference:  notion-root-page');
+    expect(result).toContain('Configuration Reference:  notion/main');
+    expect(result).toContain('Last Successful Run ID:   (none)');
+    expect(result).toContain('Last Successful At:       (none)');
+    expect(result).toContain('Last Failed Run ID:       (none)');
+    expect(result).toContain('Last Failed At:           (none)');
     expect(result.match(/\(none\)/g)).toHaveLength(4);
   });
 
@@ -45,8 +50,10 @@ describe('renderPlaybookSource', () => {
       lastFailedSynchronizationRunId: 'run-failed',
       lastFailedSynchronizationAt: '2026-07-18T12:00:00.000Z',
     });
-    expect(result).toContain('run-success');
-    expect(result).toContain('run-failed');
+    expect(result).toContain('Last Successful Run ID:   run-success');
+    expect(result).toContain('Last Successful At:       2026-07-18T11:00:00.000Z');
+    expect(result).toContain('Last Failed Run ID:       run-failed');
+    expect(result).toContain('Last Failed At:           2026-07-18T12:00:00.000Z');
     expect(result).not.toMatch(/revision|token|credential|secret/i);
   });
 });
