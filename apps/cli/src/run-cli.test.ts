@@ -1248,6 +1248,13 @@ describe('runCli playbook source register command', () => {
       ],
     ],
     ['an unknown flag', [...args, '--unexpected']],
+    [
+      'a missing type',
+      ['playbook', 'source', 'register', '--playbook-id', '00000000-0000-0000-0000-000000000002'],
+    ],
+    ['the forbidden --id flag', [...args, '--id', '00000000-0000-0000-0000-000000000002']],
+    ['the forbidden --status flag', [...args, '--status', 'disabled']],
+    ['the forbidden --token flag', [...args, '--token', 'secret-value']],
   ])('rejects %s before building services', async (_scenario, invalid) => {
     const dependencies = createMockDependencies(createMockServices());
     expect(await runCli(invalid, envReader, new MockIo(), dependencies)).toBe(
@@ -1305,9 +1312,41 @@ describe('runCli playbook source register command', () => {
       parsed.data !== null &&
       typeof parsed.data === 'object' &&
       'playbookSourceId' in parsed.data &&
-      typeof parsed.data.playbookSourceId === 'string'
+      typeof parsed.data.playbookSourceId === 'string' &&
+      'workspaceId' in parsed.data &&
+      typeof parsed.data.workspaceId === 'string' &&
+      'playbookId' in parsed.data &&
+      typeof parsed.data.playbookId === 'string' &&
+      'type' in parsed.data &&
+      typeof parsed.data.type === 'string' &&
+      'status' in parsed.data &&
+      typeof parsed.data.status === 'string' &&
+      'externalRootReference' in parsed.data &&
+      typeof parsed.data.externalRootReference === 'string' &&
+      'configurationReference' in parsed.data &&
+      typeof parsed.data.configurationReference === 'string' &&
+      'createdAt' in parsed.data &&
+      typeof parsed.data.createdAt === 'string' &&
+      'lastSuccessfulSynchronizationRunId' in parsed.data &&
+      'lastSuccessfulSynchronizationAt' in parsed.data &&
+      'lastFailedSynchronizationRunId' in parsed.data &&
+      'lastFailedSynchronizationAt' in parsed.data
     ) {
       expect(parsed.data.playbookSourceId).toBe('00000000-0000-0000-0000-000000000003');
+      expect(parsed.data.workspaceId).toBe('00000000-0000-0000-0000-000000000001');
+      expect(parsed.data.playbookId).toBe('00000000-0000-0000-0000-000000000002');
+      expect(parsed.data.type).toBe('notion');
+      expect(parsed.data.status).toBe('enabled');
+      expect(parsed.data.externalRootReference).toBe('notion-root');
+      expect(parsed.data.configurationReference).toBe('notion/main');
+      expect(parsed.data.lastSuccessfulSynchronizationRunId).toBeNull();
+      expect(parsed.data.lastSuccessfulSynchronizationAt).toBeNull();
+      expect(parsed.data.lastFailedSynchronizationRunId).toBeNull();
+      expect(parsed.data.lastFailedSynchronizationAt).toBeNull();
+      expect('revision' in parsed.data).toBe(false);
+      expect('token' in parsed.data).toBe(false);
+      expect('credential' in parsed.data).toBe(false);
+      expect('secret' in parsed.data).toBe(false);
     } else {
       throw new Error('Invalid source registration JSON success output structure.');
     }

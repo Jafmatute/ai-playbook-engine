@@ -51,6 +51,7 @@ describe('renderPlaybookSource', () => {
     expect(result).toContain('Last Failed Run ID:       (none)');
     expect(result).toContain('Last Failed At:           (none)');
     expect(result.match(/\(none\)/g)).toHaveLength(4);
+    expect(result).not.toMatch(/revision|token|credential|secret/i);
   });
 
   it('renders synchronization history and excludes sensitive fields', () => {

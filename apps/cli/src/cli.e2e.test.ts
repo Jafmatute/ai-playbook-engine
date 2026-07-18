@@ -769,10 +769,40 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       typeof registerSource2Json.data === 'object' &&
       'playbookSourceId' in registerSource2Json.data &&
       typeof registerSource2Json.data.playbookSourceId === 'string' &&
-      'playbookId' in registerSource2Json.data
+      'workspaceId' in registerSource2Json.data &&
+      typeof registerSource2Json.data.workspaceId === 'string' &&
+      'playbookId' in registerSource2Json.data &&
+      typeof registerSource2Json.data.playbookId === 'string' &&
+      'type' in registerSource2Json.data &&
+      typeof registerSource2Json.data.type === 'string' &&
+      'status' in registerSource2Json.data &&
+      typeof registerSource2Json.data.status === 'string' &&
+      'externalRootReference' in registerSource2Json.data &&
+      typeof registerSource2Json.data.externalRootReference === 'string' &&
+      'configurationReference' in registerSource2Json.data &&
+      typeof registerSource2Json.data.configurationReference === 'string' &&
+      'createdAt' in registerSource2Json.data &&
+      typeof registerSource2Json.data.createdAt === 'string'
     ) {
       expect(registerSource2Json.data.playbookSourceId).toMatch(UUID_PATTERN);
+
+      expect(registerSource2Json.data.workspaceId).toBe(workspaceId);
+
       expect(registerSource2Json.data.playbookId).toBe(playbookId2);
+
+      expect(registerSource2Json.data.type).toBe('notion');
+      expect(registerSource2Json.data.status).toBe('enabled');
+
+      expect(registerSource2Json.data.externalRootReference).toBe('notion-root-2');
+
+      expect(registerSource2Json.data.configurationReference).toBe('notion/second');
+
+      expectIsoTimestamp(registerSource2Json.data.createdAt);
+
+      expect('revision' in registerSource2Json.data).toBe(false);
+      expect('token' in registerSource2Json.data).toBe(false);
+      expect('credential' in registerSource2Json.data).toBe(false);
+      expect('secret' in registerSource2Json.data).toBe(false);
     } else {
       throw new Error('Invalid second source registration JSON success output structure.');
     }
@@ -839,6 +869,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     ) {
       expect(archivedSourceConflictJson.success).toBe(false);
       expect(archivedSourceConflictJson.error.code).toBe('PLAYBOOK_ARCHIVED');
+      expect(archivedSourceConflictJson.error.code).not.toBe('ENABLED_PLAYBOOK_SOURCE_CONFLICT');
       if (
         'details' in archivedSourceConflictJson.error &&
         archivedSourceConflictJson.error.details !== null &&
@@ -860,6 +891,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     expect(showAfterArchivedSourceConflictRes.stdout).toContain('Segundo Playbook liberado');
     expect(showAfterArchivedSourceConflictRes.stdout).toContain('Status:            archived');
     expect(showAfterArchivedSourceConflictRes.stdout).toContain('Archived At:');
+    expect(showAfterArchivedSourceConflictRes.stdout).toContain(playbookId2);
     assertSafeOutput(showAfterArchivedSourceConflictRes.stdout);
   });
 });
