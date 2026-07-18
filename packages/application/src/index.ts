@@ -1,7 +1,21 @@
 export const APPLICATION_PACKAGE_NAME = '@ai-playbook-engine/application' as const;
 
-export { PERSISTENCE_OPERATION_FAILED, persistenceOperationFailed } from './persistence/index.js';
-export type { PersistenceOperation, PersistenceOperationFailedError } from './persistence/index.js';
+export {
+  PERSISTENCE_OPERATION_FAILED,
+  persistenceOperationFailed,
+  PersistenceRevision,
+  PERSISTENCE_REVISION_INVALID,
+  createPersistedAggregate,
+  PERSISTENCE_REVISION_CONFLICT,
+  persistenceRevisionConflict,
+} from './persistence/index.js';
+export type {
+  PersistenceOperation,
+  PersistenceOperationFailedError,
+  PersistenceRevisionInvalidError,
+  PersistedAggregate,
+  PersistenceRevisionConflictError,
+} from './persistence/index.js';
 
 // Ports
 export type {
@@ -56,6 +70,7 @@ export type {
   PlaybookRepository,
   FindPlaybookByNormalizedNameOptions,
   PlaybookListFilter,
+  PlaybookRepositoryUpdateError,
 } from './playbook/index.js';
 export type {
   CreatePlaybookCommand,

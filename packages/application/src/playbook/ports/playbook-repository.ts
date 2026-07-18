@@ -3,8 +3,19 @@ import type { Result } from '@ai-playbook-engine/shared';
 
 import type { Page, PaginationRequest } from '../../pagination/index.js';
 import type { PlaybookListFilter } from '../playbook-list-filter.js';
-import type { PersistenceOperationFailedError } from '../../persistence/index.js';
-import type { PlaybookNameConflictError } from '../../errors/index.js';
+import type {
+  PersistenceOperationFailedError,
+  PersistedAggregate,
+  PersistenceRevision,
+  PersistenceRevisionConflictError,
+} from '../../persistence/index.js';
+import type { PlaybookNameConflictError, PlaybookNotFoundError } from '../../errors/index.js';
+
+export type PlaybookRepositoryUpdateError =
+  | PlaybookNotFoundError
+  | PlaybookNameConflictError
+  | PersistenceRevisionConflictError
+  | PersistenceOperationFailedError;
 
 export interface FindPlaybookByNormalizedNameOptions {
   readonly includeArchived: boolean;
@@ -14,7 +25,7 @@ export interface PlaybookRepository {
   findById(
     workspaceId: WorkspaceId,
     playbookId: PlaybookId,
-  ): Promise<Result<Playbook | null, PersistenceOperationFailedError>>;
+  ): Promise<Result<PersistedAggregate<Playbook> | null, PersistenceOperationFailedError>>;
 
   findByNormalizedName(
     workspaceId: WorkspaceId,
@@ -30,5 +41,12 @@ export interface PlaybookRepository {
 
   insert(
     playbook: Playbook,
-  ): Promise<Result<void, PlaybookNameConflictError | PersistenceOperationFailedError>>;
+  ): Promise<
+    Result<PersistenceRevision, PlaybookNameConflictError | PersistenceOperationFailedError>
+  >;
+
+  update(
+    playbook: Playbook,
+    expectedRevision: PersistenceRevision,
+  ): Promise<Result<PersistenceRevision, PlaybookRepositoryUpdateError>>;
 }

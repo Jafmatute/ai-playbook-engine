@@ -73,6 +73,6 @@ export class GetPlaybookHandler {
       return err(playbookNotFound());
     }
 
-    return ok(toPlaybookOutput(playbookResult.value));
+    return ok(toPlaybookOutput(playbookResult.value.aggregate));
   }
 }

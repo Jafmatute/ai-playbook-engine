@@ -120,6 +120,10 @@ function copyFrozenPage(page: Page<Playbook>): Page<Playbook> {
   });
 }
 
+import { PersistenceRevision } from '../../persistence/index.js';
+import type { PersistedAggregate } from '../../persistence/index.js';
+import type { PlaybookRepositoryUpdateError } from '../ports/playbook-repository.js';
+
 class StubPlaybookRepository implements PlaybookRepository {
   readonly #listResult: ListStubResult;
   #listCall: ListCall | null = null;
@@ -132,7 +136,9 @@ class StubPlaybookRepository implements PlaybookRepository {
     return this.#listCall;
   }
 
-  async findById(): Promise<Result<Playbook | null, PersistenceOperationFailedError>> {
+  async findById(): Promise<
+    Result<PersistedAggregate<Playbook> | null, PersistenceOperationFailedError>
+  > {
     return ok(null);
   }
 
@@ -155,8 +161,23 @@ class StubPlaybookRepository implements PlaybookRepository {
     }
   }
 
-  async insert(): Promise<Result<void, PersistenceOperationFailedError>> {
-    return ok(undefined);
+  async insert(): Promise<Result<PersistenceRevision, PersistenceOperationFailedError>> {
+    const rev = PersistenceRevision.from(1);
+    if (!rev.success) {
+      return err(persistenceOperationFailed('playbook.insert'));
+    }
+    return ok(rev.value);
+  }
+
+  async update(
+    _playbook: Playbook,
+    _expectedRevision: PersistenceRevision,
+  ): Promise<Result<PersistenceRevision, PlaybookRepositoryUpdateError>> {
+    const rev = PersistenceRevision.from(2);
+    if (!rev.success) {
+      return err(persistenceOperationFailed('playbook.update'));
+    }
+    return ok(rev.value);
   }
 }
 

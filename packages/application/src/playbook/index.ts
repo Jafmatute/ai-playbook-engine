@@ -1,6 +1,7 @@
 export type {
   PlaybookRepository,
   FindPlaybookByNormalizedNameOptions,
+  PlaybookRepositoryUpdateError,
 } from './ports/playbook-repository.js';
 export type { PlaybookListFilter } from './playbook-list-filter.js';
 export type { CreatePlaybookCommand } from './commands/index.js';

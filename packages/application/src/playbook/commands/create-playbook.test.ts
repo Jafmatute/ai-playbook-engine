@@ -94,6 +94,11 @@ class StubWorkspaceRepository implements WorkspaceRepository {
   }
 }
 
+import { PersistenceRevision } from '../../persistence/index.js';
+import type { PersistedAggregate } from '../../persistence/index.js';
+import type { PlaybookRepositoryUpdateError } from '../ports/playbook-repository.js';
+import type { Page } from '../../pagination/index.js';
+
 // ---------------------------------------------------------------------------
 // Stub: PlaybookRepository
 // ---------------------------------------------------------------------------
@@ -120,7 +125,9 @@ class StubPlaybookRepository implements PlaybookRepository {
     this.#insertResult = insertResult;
   }
 
-  async findById(): Promise<Result<Playbook | null, PersistenceOperationFailedError>> {
+  async findById(): Promise<
+    Result<PersistedAggregate<Playbook> | null, PersistenceOperationFailedError>
+  > {
     return ok(null);
   }
 
@@ -135,26 +142,37 @@ class StubPlaybookRepository implements PlaybookRepository {
     }
   }
 
-  async list(): Promise<
-    Result<
-      { items: Playbook[]; offset: number; limit: number; hasMore: boolean; totalCount: number },
-      PersistenceOperationFailedError
-    >
-  > {
+  async list(): Promise<Result<Page<Playbook>, PersistenceOperationFailedError>> {
     return ok({ items: [], offset: 0, limit: 25, hasMore: false, totalCount: 0 });
   }
 
   async insert(): Promise<
-    Result<void, PlaybookNameConflictError | PersistenceOperationFailedError>
+    Result<PersistenceRevision, PlaybookNameConflictError | PersistenceOperationFailedError>
   > {
     switch (this.#insertResult.kind) {
-      case 'ok':
-        return ok(undefined);
+      case 'ok': {
+        const rev = PersistenceRevision.from(1);
+        if (!rev.success) {
+          return err(persistenceOperationFailed('playbook.insert'));
+        }
+        return ok(rev.value);
+      }
       case 'conflict':
         return err(playbookNameConflict());
       case 'error':
         return err(this.#insertResult.error);
     }
+  }
+
+  async update(
+    _playbook: Playbook,
+    _expectedRevision: PersistenceRevision,
+  ): Promise<Result<PersistenceRevision, PlaybookRepositoryUpdateError>> {
+    const rev = PersistenceRevision.from(2);
+    if (!rev.success) {
+      return err(persistenceOperationFailed('playbook.update'));
+    }
+    return ok(rev.value);
   }
 }
 

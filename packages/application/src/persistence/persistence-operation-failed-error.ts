@@ -7,6 +7,7 @@ export type PersistenceOperation =
   | 'playbook.findById'
   | 'playbook.list'
   | 'playbook.insert'
+  | 'playbook.update'
   | 'playbook.findByNormalizedName'
   | 'playbookSource.findById'
   | 'playbookSource.findEnabledByPlaybookId'

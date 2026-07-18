@@ -9,6 +9,7 @@ const operations = [
   'playbook.findById',
   'playbook.list',
   'playbook.insert',
+  'playbook.update',
   'playbookSource.findById',
   'synchronizationRun.findById',
   'playbookVersion.findById',
