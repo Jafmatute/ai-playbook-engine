@@ -36,17 +36,14 @@ function runCli(
 
 function assertSafeOutput(output: string): void {
   if (!testDbUrl) return;
-  try {
-    const urlObj = new URL(testDbUrl);
-    if (urlObj.password) {
-      expect(output).not.toContain(urlObj.password);
-    }
-    if (urlObj.username) {
-      expect(output).not.toContain(urlObj.username);
-    }
-  } catch {
-    // Ignore URL parsing errors
+  const urlObj = new URL(testDbUrl);
+  if (urlObj.password) {
+    expect(output).not.toContain(urlObj.password);
   }
+  if (urlObj.username) {
+    expect(output).not.toContain(urlObj.username);
+  }
+  expect(output).not.toContain(testDbUrl);
 }
 
 describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
@@ -55,27 +52,37 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       throw new Error('TEST_DATABASE_URL is not set');
     }
 
-    // 1. Reset test database
+    // 1. Reset test database with pool cleanup guarantees
     const pool = new pg.Pool({ connectionString: testDbUrl });
-    await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
-    await pool.end();
+    try {
+      await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+    } finally {
+      await pool.end();
+    }
 
     // 2. database migrate
     const migrateRes = runCli(['database', 'migrate']);
     expect(migrateRes.status).toBe(0);
+    expect(migrateRes.stderr).toBe('');
     assertSafeOutput(migrateRes.stdout);
-    assertSafeOutput(migrateRes.stderr);
 
     // 3. workspace initialize --output json
-    const initRes = runCli(['workspace', 'initialize', '--name', 'Workspace con espacios', '--output', 'json']);
+    const initRes = runCli([
+      'workspace',
+      'initialize',
+      '--name',
+      'Workspace con espacios',
+      '--output',
+      'json',
+    ]);
     expect(initRes.status).toBe(0);
+    expect(initRes.stderr).toBe('');
     assertSafeOutput(initRes.stdout);
-    assertSafeOutput(initRes.stderr);
 
     const initJson: unknown = JSON.parse(initRes.stdout);
     expect(initJson).not.toBeNull();
     expect(typeof initJson).toBe('object');
-    
+
     let workspaceId = '';
     if (
       initJson !== null &&
@@ -98,18 +105,21 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
     });
     expect(showRes.status).toBe(0);
+    expect(showRes.stderr).toBe('');
     expect(showRes.stdout).toContain('Workspace con espacios');
     expect(showRes.stdout).toContain(workspaceId);
     assertSafeOutput(showRes.stdout);
-    assertSafeOutput(showRes.stderr);
 
     // 5. playbook create --output json
-    const createRes = runCli(['playbook', 'create', '--name', 'Playbook con espacios', '--output', 'json'], {
-      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
-    });
+    const createRes = runCli(
+      ['playbook', 'create', '--name', 'Playbook con espacios', '--output', 'json'],
+      {
+        AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+      },
+    );
     expect(createRes.status).toBe(0);
+    expect(createRes.stderr).toBe('');
     assertSafeOutput(createRes.stdout);
-    assertSafeOutput(createRes.stderr);
 
     const createJson: unknown = JSON.parse(createRes.stdout);
     expect(createJson).not.toBeNull();
@@ -137,18 +147,18 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
     });
     expect(listRes.status).toBe(0);
+    expect(listRes.stderr).toBe('');
     expect(listRes.stdout).toContain('Playbook con espacios');
     assertSafeOutput(listRes.stdout);
-    assertSafeOutput(listRes.stderr);
 
     // 7. playbook show (human output, verify fetching playbook by ID works)
     const showPbRes = runCli(['playbook', 'show', '--id', playbookId], {
       AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
     });
     expect(showPbRes.status).toBe(0);
+    expect(showPbRes.stderr).toBe('');
     expect(showPbRes.stdout).toContain('Playbook con espacios');
     expect(showPbRes.stdout).toContain(playbookId);
     assertSafeOutput(showPbRes.stdout);
-    assertSafeOutput(showPbRes.stderr);
   });
 });
