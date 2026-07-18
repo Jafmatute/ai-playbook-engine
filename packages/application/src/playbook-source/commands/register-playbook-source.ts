@@ -44,7 +44,7 @@ export interface RegisterPlaybookSourceCommand {
   readonly externalRootReference: string;
   readonly configurationReference: string;
 }
-type RegisterError =
+export type RegisterPlaybookSourceError =
   | IdentifierError
   | PlaybookSourceTypeUnsupportedError
   | PlaybookSourceExternalRootReferenceError
@@ -67,7 +67,7 @@ export class RegisterPlaybookSourceHandler {
   ) {}
   async handle(
     command: RegisterPlaybookSourceCommand,
-  ): Promise<Result<PlaybookSourceOutput, RegisterError>> {
+  ): Promise<Result<PlaybookSourceOutput, RegisterPlaybookSourceError>> {
     const id = parsePlaybookId(command.playbookId);
     if (!id.success) return id;
     if (!isPlaybookSourceType(command.type))

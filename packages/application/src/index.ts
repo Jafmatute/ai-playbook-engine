@@ -107,6 +107,7 @@ export type {
   PlaybookSourceRepositoryInsertError,
   PlaybookSourceOutput,
   RegisterPlaybookSourceCommand,
+  RegisterPlaybookSourceError,
 } from './playbook-source/index.js';
 export { toPlaybookSourceOutput, RegisterPlaybookSourceHandler } from './playbook-source/index.js';
 export type {
