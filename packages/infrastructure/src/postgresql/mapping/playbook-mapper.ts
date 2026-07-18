@@ -1,43 +1,60 @@
-import type { Playbook } from '@ai-playbook-engine/core';
 import {
   Instant,
-  PlaybookName,
   parsePlaybookId,
   parsePlaybookVersionId,
   parseWorkspaceId,
+  PlaybookName,
 } from '@ai-playbook-engine/core';
 import { Playbook as PlaybookAggregate } from '@ai-playbook-engine/core';
+import type { Playbook } from '@ai-playbook-engine/core';
 
-export function mapRowToPlaybook(row: Record<string, unknown>): Playbook | null {
+export interface PlaybookRow {
+  readonly playbook_id: string;
+  readonly workspace_id: string;
+  readonly name: string;
+  readonly normalized_name: string;
+  readonly status: string;
+  readonly description: string | null;
+  readonly active_version_id: string | null;
+  readonly created_at: Date;
+  readonly updated_at: Date;
+  readonly archived_at: Date | null;
+}
+
+export function mapRowToPlaybook(row: PlaybookRow): Playbook | null {
   try {
-    const playbookIdResult = parsePlaybookId(String(row.playbook_id ?? ''));
+    const playbookIdResult = parsePlaybookId(row.playbook_id);
     if (!playbookIdResult.success) {
       return null;
     }
 
-    const workspaceIdResult = parseWorkspaceId(String(row.workspace_id ?? ''));
+    const workspaceIdResult = parseWorkspaceId(row.workspace_id);
     if (!workspaceIdResult.success) {
       return null;
     }
 
-    const nameResult = PlaybookName.create(String(row.name ?? ''));
+    const nameResult = PlaybookName.create(row.name);
     if (!nameResult.success) {
       return null;
     }
 
-    const createdAtResult = Instant.parse(String(row.created_at ?? ''));
+    if (nameResult.value.normalizedValue !== row.normalized_name) {
+      return null;
+    }
+
+    const createdAtResult = Instant.fromDate(row.created_at);
     if (!createdAtResult.success) {
       return null;
     }
 
-    const updatedAtResult = Instant.parse(String(row.updated_at ?? ''));
+    const updatedAtResult = Instant.fromDate(row.updated_at);
     if (!updatedAtResult.success) {
       return null;
     }
 
     let archivedAt = null;
-    if (row.archived_at !== null && row.archived_at !== undefined) {
-      const parsed = Instant.parse(String(row.archived_at));
+    if (row.archived_at !== null) {
+      const parsed = Instant.fromDate(row.archived_at);
       if (!parsed.success) {
         return null;
       }
@@ -45,8 +62,8 @@ export function mapRowToPlaybook(row: Record<string, unknown>): Playbook | null 
     }
 
     let activeVersionId = null;
-    if (row.active_version_id !== null && row.active_version_id !== undefined) {
-      const parsed = parsePlaybookVersionId(String(row.active_version_id));
+    if (row.active_version_id !== null) {
+      const parsed = parsePlaybookVersionId(row.active_version_id);
       if (!parsed.success) {
         return null;
       }
@@ -57,8 +74,8 @@ export function mapRowToPlaybook(row: Record<string, unknown>): Playbook | null 
       playbookId: playbookIdResult.value,
       workspaceId: workspaceIdResult.value,
       name: nameResult.value,
-      status: String(row.status ?? ''),
-      description: row.description !== null ? String(row.description) : null,
+      status: row.status,
+      description: row.description,
       activeVersionId,
       createdAt: createdAtResult.value,
       updatedAt: updatedAtResult.value,

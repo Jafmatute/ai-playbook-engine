@@ -2,31 +2,46 @@ import { Instant, parseWorkspaceId, WorkspaceName } from '@ai-playbook-engine/co
 import { Workspace as WorkspaceAggregate } from '@ai-playbook-engine/core';
 import type { Workspace } from '@ai-playbook-engine/core';
 
-export function mapRowToWorkspace(row: Record<string, unknown>): Workspace | null {
+export interface WorkspaceRow {
+  readonly workspace_id: string;
+  readonly name: string;
+  readonly normalized_name: string;
+  readonly status: string;
+  readonly description: string | null;
+  readonly created_at: Date;
+  readonly updated_at: Date;
+  readonly archived_at: Date | null;
+}
+
+export function mapRowToWorkspace(row: WorkspaceRow): Workspace | null {
   try {
-    const workspaceIdResult = parseWorkspaceId(String(row.workspace_id ?? ''));
+    const workspaceIdResult = parseWorkspaceId(row.workspace_id);
     if (!workspaceIdResult.success) {
       return null;
     }
 
-    const nameResult = WorkspaceName.create(String(row.name ?? ''));
+    const nameResult = WorkspaceName.create(row.name);
     if (!nameResult.success) {
       return null;
     }
 
-    const createdAtResult = Instant.parse(String(row.created_at ?? ''));
+    if (nameResult.value.normalizedValue !== row.normalized_name) {
+      return null;
+    }
+
+    const createdAtResult = Instant.fromDate(row.created_at);
     if (!createdAtResult.success) {
       return null;
     }
 
-    const updatedAtResult = Instant.parse(String(row.updated_at ?? ''));
+    const updatedAtResult = Instant.fromDate(row.updated_at);
     if (!updatedAtResult.success) {
       return null;
     }
 
     let archivedAt = null;
-    if (row.archived_at !== null && row.archived_at !== undefined) {
-      const parsed = Instant.parse(String(row.archived_at));
+    if (row.archived_at !== null) {
+      const parsed = Instant.fromDate(row.archived_at);
       if (!parsed.success) {
         return null;
       }
@@ -36,8 +51,8 @@ export function mapRowToWorkspace(row: Record<string, unknown>): Workspace | nul
     const restored = WorkspaceAggregate.restore({
       workspaceId: workspaceIdResult.value,
       name: nameResult.value,
-      status: String(row.status ?? ''),
-      description: row.description !== null ? String(row.description) : null,
+      status: row.status,
+      description: row.description,
       createdAt: createdAtResult.value,
       updatedAt: updatedAtResult.value,
       archivedAt,

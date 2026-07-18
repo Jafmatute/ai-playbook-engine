@@ -1,21 +1,30 @@
 import pg from 'pg';
 
+export type PostgresParameter = string | number | boolean | Date | null;
+
+export interface DatabaseConfig {
+  readonly connectionString: string;
+}
+
 export class DatabasePool {
   readonly #pool: pg.Pool;
 
-  constructor(connectionString: string) {
+  constructor(config: DatabaseConfig) {
     this.#pool = new pg.Pool({
-      connectionString,
+      connectionString: config.connectionString,
       max: 5,
     });
   }
 
-  get pool(): pg.Pool {
-    return this.#pool;
+  async query<Row extends pg.QueryResultRow = pg.QueryResultRow>(
+    queryText: string,
+    values?: readonly PostgresParameter[],
+  ): Promise<pg.QueryResult<Row>> {
+    return this.#pool.query<Row>(queryText, values as pg.QueryConfigValues<unknown[]>);
   }
 
-  async query(queryText: string, values?: readonly unknown[]): Promise<pg.QueryResult> {
-    return this.#pool.query(queryText, values as pg.QueryConfigValues<unknown[]>);
+  async connect(): Promise<pg.PoolClient> {
+    return this.#pool.connect();
   }
 
   async close(): Promise<void> {
