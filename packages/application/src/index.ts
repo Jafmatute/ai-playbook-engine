@@ -15,7 +15,7 @@ export type {
 } from './playbook-version/index.js';
 export type { SynchronizationSnapshotRepository } from './synchronization-snapshot/index.js';
 export type { NormalizationAttemptRepository } from './normalization-attempt/index.js';
-export type { KnowledgeItemRepository } from './knowledge-item/index.js';
+export type { KnowledgeItemListFilter, KnowledgeItemRepository } from './knowledge-item/index.js';
 export type { ValidationAttemptRepository } from './validation-attempt/index.js';
 export type { KnowledgeRelationshipRepository } from './knowledge-relationship/index.js';
 export type { Page, PaginationRequest } from './pagination/index.js';
