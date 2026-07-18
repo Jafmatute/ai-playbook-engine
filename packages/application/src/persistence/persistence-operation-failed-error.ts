@@ -22,6 +22,7 @@ export type PersistenceOperation =
   | 'normalizationAttempt.listByPlaybookVersionId'
   | 'knowledgeItem.findBySourceStableKey'
   | 'knowledgeItem.countByVersion'
+  | 'knowledgeItem.listByVersion'
   | 'validationAttempt.findByPlaybookVersionId'
   | 'synchronizationRun.findLatestCompletedByPlaybookSourceId'
   | 'synchronizationSnapshot.findLatestByChecksum'
