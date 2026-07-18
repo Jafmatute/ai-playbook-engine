@@ -26,6 +26,7 @@ const operations = [
   'knowledgeItem.countByVersion',
   'validationAttempt.findByPlaybookVersionId',
   'synchronizationRun.findLatestCompletedByPlaybookSourceId',
+  'synchronizationSnapshot.findLatestByChecksum',
 ] as const;
 
 describe('persistenceOperationFailed', () => {

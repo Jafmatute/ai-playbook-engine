@@ -61,21 +61,39 @@ type FindLatestByPlaybookSourceIdCall = Readonly<{
   playbookSourceId: PlaybookSourceId;
 }>;
 
+type FindLatestByChecksumStubResult =
+  | {
+      readonly kind: 'synchronizationSnapshot';
+      readonly synchronizationSnapshot: SynchronizationSnapshot;
+    }
+  | { readonly kind: 'null' }
+  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
+
+type FindLatestByChecksumCall = Readonly<{
+  workspaceId: WorkspaceId;
+  playbookSourceId: PlaybookSourceId;
+  contentChecksum: ContentChecksum;
+}>;
+
 class StubSynchronizationSnapshotRepository implements SynchronizationSnapshotRepository {
   readonly #findByIdResult: FindByIdStubResult;
   readonly #findBySynchronizationRunIdResult: FindBySynchronizationRunIdStubResult;
   readonly #findLatestByPlaybookSourceIdResult: FindLatestByPlaybookSourceIdStubResult;
+  readonly #findLatestByChecksumResult: FindLatestByChecksumStubResult;
   #findBySynchronizationRunIdCall: FindBySynchronizationRunIdCall | null = null;
   #findLatestByPlaybookSourceIdCall: FindLatestByPlaybookSourceIdCall | null = null;
+  #findLatestByChecksumCall: FindLatestByChecksumCall | null = null;
 
   private constructor(
     findByIdResult: FindByIdStubResult,
     findBySynchronizationRunIdResult: FindBySynchronizationRunIdStubResult = { kind: 'null' },
     findLatestByPlaybookSourceIdResult: FindLatestByPlaybookSourceIdStubResult = { kind: 'null' },
+    findLatestByChecksumResult: FindLatestByChecksumStubResult = { kind: 'null' },
   ) {
     this.#findByIdResult = findByIdResult;
     this.#findBySynchronizationRunIdResult = findBySynchronizationRunIdResult;
     this.#findLatestByPlaybookSourceIdResult = findLatestByPlaybookSourceIdResult;
+    this.#findLatestByChecksumResult = findLatestByChecksumResult;
   }
 
   static returningSynchronizationSnapshot(
@@ -138,6 +156,39 @@ class StubSynchronizationSnapshotRepository implements SynchronizationSnapshotRe
     error: PersistenceOperationFailedError,
   ): StubSynchronizationSnapshotRepository {
     return new StubSynchronizationSnapshotRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'error', error },
+    );
+  }
+
+  // -- findLatestByChecksum factories ---------------------------------------
+
+  static returningLatestSynchronizationSnapshotByChecksum(
+    synchronizationSnapshot: SynchronizationSnapshot,
+  ): StubSynchronizationSnapshotRepository {
+    return new StubSynchronizationSnapshotRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'synchronizationSnapshot', synchronizationSnapshot },
+    );
+  }
+
+  static returningNoSynchronizationSnapshotByChecksum(): StubSynchronizationSnapshotRepository {
+    return new StubSynchronizationSnapshotRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'null' },
+    );
+  }
+
+  static returningFindLatestByChecksumError(
+    error: PersistenceOperationFailedError,
+  ): StubSynchronizationSnapshotRepository {
+    return new StubSynchronizationSnapshotRepository(
+      { kind: 'null' },
       { kind: 'null' },
       { kind: 'null' },
       { kind: 'error', error },
@@ -212,11 +263,43 @@ class StubSynchronizationSnapshotRepository implements SynchronizationSnapshotRe
       }
     }
   }
+
+  // -- findLatestByChecksum ------------------------------------------------
+
+  get findLatestByChecksumCall(): FindLatestByChecksumCall | null {
+    return this.#findLatestByChecksumCall;
+  }
+
+  async findLatestByChecksum(
+    workspaceId: WorkspaceId,
+    playbookSourceId: PlaybookSourceId,
+    contentChecksum: ContentChecksum,
+  ): Promise<Result<SynchronizationSnapshot | null, PersistenceOperationFailedError>> {
+    this.#findLatestByChecksumCall = Object.freeze({
+      workspaceId,
+      playbookSourceId,
+      contentChecksum,
+    });
+
+    switch (this.#findLatestByChecksumResult.kind) {
+      case 'synchronizationSnapshot': {
+        return ok(this.#findLatestByChecksumResult.synchronizationSnapshot);
+      }
+      case 'null': {
+        return ok(null);
+      }
+      case 'error': {
+        return err(this.#findLatestByChecksumResult.error);
+      }
+    }
+  }
 }
 
 interface SynchronizationSnapshotFixtureOptions {
   readonly synchronizationSnapshotId: string;
+  readonly playbookSourceId: string;
   readonly synchronizationRunId: string;
+  readonly contentChecksum: string;
   readonly createdAt: string;
   readonly storageReference: string;
 }
@@ -239,7 +322,8 @@ function createValidSynchronizationSnapshot(
     throw new Error('Expected a valid workspace ID fixture.');
   }
 
-  const playbookSourceIdResult = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+  const playbookSourceIdRaw = options?.playbookSourceId ?? '00000000-0000-0000-0000-000000000003';
+  const playbookSourceIdResult = parsePlaybookSourceId(playbookSourceIdRaw);
   if (!playbookSourceIdResult.success) {
     throw new Error('Expected a valid playbook source ID fixture.');
   }
@@ -249,9 +333,10 @@ function createValidSynchronizationSnapshot(
     throw new Error('Expected a valid synchronization run ID fixture.');
   }
 
-  const contentChecksumResult = ContentChecksum.create(
-    'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-  );
+  const contentChecksumRaw =
+    options?.contentChecksum ??
+    'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  const contentChecksumResult = ContentChecksum.create(contentChecksumRaw);
   if (!contentChecksumResult.success) {
     throw new Error('Expected a valid content checksum fixture.');
   }
@@ -815,6 +900,476 @@ describe('SynchronizationSnapshotRepository', () => {
       ) => repository.findLatestByPlaybookSourceId(wsId, psId);
 
       void _acceptsTypedIds;
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // findLatestByChecksum
+  // -------------------------------------------------------------------------
+
+  describe('findLatestByChecksum — found', () => {
+    it('returns the latest SynchronizationSnapshot with the matching checksum for the source', async () => {
+      const olderSnapshot = createValidSynchronizationSnapshot({
+        synchronizationSnapshotId: '00000000-0000-0000-0000-000000000001',
+        synchronizationRunId: '00000000-0000-0000-0000-000000000004',
+        contentChecksum: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        createdAt: '2026-07-15T10:00:00.000Z',
+        storageReference: 'ss://path/to/older',
+      });
+      const latestSnapshot = createValidSynchronizationSnapshot({
+        synchronizationSnapshotId: '00000000-0000-0000-0000-000000000006',
+        synchronizationRunId: '00000000-0000-0000-0000-000000000005',
+        contentChecksum: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        createdAt: '2026-07-15T11:00:00.000Z',
+        storageReference: 'ss://path/to/latest',
+      });
+
+      expect(olderSnapshot.id).not.toBe(latestSnapshot.id);
+      expect(olderSnapshot.synchronizationRunId).not.toBe(latestSnapshot.synchronizationRunId);
+      expect(olderSnapshot.contentChecksum.equals(latestSnapshot.contentChecksum)).toBe(true);
+      expect(latestSnapshot.createdAt.compare(olderSnapshot.createdAt)).toBeGreaterThan(0);
+
+      const repository =
+        StubSynchronizationSnapshotRepository.returningLatestSynchronizationSnapshotByChecksum(
+          latestSnapshot,
+        );
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+      const checksumResult = ContentChecksum.create(
+        'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+      if (!checksumResult.success) {
+        throw new Error('Expected a valid content checksum fixture.');
+      }
+
+      const result = await repository.findLatestByChecksum(
+        workspaceId.value,
+        playbookSourceId.value,
+        checksumResult.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      if (result.value === null) {
+        throw new Error('Expected a SynchronizationSnapshot.');
+      }
+
+      expect(result.value).toBe(latestSnapshot);
+      expect(result.value).not.toBe(olderSnapshot);
+      expect(result.value.playbookSourceId).toBe(playbookSourceId.value);
+      expect(result.value.contentChecksum.equals(checksumResult.value)).toBe(true);
+    });
+  });
+
+  describe('findLatestByChecksum — no snapshots', () => {
+    it('returns a successful Result with null when no snapshots exist', async () => {
+      const repository =
+        StubSynchronizationSnapshotRepository.returningNoSynchronizationSnapshotByChecksum();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+      const checksumResult = ContentChecksum.create(
+        'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+      if (!checksumResult.success) {
+        throw new Error('Expected a valid content checksum fixture.');
+      }
+
+      const result = await repository.findLatestByChecksum(
+        workspaceId.value,
+        playbookSourceId.value,
+        checksumResult.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestByChecksum — checksum not found', () => {
+    it('returns null when no snapshot has the requested checksum', async () => {
+      const existingChecksum = ContentChecksum.create(
+        'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+      if (!existingChecksum.success) {
+        throw new Error('Expected a valid content checksum fixture.');
+      }
+      const requestedChecksum = ContentChecksum.create(
+        'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      );
+      if (!requestedChecksum.success) {
+        throw new Error('Expected a valid content checksum fixture.');
+      }
+
+      expect(existingChecksum.value.equals(requestedChecksum.value)).toBe(false);
+
+      const repository =
+        StubSynchronizationSnapshotRepository.returningNoSynchronizationSnapshotByChecksum();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findLatestByChecksum(
+        workspaceId.value,
+        playbookSourceId.value,
+        requestedChecksum.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestByChecksum — source does not exist', () => {
+    it('returns a successful Result with null', async () => {
+      const repository =
+        StubSynchronizationSnapshotRepository.returningNoSynchronizationSnapshotByChecksum();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const nonExistentSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-00000000ffff');
+      if (!nonExistentSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+      const checksumResult = ContentChecksum.create(
+        'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+      if (!checksumResult.success) {
+        throw new Error('Expected a valid content checksum fixture.');
+      }
+
+      const result = await repository.findLatestByChecksum(
+        workspaceId.value,
+        nonExistentSourceId.value,
+        checksumResult.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestByChecksum — wrong workspace', () => {
+    it('returns a successful Result with null when queried from a different workspace', async () => {
+      const repository =
+        StubSynchronizationSnapshotRepository.returningNoSynchronizationSnapshotByChecksum();
+      const workspaceB = parseWorkspaceId('00000000-0000-0000-0000-000000000005');
+      if (!workspaceB.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+      const checksumResult = ContentChecksum.create(
+        'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+      if (!checksumResult.success) {
+        throw new Error('Expected a valid content checksum fixture.');
+      }
+
+      const result = await repository.findLatestByChecksum(
+        workspaceB.value,
+        playbookSourceId.value,
+        checksumResult.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestByChecksum — same checksum in another source', () => {
+    it('returns only the snapshot for the queried source', async () => {
+      const sourceASnapshot = createValidSynchronizationSnapshot({
+        synchronizationSnapshotId: '00000000-0000-0000-0000-000000000001',
+        playbookSourceId: '00000000-0000-0000-0000-00000000000a',
+        contentChecksum: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        createdAt: '2026-07-15T10:00:00.000Z',
+      });
+      const newerSourceBSnapshot = createValidSynchronizationSnapshot({
+        synchronizationSnapshotId: '00000000-0000-0000-0000-000000000002',
+        playbookSourceId: '00000000-0000-0000-0000-00000000000b',
+        contentChecksum: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        createdAt: '2026-07-15T12:00:00.000Z',
+      });
+
+      expect(sourceASnapshot.contentChecksum.equals(newerSourceBSnapshot.contentChecksum)).toBe(
+        true,
+      );
+      expect(sourceASnapshot.playbookSourceId).not.toBe(newerSourceBSnapshot.playbookSourceId);
+
+      const repository =
+        StubSynchronizationSnapshotRepository.returningLatestSynchronizationSnapshotByChecksum(
+          sourceASnapshot,
+        );
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const sourceAId = parsePlaybookSourceId('00000000-0000-0000-0000-00000000000a');
+      if (!sourceAId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+      const checksumResult = ContentChecksum.create(
+        'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+      if (!checksumResult.success) {
+        throw new Error('Expected a valid content checksum fixture.');
+      }
+
+      const result = await repository.findLatestByChecksum(
+        workspaceId.value,
+        sourceAId.value,
+        checksumResult.value,
+      );
+
+      if (!result.success) {
+        return;
+      }
+      if (result.value === null) {
+        throw new Error('Expected a SynchronizationSnapshot.');
+      }
+
+      expect(result.value).toBe(sourceASnapshot);
+      expect(result.value).not.toBe(newerSourceBSnapshot);
+      expect(result.value.playbookSourceId).toBe(sourceAId.value);
+    });
+  });
+
+  describe('findLatestByChecksum — different checksum, more recent in same source', () => {
+    it('returns the snapshot matching the requested checksum, not the most recent overall', async () => {
+      const matchingSnapshot = createValidSynchronizationSnapshot({
+        synchronizationSnapshotId: '00000000-0000-0000-0000-000000000001',
+        contentChecksum: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        createdAt: '2026-07-15T10:00:00.000Z',
+      });
+
+      const repository =
+        StubSynchronizationSnapshotRepository.returningLatestSynchronizationSnapshotByChecksum(
+          matchingSnapshot,
+        );
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+      const checksumResult = ContentChecksum.create(
+        'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+      if (!checksumResult.success) {
+        throw new Error('Expected a valid content checksum fixture.');
+      }
+
+      const result = await repository.findLatestByChecksum(
+        workspaceId.value,
+        playbookSourceId.value,
+        checksumResult.value,
+      );
+
+      if (!result.success) {
+        return;
+      }
+      if (result.value === null) {
+        throw new Error('Expected a SynchronizationSnapshot.');
+      }
+
+      expect(result.value).toBe(matchingSnapshot);
+      expect(result.value.contentChecksum.equals(checksumResult.value)).toBe(true);
+    });
+  });
+
+  describe('findLatestByChecksum — independence from other operations', () => {
+    it('does not affect the default null results of the other three operations', async () => {
+      const snapshot = createValidSynchronizationSnapshot();
+      const repository =
+        StubSynchronizationSnapshotRepository.returningLatestSynchronizationSnapshotByChecksum(
+          snapshot,
+        );
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const snapshotId = parseSynchronizationSnapshotId('00000000-0000-0000-0000-000000000001');
+      if (!snapshotId.success) {
+        throw new Error('Expected a valid synchronization snapshot ID fixture.');
+      }
+      const runId = parseSynchronizationRunId('00000000-0000-0000-0000-000000000004');
+      if (!runId.success) {
+        throw new Error('Expected a valid synchronization run ID fixture.');
+      }
+      const sourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+      if (!sourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const findByIdResult = await repository.findById(workspaceId.value, snapshotId.value);
+      const findByRunIdResult = await repository.findBySynchronizationRunId(
+        workspaceId.value,
+        runId.value,
+      );
+      const findLatestBySourceResult = await repository.findLatestByPlaybookSourceId(
+        workspaceId.value,
+        sourceId.value,
+      );
+
+      expect(findByIdResult.success).toBe(true);
+      if (!findByIdResult.success) {
+        return;
+      }
+      expect(findByIdResult.value).toBeNull();
+
+      expect(findByRunIdResult.success).toBe(true);
+      if (!findByRunIdResult.success) {
+        return;
+      }
+      expect(findByRunIdResult.value).toBeNull();
+
+      expect(findLatestBySourceResult.success).toBe(true);
+      if (!findLatestBySourceResult.success) {
+        return;
+      }
+      expect(findLatestBySourceResult.value).toBeNull();
+    });
+  });
+
+  describe('findLatestByChecksum — persistence failure', () => {
+    it('returns a failed Result with PersistenceOperationFailedError', async () => {
+      const error = persistenceOperationFailed('synchronizationSnapshot.findLatestByChecksum');
+      const repository =
+        StubSynchronizationSnapshotRepository.returningFindLatestByChecksumError(error);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+      const checksumResult = ContentChecksum.create(
+        'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+      if (!checksumResult.success) {
+        throw new Error('Expected a valid content checksum fixture.');
+      }
+
+      const result = await repository.findLatestByChecksum(
+        workspaceId.value,
+        playbookSourceId.value,
+        checksumResult.value,
+      );
+
+      expect(result.success).toBe(false);
+      if (result.success) {
+        return;
+      }
+
+      expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+      expect(result.error.details.operation).toBe('synchronizationSnapshot.findLatestByChecksum');
+    });
+  });
+
+  describe('findLatestByChecksum — argument capture', () => {
+    it('captures the workspaceId, playbookSourceId, and contentChecksum from the last call', async () => {
+      const snapshot = createValidSynchronizationSnapshot();
+      const repository =
+        StubSynchronizationSnapshotRepository.returningLatestSynchronizationSnapshotByChecksum(
+          snapshot,
+        );
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+      const checksumResult = ContentChecksum.create(
+        'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+      if (!checksumResult.success) {
+        throw new Error('Expected a valid content checksum fixture.');
+      }
+
+      await repository.findLatestByChecksum(
+        workspaceId.value,
+        playbookSourceId.value,
+        checksumResult.value,
+      );
+
+      const call = repository.findLatestByChecksumCall;
+
+      expect(call).not.toBeNull();
+
+      if (call === null) {
+        throw new Error('Expected the repository call to be captured.');
+      }
+
+      expect(call.workspaceId).toBe(workspaceId.value);
+      expect(call.playbookSourceId).toBe(playbookSourceId.value);
+      expect(call.contentChecksum).toBe(checksumResult.value);
+      expect(Object.isFrozen(call)).toBe(true);
+    });
+  });
+
+  describe('findLatestByChecksum — accepts typed values', () => {
+    it('compiles with WorkspaceId, PlaybookSourceId, and ContentChecksum parameter types', () => {
+      const snapshot = createValidSynchronizationSnapshot();
+      const repository =
+        StubSynchronizationSnapshotRepository.returningLatestSynchronizationSnapshotByChecksum(
+          snapshot,
+        );
+
+      const _acceptsTypedValues: (
+        workspaceId: WorkspaceId,
+        playbookSourceId: PlaybookSourceId,
+        contentChecksum: ContentChecksum,
+      ) => Promise<Result<SynchronizationSnapshot | null, PersistenceOperationFailedError>> = (
+        wsId,
+        psId,
+        checksum,
+      ) => repository.findLatestByChecksum(wsId, psId, checksum);
+
+      void _acceptsTypedValues;
     });
   });
 });

@@ -23,7 +23,8 @@ export type PersistenceOperation =
   | 'knowledgeItem.findBySourceStableKey'
   | 'knowledgeItem.countByVersion'
   | 'validationAttempt.findByPlaybookVersionId'
-  | 'synchronizationRun.findLatestCompletedByPlaybookSourceId';
+  | 'synchronizationRun.findLatestCompletedByPlaybookSourceId'
+  | 'synchronizationSnapshot.findLatestByChecksum';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;

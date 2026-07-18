@@ -1,4 +1,5 @@
 import type {
+  ContentChecksum,
   PlaybookSourceId,
   SynchronizationRunId,
   SynchronizationSnapshot,
@@ -23,5 +24,11 @@ export interface SynchronizationSnapshotRepository {
   findLatestByPlaybookSourceId(
     workspaceId: WorkspaceId,
     playbookSourceId: PlaybookSourceId,
+  ): Promise<Result<SynchronizationSnapshot | null, PersistenceOperationFailedError>>;
+
+  findLatestByChecksum(
+    workspaceId: WorkspaceId,
+    playbookSourceId: PlaybookSourceId,
+    contentChecksum: ContentChecksum,
   ): Promise<Result<SynchronizationSnapshot | null, PersistenceOperationFailedError>>;
 }
