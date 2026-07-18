@@ -23,6 +23,10 @@ import {
   persistenceOperationFailed,
 } from '../../persistence/index.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
+import {
+  enabledPlaybookSourceConflict,
+  type EnabledPlaybookSourceConflictError,
+} from '../../errors/index.js';
 import type { PlaybookSourceRepository } from './playbook-source-repository.js';
 
 type FindByIdStubResult =
@@ -70,8 +74,16 @@ const DEFAULT_EMPTY_PLAYBOOK_SOURCE_PAGE: Page<PlaybookSource> = Object.freeze({
 });
 
 class StubPlaybookSourceRepository implements PlaybookSourceRepository {
-  async insert(_source: PlaybookSource): Promise<Result<void, PersistenceOperationFailedError>> {
-    return ok(undefined);
+  #insertResult: Result<void, EnabledPlaybookSourceConflictError | PersistenceOperationFailedError>;
+  #insertCallCount = 0;
+  #insertedSource: PlaybookSource | null = null;
+
+  async insert(
+    source: PlaybookSource,
+  ): Promise<Result<void, EnabledPlaybookSourceConflictError | PersistenceOperationFailedError>> {
+    this.#insertCallCount += 1;
+    this.#insertedSource = source;
+    return this.#insertResult;
   }
   readonly #findByIdResult: FindByIdStubResult;
   readonly #findEnabledByPlaybookIdResult: FindEnabledByPlaybookIdStubResult;
@@ -89,6 +101,22 @@ class StubPlaybookSourceRepository implements PlaybookSourceRepository {
     this.#findByIdResult = findByIdResult;
     this.#findEnabledByPlaybookIdResult = findEnabledByPlaybookIdResult;
     this.#listByPlaybookIdResult = listByPlaybookIdResult;
+    this.#insertResult = ok(undefined);
+  }
+
+  get insertCallCount(): number {
+    return this.#insertCallCount;
+  }
+  get insertedSource(): PlaybookSource | null {
+    return this.#insertedSource;
+  }
+
+  static returningInsertError(
+    error: EnabledPlaybookSourceConflictError | PersistenceOperationFailedError,
+  ): StubPlaybookSourceRepository {
+    const repository = new StubPlaybookSourceRepository({ kind: 'null' });
+    repository.#insertResult = err(error);
+    return repository;
   }
 
   static returningPlaybookSource(playbookSource: PlaybookSource): StubPlaybookSourceRepository {
@@ -292,6 +320,30 @@ function createDisabledPlaybookSource(): PlaybookSource {
 }
 
 describe('PlaybookSourceRepository', () => {
+  describe('insert', () => {
+    it('returns success and captures the exact aggregate once', async () => {
+      const source = createValidPlaybookSource();
+      const repository = StubPlaybookSourceRepository.returningNull();
+      const result = await repository.insert(source);
+      expect(result.success).toBe(true);
+      expect(repository.insertCallCount).toBe(1);
+      expect(repository.insertedSource).toBe(source);
+    });
+
+    it('preserves conflict and persistence errors without retry', async () => {
+      const source = createValidPlaybookSource();
+      const conflict: EnabledPlaybookSourceConflictError = enabledPlaybookSourceConflict(
+        source.playbookId,
+      );
+      const repository = StubPlaybookSourceRepository.returningInsertError(conflict);
+      const result = await repository.insert(source);
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error).toBe(conflict);
+      expect(repository.insertCallCount).toBe(1);
+      expect(repository.insertedSource).toBe(source);
+    });
+  });
+
   describe('findById — found', () => {
     it('returns a successful Result with the PlaybookSource instance', async () => {
       const playbookSource = createValidPlaybookSource();

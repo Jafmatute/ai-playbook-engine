@@ -1,13 +1,55 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PlaybookOutput } from '@ai-playbook-engine/application';
+import type { PlaybookOutput, PlaybookSourceOutput } from '@ai-playbook-engine/application';
 
 import {
   renderWorkspace,
   renderWorkspaceInitialized,
   renderPlaybook,
   renderPlaybookList,
+  renderPlaybookSource,
 } from './human-renderer.js';
+
+const sourceFixture: PlaybookSourceOutput = Object.freeze({
+  playbookSourceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  workspaceId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  playbookId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+  type: 'notion',
+  status: 'enabled',
+  externalRootReference: 'notion-root-page',
+  configurationReference: 'notion/main',
+  createdAt: '2026-07-18T10:00:00.000Z',
+  lastSuccessfulSynchronizationRunId: null,
+  lastSuccessfulSynchronizationAt: null,
+  lastFailedSynchronizationRunId: null,
+  lastFailedSynchronizationAt: null,
+});
+
+describe('renderPlaybookSource', () => {
+  it('renders all fields and null synchronization metadata as (none)', () => {
+    const result = renderPlaybookSource(sourceFixture);
+    expect(result).toContain('Playbook Source:');
+    expect(result).toContain(sourceFixture.playbookSourceId);
+    expect(result).toContain(sourceFixture.playbookId);
+    expect(result).toContain('notion');
+    expect(result).toContain('notion-root-page');
+    expect(result).toContain('notion/main');
+    expect(result.match(/\(none\)/g)).toHaveLength(4);
+  });
+
+  it('renders synchronization history and excludes sensitive fields', () => {
+    const result = renderPlaybookSource({
+      ...sourceFixture,
+      lastSuccessfulSynchronizationRunId: 'run-success',
+      lastSuccessfulSynchronizationAt: '2026-07-18T11:00:00.000Z',
+      lastFailedSynchronizationRunId: 'run-failed',
+      lastFailedSynchronizationAt: '2026-07-18T12:00:00.000Z',
+    });
+    expect(result).toContain('run-success');
+    expect(result).toContain('run-failed');
+    expect(result).not.toMatch(/revision|token|credential|secret/i);
+  });
+});
 
 describe('renderWorkspace', () => {
   it('renders workspace details', () => {

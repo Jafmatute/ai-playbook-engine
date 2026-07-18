@@ -130,6 +130,31 @@ describe('parseArgs', () => {
     }
   });
 
+  it.each([
+    ['playbook-id', 'playbook-id-value'],
+    ['type', 'notion'],
+    ['external-root-reference', 'root'],
+    ['configuration-reference', 'main'],
+  ])('parses %s in both value forms', (flag, value) => {
+    const separate = parseArgs([`--${flag}`, value]);
+    const inline = parseArgs([`--${flag}=${value}`]);
+    expect(separate.success).toBe(true);
+    expect(inline.success).toBe(true);
+    if (separate.success && inline.success) {
+      expect(separate.value.flags.get(flag)).toBe(value);
+      expect(inline.value.flags.get(flag)).toBe(value);
+    }
+  });
+
+  it.each(['playbook-id', 'type', 'external-root-reference', 'configuration-reference'])(
+    'rejects missing value for --%s',
+    (flag) => {
+      const result = parseArgs([`--${flag}`]);
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error.code).toBe('INVALID_FLAG');
+    },
+  );
+
   it('returns a frozen success result with frozen command and flags', () => {
     const result = parseArgs(['playbook', 'create', '--name', 'test']);
 

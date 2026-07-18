@@ -7,6 +7,9 @@ describe('mapErrorToExitCode', () => {
     ['INVALID_IDENTIFIER', 2],
     ['WORKSPACE_NAME_REQUIRED', 2],
     ['PAGINATION_INVALID', 2],
+    ['PLAYBOOK_SOURCE_TYPE_UNSUPPORTED', 2],
+    ['PLAYBOOK_SOURCE_EXTERNAL_ROOT_REFERENCE_INVALID', 2],
+    ['PLAYBOOK_SOURCE_CONFIGURATION_REFERENCE_INVALID', 2],
   ])('maps %s to INVALID_INPUT (%i)', (code, expected) => {
     expect(mapErrorToExitCode(code)).toBe(expected);
   });
@@ -26,6 +29,8 @@ describe('mapErrorToExitCode', () => {
     ['PLAYBOOK_OPERATION_NOT_ALLOWED', 4],
     ['PLAYBOOK_ALREADY_ARCHIVED', 4],
     ['PLAYBOOK_NOT_ARCHIVED', 4],
+    ['ENABLED_PLAYBOOK_SOURCE_CONFLICT', 4],
+    ['PLAYBOOK_ARCHIVED', 4],
   ])('maps %s to CONFLICT (%i)', (code, expected) => {
     expect(mapErrorToExitCode(code)).toBe(expected);
   });
