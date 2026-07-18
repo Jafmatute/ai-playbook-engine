@@ -1,5 +1,17 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { parsePlaybookId, parsePlaybookSourceId, parseWorkspaceId } from '@ai-playbook-engine/core';
+import {
+  Instant,
+  parsePlaybookId,
+  parsePlaybookSourceId,
+  parseWorkspaceId,
+  PlaybookSource,
+  PlaybookSourceConfigurationReference,
+  PlaybookSourceExternalRootReference,
+} from '@ai-playbook-engine/core';
+import {
+  ENABLED_PLAYBOOK_SOURCE_CONFLICT,
+  PERSISTENCE_OPERATION_FAILED,
+} from '@ai-playbook-engine/application';
 import { DatabasePool } from '../connection/pool.js';
 import type { PostgresParameter } from '../connection/pool.js';
 import { runMigrations } from '../migrations/runner.js';
@@ -26,6 +38,39 @@ function sourceId(value: string) {
   const result = parsePlaybookSourceId(value);
   if (!result.success) throw new Error('Invalid source fixture.');
   return result.value;
+}
+function instant(value: string): Instant {
+  const result = Instant.parse(value);
+  if (!result.success) throw new Error('Invalid instant fixture.');
+  return result.value;
+}
+function externalRootReference(value: string): PlaybookSourceExternalRootReference {
+  const result = PlaybookSourceExternalRootReference.create(value);
+  if (!result.success) throw new Error('Invalid external root reference fixture.');
+  return result.value;
+}
+function configurationReference(value: string): PlaybookSourceConfigurationReference {
+  const result = PlaybookSourceConfigurationReference.create(value);
+  if (!result.success) throw new Error('Invalid configuration reference fixture.');
+  return result.value;
+}
+function createPlaybookSource(input: {
+  readonly id: string;
+  readonly workspace?: string;
+  readonly playbook?: string;
+  readonly externalRootReference?: string;
+  readonly configurationReference?: string;
+  readonly createdAt?: string;
+}): PlaybookSource {
+  return PlaybookSource.create({
+    playbookSourceId: sourceId(input.id),
+    workspaceId: workspaceId(input.workspace ?? workspaceA),
+    playbookId: playbookId(input.playbook ?? playbookA),
+    type: 'notion',
+    externalRootReference: externalRootReference(input.externalRootReference ?? 'root-page'),
+    configurationReference: configurationReference(input.configurationReference ?? 'config-ref'),
+    createdAt: instant(input.createdAt ?? '2026-07-01T10:00:00.000Z'),
+  });
 }
 
 describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
@@ -115,7 +160,7 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     } catch (error) {
       expect(isPostgresConstraintError(error)).toBe(true);
       if (!isPostgresConstraintError(error))
-        throw new Error('Expected PostgreSQL constraint error.');
+        throw new Error('Expected PostgreSQL constraint error.', { cause: error });
       expect(error.code).toBe(expectedCode);
       expect(error.constraint).toBe(expectedConstraint);
       return;
@@ -226,6 +271,97 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     );
     expect(wrongWorkspace.success).toBe(true);
     if (wrongWorkspace.success) expect(wrongWorkspace.value).toBeNull();
+  });
+
+  it('inserts an enabled source and rebuilds it from storage', async () => {
+    const source = createPlaybookSource({
+      id: '00000000-0000-0000-0000-000000000301',
+      externalRootReference: 'root-301',
+      configurationReference: 'config-301',
+      createdAt: '2026-07-02T10:00:00.000Z',
+    });
+
+    const inserted = await repository.insert(source);
+    expect(inserted.success).toBe(true);
+
+    const rebuilt = await repository.findById(workspaceId(workspaceA), source.id);
+    expect(rebuilt.success).toBe(true);
+    if (!rebuilt.success || rebuilt.value === null) throw new Error('Expected rebuilt source.');
+    expect(rebuilt.value).not.toBe(source);
+    expect(rebuilt.value.toSnapshot()).toEqual(source.toSnapshot());
+  });
+
+  it('returns an enabled-source conflict when the playbook already has one', async () => {
+    const existing = createPlaybookSource({ id: '00000000-0000-0000-0000-000000000302' });
+    const conflicting = createPlaybookSource({ id: '00000000-0000-0000-0000-000000000303' });
+    expect((await repository.insert(existing)).success).toBe(true);
+
+    const result = await repository.insert(conflicting);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe(ENABLED_PLAYBOOK_SOURCE_CONFLICT);
+      if (result.error.code === ENABLED_PLAYBOOK_SOURCE_CONFLICT) {
+        expect(result.error.details.playbookId).toBe(playbookA);
+      }
+    }
+  });
+
+  it('inserts an enabled source after a disabled source for the same playbook', async () => {
+    const disabled = createPlaybookSource({ id: '00000000-0000-0000-0000-000000000304' });
+    const disabledResult = disabled.disable();
+    expect(disabledResult.success).toBe(true);
+    const enabled = createPlaybookSource({ id: '00000000-0000-0000-0000-000000000305' });
+
+    expect((await repository.insert(disabled)).success).toBe(true);
+    expect((await repository.insert(enabled)).success).toBe(true);
+
+    const found = await repository.findEnabledByPlaybookId(
+      workspaceId(workspaceA),
+      playbookId(playbookA),
+    );
+    expect(found.success).toBe(true);
+    if (!found.success || found.value === null) throw new Error('Expected enabled source.');
+    expect(found.value.id).toBe(enabled.id);
+  });
+
+  it('isolates inserted sources by workspace', async () => {
+    const source = createPlaybookSource({
+      id: '00000000-0000-0000-0000-000000000306',
+      workspace: workspaceB,
+      playbook: playbookC,
+    });
+    expect((await repository.insert(source)).success).toBe(true);
+
+    const inOwnerWorkspace = await repository.findById(workspaceId(workspaceB), source.id);
+    expect(inOwnerWorkspace.success).toBe(true);
+    if (!inOwnerWorkspace.success) throw new Error('Expected isolated source lookup.');
+    expect(inOwnerWorkspace.value?.id).toBe(source.id);
+    const inOtherWorkspace = await repository.findById(workspaceId(workspaceA), source.id);
+    expect(inOtherWorkspace.success).toBe(true);
+    if (inOtherWorkspace.success) expect(inOtherWorkspace.value).toBeNull();
+  });
+
+  it('returns a persistence failure when the source id already exists', async () => {
+    const id = '00000000-0000-0000-0000-000000000307';
+    const existing = createPlaybookSource({ id });
+    const collision = createPlaybookSource({ id, playbook: playbookB });
+    expect((await repository.insert(existing)).success).toBe(true);
+
+    const result = await repository.insert(collision);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+  });
+
+  it('returns a persistence failure when the playbook belongs to another workspace', async () => {
+    const source = createPlaybookSource({
+      id: '00000000-0000-0000-0000-000000000308',
+      workspace: workspaceB,
+      playbook: playbookA,
+    });
+
+    const result = await repository.insert(source);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
   });
 
   it('lists both statuses in deterministic order with pagination', async () => {
