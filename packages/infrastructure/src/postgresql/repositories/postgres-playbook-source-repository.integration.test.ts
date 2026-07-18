@@ -10,7 +10,7 @@ import {
 } from '@ai-playbook-engine/core';
 import {
   ENABLED_PLAYBOOK_SOURCE_CONFLICT,
-  PERSISTENCE_OPERATION_FAILED,
+  persistenceOperationFailed,
 } from '@ai-playbook-engine/application';
 import { DatabasePool } from '../connection/pool.js';
 import type { PostgresParameter } from '../connection/pool.js';
@@ -273,7 +273,7 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     if (wrongWorkspace.success) expect(wrongWorkspace.value).toBeNull();
   });
 
-  it('inserts an enabled source and rebuilds it from storage', async () => {
+  it('inserts all source columns into storage', async () => {
     const source = createPlaybookSource({
       id: '00000000-0000-0000-0000-000000000301',
       externalRootReference: 'root-301',
@@ -284,11 +284,39 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     const inserted = await repository.insert(source);
     expect(inserted.success).toBe(true);
 
-    const rebuilt = await repository.findById(workspaceId(workspaceA), source.id);
-    expect(rebuilt.success).toBe(true);
-    if (!rebuilt.success || rebuilt.value === null) throw new Error('Expected rebuilt source.');
-    expect(rebuilt.value).not.toBe(source);
-    expect(rebuilt.value.toSnapshot()).toEqual(source.toSnapshot());
+    const stored = await pool.query<{
+      playbook_source_id: string;
+      workspace_id: string;
+      playbook_id: string;
+      type: string;
+      status: string;
+      external_root_reference: string;
+      configuration_reference: string;
+      created_at: Date;
+      last_successful_synchronization_run_id: string | null;
+      last_successful_synchronization_at: Date | null;
+      last_failed_synchronization_run_id: string | null;
+      last_failed_synchronization_at: Date | null;
+    }>(
+      `SELECT playbook_source_id, workspace_id, playbook_id, type, status, external_root_reference, configuration_reference, created_at, last_successful_synchronization_run_id, last_successful_synchronization_at, last_failed_synchronization_run_id, last_failed_synchronization_at FROM playbook_sources WHERE playbook_source_id = $1`,
+      [source.id],
+    );
+    expect(stored.rows).toEqual([
+      {
+        playbook_source_id: '00000000-0000-0000-0000-000000000301',
+        workspace_id: workspaceA,
+        playbook_id: playbookA,
+        type: 'notion',
+        status: 'enabled',
+        external_root_reference: 'root-301',
+        configuration_reference: 'config-301',
+        created_at: new Date('2026-07-02T10:00:00.000Z'),
+        last_successful_synchronization_run_id: null,
+        last_successful_synchronization_at: null,
+        last_failed_synchronization_run_id: null,
+        last_failed_synchronization_at: null,
+      },
+    ]);
   });
 
   it('returns an enabled-source conflict when the playbook already has one', async () => {
@@ -349,7 +377,8 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
 
     const result = await repository.insert(collision);
     expect(result.success).toBe(false);
-    if (!result.success) expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+    if (!result.success)
+      expect(result.error).toEqual(persistenceOperationFailed('playbookSource.insert'));
   });
 
   it('returns a persistence failure when the playbook belongs to another workspace', async () => {
@@ -361,7 +390,8 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
 
     const result = await repository.insert(source);
     expect(result.success).toBe(false);
-    if (!result.success) expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+    if (!result.success)
+      expect(result.error).toEqual(persistenceOperationFailed('playbookSource.insert'));
   });
 
   it('lists both statuses in deterministic order with pagination', async () => {
@@ -427,6 +457,35 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     expect(second.value.limit).toBe(2);
     expect(second.value.totalCount).toBe(4);
     expect(second.value.hasMore).toBe(false);
+    const siblingPlaybook = await repository.listByPlaybookId(
+      workspaceId(workspaceA),
+      playbookId(playbookB),
+      { offset: 0, limit: 5 },
+    );
+    expect(siblingPlaybook.success).toBe(true);
+    if (!siblingPlaybook.success) throw new Error('Expected sibling playbook page.');
+    expect(siblingPlaybook.value.items.map((item) => item.id)).toEqual([
+      sourceId('00000000-0000-0000-0000-000000000107'),
+    ]);
+    const otherWorkspace = await repository.listByPlaybookId(
+      workspaceId(workspaceB),
+      playbookId(playbookC),
+      { offset: 0, limit: 5 },
+    );
+    expect(otherWorkspace.success).toBe(true);
+    if (!otherWorkspace.success) throw new Error('Expected other workspace page.');
+    expect(otherWorkspace.value.items.map((item) => item.id)).toEqual([
+      sourceId('00000000-0000-0000-0000-000000000108'),
+    ]);
+    const crossWorkspace = await repository.listByPlaybookId(
+      workspaceId(workspaceA),
+      playbookId(playbookC),
+      { offset: 0, limit: 5 },
+    );
+    expect(crossWorkspace.success).toBe(true);
+    if (!crossWorkspace.success) throw new Error('Expected cross-workspace page.');
+    expect(crossWorkspace.value.items).toEqual([]);
+    expect(crossWorkspace.value.totalCount).toBe(0);
     const empty = await repository.listByPlaybookId(
       workspaceId(workspaceA),
       playbookId(playbookA),
@@ -807,6 +866,10 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
       { workspace_id: workspaceA, playbook_id: playbookB, status: 'enabled', total: '1' },
       { workspace_id: workspaceB, playbook_id: playbookC, status: 'enabled', total: '1' },
     ]);
+    const disabledSourceCount = await pool.query<{ total: string }>(
+      "SELECT COUNT(*) AS total FROM playbook_sources WHERE status = 'disabled'",
+    );
+    expect(disabledSourceCount.rows).toEqual([{ total: '2' }]);
     const history = await pool.query<{
       last_successful_synchronization_run_id: string;
       last_successful_synchronization_at: Date;
