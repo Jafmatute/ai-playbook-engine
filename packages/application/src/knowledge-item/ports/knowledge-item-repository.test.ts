@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type {
-  KnowledgeItemId,
-  PlaybookVersionId,
-  WorkspaceId,
-} from '@ai-playbook-engine/core';
+import type { KnowledgeItemId, PlaybookVersionId, WorkspaceId } from '@ai-playbook-engine/core';
 import {
   ContentChecksum,
   createKnowledgeItemAttributes,
@@ -53,17 +49,30 @@ type FindBySourceStableKeyCall = Readonly<{
   sourceStableKey: SourceStableKey;
 }>;
 
+type CountByVersionStubResult =
+  | { readonly kind: 'count'; readonly count: number }
+  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
+
+type CountByVersionCall = Readonly<{
+  workspaceId: WorkspaceId;
+  playbookVersionId: PlaybookVersionId;
+}>;
+
 class StubKnowledgeItemRepository implements KnowledgeItemRepository {
   readonly #findByIdResult: FindByIdStubResult;
   readonly #findBySourceStableKeyResult: FindBySourceStableKeyStubResult;
+  readonly #countByVersionResult: CountByVersionStubResult;
   #findBySourceStableKeyCall: FindBySourceStableKeyCall | null = null;
+  #countByVersionCall: CountByVersionCall | null = null;
 
   private constructor(
     findByIdResult: FindByIdStubResult,
     findBySourceStableKeyResult: FindBySourceStableKeyStubResult,
+    countByVersionResult: CountByVersionStubResult,
   ) {
     this.#findByIdResult = findByIdResult;
     this.#findBySourceStableKeyResult = findBySourceStableKeyResult;
+    this.#countByVersionResult = countByVersionResult;
   }
 
   // -- findById factories ---------------------------------------------------
@@ -72,15 +81,24 @@ class StubKnowledgeItemRepository implements KnowledgeItemRepository {
     return new StubKnowledgeItemRepository(
       { kind: 'knowledgeItem', knowledgeItem },
       { kind: 'null' },
+      { kind: 'count', count: 0 },
     );
   }
 
   static returningNull(): StubKnowledgeItemRepository {
-    return new StubKnowledgeItemRepository({ kind: 'null' }, { kind: 'null' });
+    return new StubKnowledgeItemRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'count', count: 0 },
+    );
   }
 
   static returningError(error: PersistenceOperationFailedError): StubKnowledgeItemRepository {
-    return new StubKnowledgeItemRepository({ kind: 'error', error }, { kind: 'null' });
+    return new StubKnowledgeItemRepository(
+      { kind: 'error', error },
+      { kind: 'null' },
+      { kind: 'count', count: 0 },
+    );
   }
 
   // -- findBySourceStableKey factories --------------------------------------
@@ -91,17 +109,76 @@ class StubKnowledgeItemRepository implements KnowledgeItemRepository {
     return new StubKnowledgeItemRepository(
       { kind: 'null' },
       { kind: 'knowledgeItem', knowledgeItem },
+      { kind: 'count', count: 0 },
     );
   }
 
   static returningNoKnowledgeItemBySourceStableKey(): StubKnowledgeItemRepository {
-    return new StubKnowledgeItemRepository({ kind: 'null' }, { kind: 'null' });
+    return new StubKnowledgeItemRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'count', count: 0 },
+    );
   }
 
   static returningFindBySourceStableKeyError(
     error: PersistenceOperationFailedError,
   ): StubKnowledgeItemRepository {
-    return new StubKnowledgeItemRepository({ kind: 'null' }, { kind: 'error', error });
+    return new StubKnowledgeItemRepository(
+      { kind: 'null' },
+      { kind: 'error', error },
+      { kind: 'count', count: 0 },
+    );
+  }
+
+  // -- countByVersion factories ---------------------------------------------
+
+  static returningKnowledgeItemCount(count: number): StubKnowledgeItemRepository {
+    return new StubKnowledgeItemRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'count', count },
+    );
+  }
+
+  static returningNoKnowledgeItems(): StubKnowledgeItemRepository {
+    return new StubKnowledgeItemRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'count', count: 0 },
+    );
+  }
+
+  static returningCountByVersionError(
+    error: PersistenceOperationFailedError,
+  ): StubKnowledgeItemRepository {
+    return new StubKnowledgeItemRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'error', error },
+    );
+  }
+
+  // -- countByVersion -------------------------------------------------------
+
+  get countByVersionCall(): CountByVersionCall | null {
+    return this.#countByVersionCall;
+  }
+
+  async countByVersion(
+    workspaceId: WorkspaceId,
+    playbookVersionId: PlaybookVersionId,
+  ): Promise<Result<number, PersistenceOperationFailedError>> {
+    this.#countByVersionCall = Object.freeze({ workspaceId, playbookVersionId });
+
+    switch (this.#countByVersionResult.kind) {
+      case 'count': {
+        return ok(this.#countByVersionResult.count);
+      }
+      case 'error': {
+        return err(this.#countByVersionResult.error);
+      }
+    }
   }
 
   // -- findById -------------------------------------------------------------
@@ -701,6 +778,228 @@ describe('KnowledgeItemRepository', () => {
         pvId,
         ssk,
       ) => repository.findBySourceStableKey(wsId, pvId, ssk);
+
+      void _acceptsTypedIds;
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // countByVersion
+  // -------------------------------------------------------------------------
+
+  describe('countByVersion — positive count', () => {
+    it('returns the number of KnowledgeItems for the version', async () => {
+      const repository = StubKnowledgeItemRepository.returningKnowledgeItemCount(3);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000004');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.countByVersion(workspaceId.value, playbookVersionId.value);
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(3);
+    });
+  });
+
+  describe('countByVersion — no items', () => {
+    it('returns 0 when the version has no KnowledgeItems', async () => {
+      const repository = StubKnowledgeItemRepository.returningNoKnowledgeItems();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000004');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.countByVersion(workspaceId.value, playbookVersionId.value);
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(0);
+    });
+  });
+
+  describe('countByVersion — version not found', () => {
+    it('returns 0 when the playbook version does not exist', async () => {
+      const repository = StubKnowledgeItemRepository.returningNoKnowledgeItems();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const nonExistentVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-00000000ffff');
+      if (!nonExistentVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.countByVersion(workspaceId.value, nonExistentVersionId.value);
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(0);
+    });
+  });
+
+  describe('countByVersion — wrong workspace', () => {
+    it('returns 0 when queried from a different workspace', async () => {
+      const repository = StubKnowledgeItemRepository.returningNoKnowledgeItems();
+      const workspaceB = parseWorkspaceId('00000000-0000-0000-0000-000000000005');
+      if (!workspaceB.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000004');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.countByVersion(workspaceB.value, playbookVersionId.value);
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(0);
+    });
+  });
+
+  describe('countByVersion — items in another version', () => {
+    it('returns the count for the queried version, unaffected by other versions', async () => {
+      const repository = StubKnowledgeItemRepository.returningKnowledgeItemCount(2);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const versionAId = parsePlaybookVersionId('00000000-0000-0000-0000-00000000000a');
+      if (!versionAId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.countByVersion(workspaceId.value, versionAId.value);
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(2);
+    });
+  });
+
+  describe('countByVersion — independence from other operations', () => {
+    it('does not affect findById and findBySourceStableKey defaults', async () => {
+      const repository = StubKnowledgeItemRepository.returningKnowledgeItemCount(4);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const knowledgeItemId = parseKnowledgeItemId('00000000-0000-0000-0000-000000000001');
+      if (!knowledgeItemId.success) {
+        throw new Error('Expected a valid knowledge item ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000004');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+      const sourceStableKeyResult = SourceStableKey.create('section:introduction');
+      if (!sourceStableKeyResult.success) {
+        throw new Error('Expected a valid source stable key fixture.');
+      }
+
+      const findByIdResult = await repository.findById(workspaceId.value, knowledgeItemId.value);
+      const findBySourceStableKeyResult = await repository.findBySourceStableKey(
+        workspaceId.value,
+        playbookVersionId.value,
+        sourceStableKeyResult.value,
+      );
+
+      expect(findByIdResult.success).toBe(true);
+      if (!findByIdResult.success) {
+        return;
+      }
+      expect(findByIdResult.value).toBeNull();
+
+      expect(findBySourceStableKeyResult.success).toBe(true);
+      if (!findBySourceStableKeyResult.success) {
+        return;
+      }
+      expect(findBySourceStableKeyResult.value).toBeNull();
+    });
+  });
+
+  describe('countByVersion — persistence failure', () => {
+    it('returns a failed Result with PersistenceOperationFailedError', async () => {
+      const error = persistenceOperationFailed('knowledgeItem.countByVersion');
+      const repository = StubKnowledgeItemRepository.returningCountByVersionError(error);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000004');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.countByVersion(workspaceId.value, playbookVersionId.value);
+
+      expect(result.success).toBe(false);
+      if (result.success) {
+        return;
+      }
+
+      expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+      expect(result.error.details.operation).toBe('knowledgeItem.countByVersion');
+    });
+  });
+
+  describe('countByVersion — argument capture', () => {
+    it('captures the workspaceId and playbookVersionId from the last call', async () => {
+      const repository = StubKnowledgeItemRepository.returningKnowledgeItemCount(5);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000004');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      await repository.countByVersion(workspaceId.value, playbookVersionId.value);
+
+      const call = repository.countByVersionCall;
+
+      expect(call).not.toBeNull();
+      expect(call!.workspaceId).toBe(workspaceId.value);
+      expect(call!.playbookVersionId).toBe(playbookVersionId.value);
+      expect(Object.isFrozen(call)).toBe(true);
+    });
+  });
+
+  describe('countByVersion — accepts typed IDs', () => {
+    it('compiles with WorkspaceId and PlaybookVersionId parameter types', () => {
+      const repository = StubKnowledgeItemRepository.returningKnowledgeItemCount(1);
+
+      const _acceptsTypedIds: (
+        workspaceId: WorkspaceId,
+        playbookVersionId: PlaybookVersionId,
+      ) => Promise<Result<number, PersistenceOperationFailedError>> = (wsId, pvId) =>
+        repository.countByVersion(wsId, pvId);
 
       void _acceptsTypedIds;
     });

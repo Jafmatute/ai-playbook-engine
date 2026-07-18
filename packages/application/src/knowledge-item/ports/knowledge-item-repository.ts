@@ -20,4 +20,9 @@ export interface KnowledgeItemRepository {
     playbookVersionId: PlaybookVersionId,
     sourceStableKey: SourceStableKey,
   ): Promise<Result<KnowledgeItem | null, PersistenceOperationFailedError>>;
+
+  countByVersion(
+    workspaceId: WorkspaceId,
+    playbookVersionId: PlaybookVersionId,
+  ): Promise<Result<number, PersistenceOperationFailedError>>;
 }
