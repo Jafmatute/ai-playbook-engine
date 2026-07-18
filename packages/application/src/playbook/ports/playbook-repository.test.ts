@@ -69,6 +69,11 @@ type UpdateStubResult =
   | { readonly kind: 'revisionConflict' }
   | { readonly kind: 'error'; readonly error: PlaybookRepositoryUpdateError };
 
+interface FindByIdCall {
+  readonly workspaceId: WorkspaceId;
+  readonly playbookId: PlaybookId;
+}
+
 interface FindByNormalizedNameCall {
   readonly workspaceId: WorkspaceId;
   readonly normalizedName: string;
@@ -121,6 +126,7 @@ class StubPlaybookRepository implements PlaybookRepository {
   readonly #insertResult: InsertStubResult;
   readonly #updateResult: UpdateStubResult;
 
+  #findByIdCall: FindByIdCall | null = null;
   #findByNormalizedNameCall: FindByNormalizedNameCall | null = null;
   #listCall: ListCall | null = null;
   #insertCall: InsertCall | null = null;
@@ -272,6 +278,10 @@ class StubPlaybookRepository implements PlaybookRepository {
     );
   }
 
+  get findByIdCall(): FindByIdCall | null {
+    return this.#findByIdCall;
+  }
+
   get findByNormalizedNameCall(): FindByNormalizedNameCall | null {
     return this.#findByNormalizedNameCall;
   }
@@ -289,9 +299,14 @@ class StubPlaybookRepository implements PlaybookRepository {
   }
 
   async findById(
-    _workspaceId: WorkspaceId,
-    _playbookId: PlaybookId,
+    workspaceId: WorkspaceId,
+    playbookId: PlaybookId,
   ): Promise<Result<PersistedAggregate<Playbook> | null, PersistenceOperationFailedError>> {
+    this.#findByIdCall = Object.freeze({
+      workspaceId,
+      playbookId,
+    });
+
     switch (this.#findByIdResult.kind) {
       case 'playbook': {
         const rev = PersistenceRevision.from(this.#findByIdResult.revision);
@@ -598,6 +613,64 @@ describe('PlaybookRepository', () => {
     });
   });
 
+  describe('findById — capture call arguments', () => {
+    it('captures exactly the same instances and is frozen', async () => {
+      const workspaceIdResult = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceIdResult.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const workspaceId = workspaceIdResult.value;
+
+      const playbookIdResult = parsePlaybookId('00000000-0000-0000-0000-000000000001');
+      if (!playbookIdResult.success) {
+        throw new Error('Expected a valid playbook ID fixture.');
+      }
+      const playbookId = playbookIdResult.value;
+
+      const playbook = createValidPlaybook();
+      const repository = StubPlaybookRepository.returningPlaybook(playbook);
+
+      await repository.findById(workspaceId, playbookId);
+
+      const call = repository.findByIdCall;
+      expect(call).not.toBeNull();
+      if (call === null) {
+        throw new Error('Expected the findById call to be captured.');
+      }
+
+      expect(call.workspaceId).toBe(workspaceId);
+      expect(call.playbookId).toBe(playbookId);
+      expect(Object.isFrozen(call)).toBe(true);
+    });
+  });
+
+  describe('findById — non-trivial revision', () => {
+    it('preserves the aggregate instance and the configured revision number', async () => {
+      const playbook = createValidPlaybook();
+      const repository = StubPlaybookRepository.returningPlaybook(playbook, 42);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      const result = await repository.findById(workspaceId.value, playbook.id);
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).not.toBeNull();
+      if (result.value === null) {
+        throw new Error('Expected a persisted Playbook.');
+      }
+
+      expect(result.value.aggregate).toBe(playbook);
+      expect(result.value.revision.value).toBe(42);
+      expect(Object.isFrozen(result.value)).toBe(true);
+    });
+  });
+
   describe('findByNormalizedName — found', () => {
     it('returns a successful Result with the Playbook instance', async () => {
       const playbook = createValidPlaybook();
@@ -641,7 +714,10 @@ describe('PlaybookRepository', () => {
 
       const call = repository.findByNormalizedNameCall;
       expect(call).not.toBeNull();
-      expect(call!.normalizedName).toBe('test playbook');
+      if (call === null) {
+        throw new Error('Expected the repository call to be captured.');
+      }
+      expect(call.normalizedName).toBe('test playbook');
     });
   });
 
@@ -687,7 +763,10 @@ describe('PlaybookRepository', () => {
 
       const call = repository.findByNormalizedNameCall;
       expect(call).not.toBeNull();
-      expect(call!.options.includeArchived).toBe(false);
+      if (call === null) {
+        throw new Error('Expected the repository call to be captured.');
+      }
+      expect(call.options.includeArchived).toBe(false);
     });
   });
 
@@ -718,7 +797,10 @@ describe('PlaybookRepository', () => {
 
       const call = repository.findByNormalizedNameCall;
       expect(call).not.toBeNull();
-      expect(call!.options.includeArchived).toBe(true);
+      if (call === null) {
+        throw new Error('Expected the repository call to be captured.');
+      }
+      expect(call.options.includeArchived).toBe(true);
     });
   });
 
