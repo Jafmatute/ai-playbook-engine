@@ -48,7 +48,10 @@ import {
   workspaceNotActive,
   workspaceNotFound,
 } from '../../errors/index.js';
-import type { PlaybookSourceRepository } from '../ports/index.js';
+import type {
+  PlaybookSourceRepository,
+  PlaybookSourceRepositoryInsertError,
+} from '../ports/index.js';
 import {
   RegisterPlaybookSourceHandler,
   type RegisterPlaybookSourceCommand,
@@ -205,7 +208,9 @@ class SourceStub implements PlaybookSourceRepository {
       PlaybookSource | null,
       PersistenceOperationFailedError
     > = ok(null),
-    private readonly insertResult: Result<void, PersistenceOperationFailedError> = ok(undefined),
+    private readonly insertResult: Result<void, PlaybookSourceRepositoryInsertError> = ok(
+      undefined,
+    ),
   ) {}
 
   async findEnabledByPlaybookId(
@@ -218,7 +223,7 @@ class SourceStub implements PlaybookSourceRepository {
     return this.precheckResult;
   }
 
-  async insert(source: PlaybookSource): Promise<Result<void, PersistenceOperationFailedError>> {
+  async insert(source: PlaybookSource): Promise<Result<void, PlaybookSourceRepositoryInsertError>> {
     this.insertCalls.push(source);
     return this.insertResult;
   }
@@ -309,6 +314,12 @@ function expectNoCalls(context: ReturnType<typeof setup>): void {
   expect(context.idGenerator.calls).toEqual([]);
 }
 
+function expectSourceCreationNotAttempted(context: ReturnType<typeof setup>): void {
+  expect(context.source.insertCalls).toEqual([]);
+  expect(context.clock.calls).toEqual([]);
+  expect(context.idGenerator.calls).toEqual([]);
+}
+
 describe('RegisterPlaybookSourceHandler', () => {
   it('rejects an invalid playbook id before making calls', async () => {
     const context = setup();
@@ -318,10 +329,17 @@ describe('RegisterPlaybookSourceHandler', () => {
     expectNoCalls(context);
   });
 
-  it('rejects an unsupported source type before making calls', async () => {
+  it('rejects source type casing before making calls', async () => {
     const context = setup();
-    const result = await context.handler.handle({ ...command, type: 'csv' });
-    expect(errorFrom(result)).toEqual(playbookSourceTypeUnsupported('csv'));
+    const result = await context.handler.handle({ ...command, type: 'Notion' });
+    expect(errorFrom(result)).toEqual(playbookSourceTypeUnsupported('Notion'));
+    expectNoCalls(context);
+  });
+
+  it('rejects trailing source type whitespace before making calls', async () => {
+    const context = setup();
+    const result = await context.handler.handle({ ...command, type: 'notion ' });
+    expect(errorFrom(result)).toEqual(playbookSourceTypeUnsupported('notion '));
     expectNoCalls(context);
   });
 
@@ -345,6 +363,46 @@ describe('RegisterPlaybookSourceHandler', () => {
     expectNoCalls(context);
   });
 
+  it('rejects an external root reference longer than 512 characters before making calls', async () => {
+    const context = setup();
+    const invalid = { ...command, externalRootReference: 'a'.repeat(513) };
+    const result = await context.handler.handle(invalid);
+    expect(errorFrom(result)).toEqual(
+      errorFrom(PlaybookSourceExternalRootReference.create(invalid.externalRootReference)),
+    );
+    expectNoCalls(context);
+  });
+
+  it('rejects an external root reference with a control character before making calls', async () => {
+    const context = setup();
+    const invalid = { ...command, externalRootReference: 'root\u0000reference' };
+    const result = await context.handler.handle(invalid);
+    expect(errorFrom(result)).toEqual(
+      errorFrom(PlaybookSourceExternalRootReference.create(invalid.externalRootReference)),
+    );
+    expectNoCalls(context);
+  });
+
+  it('rejects a configuration reference longer than 512 characters before making calls', async () => {
+    const context = setup();
+    const invalid = { ...command, configurationReference: 'a'.repeat(513) };
+    const result = await context.handler.handle(invalid);
+    expect(errorFrom(result)).toEqual(
+      errorFrom(PlaybookSourceConfigurationReference.create(invalid.configurationReference)),
+    );
+    expectNoCalls(context);
+  });
+
+  it('rejects a configuration reference with a control character before making calls', async () => {
+    const context = setup();
+    const invalid = { ...command, configurationReference: 'config\u007freference' };
+    const result = await context.handler.handle(invalid);
+    expect(errorFrom(result)).toEqual(
+      errorFrom(PlaybookSourceConfigurationReference.create(invalid.configurationReference)),
+    );
+    expectNoCalls(context);
+  });
+
   it('returns the current workspace error without repository calls', async () => {
     const context = setup(new CurrentWorkspaceStub(err(currentWorkspaceUnavailable())));
     const result = await context.handler.handle(command);
@@ -353,7 +411,7 @@ describe('RegisterPlaybookSourceHandler', () => {
     expect(context.workspace.findByIdCalls).toEqual([]);
     expect(context.playbook.findByIdCalls).toEqual([]);
     expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
-    expect(context.source.insertCalls).toEqual([]);
+    expectSourceCreationNotAttempted(context);
   });
 
   it('returns the workspace lookup error without later calls', async () => {
@@ -364,7 +422,7 @@ describe('RegisterPlaybookSourceHandler', () => {
     expect(context.workspace.findByIdCalls).toEqual([Object.freeze({ workspaceId })]);
     expect(context.playbook.findByIdCalls).toEqual([]);
     expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
-    expect(context.source.insertCalls).toEqual([]);
+    expectSourceCreationNotAttempted(context);
   });
 
   it('returns workspace not found without later calls', async () => {
@@ -373,7 +431,7 @@ describe('RegisterPlaybookSourceHandler', () => {
     expect(errorFrom(result)).toEqual(workspaceNotFound());
     expect(context.playbook.findByIdCalls).toEqual([]);
     expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
-    expect(context.source.insertCalls).toEqual([]);
+    expectSourceCreationNotAttempted(context);
   });
 
   it('returns workspace not active without later calls', async () => {
@@ -382,7 +440,7 @@ describe('RegisterPlaybookSourceHandler', () => {
     expect(errorFrom(result)).toEqual(workspaceNotActive(workspaceId, 'archived'));
     expect(context.playbook.findByIdCalls).toEqual([]);
     expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
-    expect(context.source.insertCalls).toEqual([]);
+    expectSourceCreationNotAttempted(context);
   });
 
   it('returns the playbook lookup error without source calls', async () => {
@@ -392,7 +450,7 @@ describe('RegisterPlaybookSourceHandler', () => {
     expect(errorFrom(result)).toEqual(failure);
     expect(context.playbook.findByIdCalls).toEqual([Object.freeze({ workspaceId, playbookId })]);
     expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
-    expect(context.source.insertCalls).toEqual([]);
+    expectSourceCreationNotAttempted(context);
   });
 
   it('returns playbook not found without source calls', async () => {
@@ -400,7 +458,7 @@ describe('RegisterPlaybookSourceHandler', () => {
     const result = await context.handler.handle(command);
     expect(errorFrom(result)).toEqual(playbookNotFound());
     expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
-    expect(context.source.insertCalls).toEqual([]);
+    expectSourceCreationNotAttempted(context);
   });
 
   it('returns playbook archived without source calls', async () => {
@@ -408,11 +466,12 @@ describe('RegisterPlaybookSourceHandler', () => {
       undefined,
       undefined,
       new PlaybookStub(ok({ aggregate: playbook(true), revision: revision() })),
+      new SourceStub(ok(existingSource())),
     );
     const result = await context.handler.handle(command);
     expect(errorFrom(result)).toEqual(playbookArchived(playbookId));
     expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
-    expect(context.source.insertCalls).toEqual([]);
+    expectSourceCreationNotAttempted(context);
   });
 
   it('returns the source precheck error without inserting', async () => {
@@ -423,18 +482,26 @@ describe('RegisterPlaybookSourceHandler', () => {
     expect(context.source.findEnabledByPlaybookIdCalls).toEqual([
       Object.freeze({ workspaceId, playbookId }),
     ]);
-    expect(context.source.insertCalls).toEqual([]);
-    expect(context.clock.calls).toEqual([]);
-    expect(context.idGenerator.calls).toEqual([]);
+    expectSourceCreationNotAttempted(context);
   });
 
   it('returns the enabled source conflict without inserting', async () => {
     const context = setup(undefined, undefined, undefined, new SourceStub(ok(existingSource())));
     const result = await context.handler.handle(command);
     expect(errorFrom(result)).toEqual(enabledPlaybookSourceConflict(playbookId));
-    expect(context.source.insertCalls).toEqual([]);
-    expect(context.clock.calls).toEqual([]);
-    expect(context.idGenerator.calls).toEqual([]);
+    expect(context.source.findEnabledByPlaybookIdCalls).toHaveLength(1);
+    expectSourceCreationNotAttempted(context);
+  });
+
+  it('returns an insert conflict after creating the source once', async () => {
+    const failure = enabledPlaybookSourceConflict(playbookId);
+    const context = setup(undefined, undefined, undefined, new SourceStub(ok(null), err(failure)));
+    const result = await context.handler.handle(command);
+    expect(errorFrom(result)).toEqual(failure);
+    expect(context.source.findEnabledByPlaybookIdCalls).toHaveLength(1);
+    expect(context.source.insertCalls).toHaveLength(1);
+    expect(context.clock.calls).toHaveLength(1);
+    expect(context.idGenerator.calls).toHaveLength(1);
   });
 
   it('returns an insert error after creating the source', async () => {
@@ -442,6 +509,7 @@ describe('RegisterPlaybookSourceHandler', () => {
     const context = setup(undefined, undefined, undefined, new SourceStub(ok(null), err(failure)));
     const result = await context.handler.handle(command);
     expect(errorFrom(result)).toEqual(failure);
+    expect(context.source.findEnabledByPlaybookIdCalls).toHaveLength(1);
     expect(context.source.insertCalls).toHaveLength(1);
     expect(context.clock.calls).toHaveLength(1);
     expect(context.idGenerator.calls).toHaveLength(1);
@@ -473,6 +541,21 @@ describe('RegisterPlaybookSourceHandler', () => {
       Object.freeze({ workspaceId, playbookId }),
     ]);
     expect(context.source.insertCalls).toHaveLength(1);
-    expect(context.source.insertCalls[0]?.id).toBe(sourceId);
+    const inserted = context.source.insertCalls[0];
+    if (inserted === undefined) throw new Error('Expected inserted source.');
+    expect(inserted.id).toBe(sourceId);
+    expect(inserted.workspaceId).toBe(workspaceId);
+    expect(inserted.playbookId).toBe(playbookId);
+    expect(inserted.type).toBe('notion');
+    expect(inserted.externalRootReference).toEqual(
+      valueFrom(PlaybookSourceExternalRootReference.create(command.externalRootReference)),
+    );
+    expect(inserted.configurationReference).toEqual(
+      valueFrom(PlaybookSourceConfigurationReference.create(command.configurationReference)),
+    );
+    expect(inserted.status).toBe('enabled');
+    expect(inserted.createdAt).toEqual(instant());
+    expect(context.clock.calls).toEqual([undefined]);
+    expect(context.idGenerator.calls).toEqual([undefined]);
   });
 });
