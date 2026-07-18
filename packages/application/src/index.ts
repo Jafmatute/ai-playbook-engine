@@ -45,8 +45,10 @@ export {
   playbookArchived,
   ENABLED_PLAYBOOK_SOURCE_CONFLICT,
   PLAYBOOK_SOURCE_TYPE_UNSUPPORTED,
+  PLAYBOOK_SOURCE_NOT_FOUND,
   enabledPlaybookSourceConflict,
   playbookSourceTypeUnsupported,
+  playbookSourceNotFound,
   paginationInvalid,
 } from './errors/index.js';
 export type {
@@ -58,6 +60,7 @@ export type {
   PlaybookArchivedError,
   EnabledPlaybookSourceConflictError,
   PlaybookSourceTypeUnsupportedError,
+  PlaybookSourceNotFoundError,
   PaginationInvalidError,
 } from './errors/index.js';
 
@@ -108,8 +111,14 @@ export type {
   PlaybookSourceOutput,
   RegisterPlaybookSourceCommand,
   RegisterPlaybookSourceError,
+  GetPlaybookSourceQuery,
+  GetPlaybookSourceError,
 } from './playbook-source/index.js';
-export { toPlaybookSourceOutput, RegisterPlaybookSourceHandler } from './playbook-source/index.js';
+export {
+  toPlaybookSourceOutput,
+  RegisterPlaybookSourceHandler,
+  GetPlaybookSourceHandler,
+} from './playbook-source/index.js';
 export type {
   SynchronizationRunListFilter,
   SynchronizationRunRepository,

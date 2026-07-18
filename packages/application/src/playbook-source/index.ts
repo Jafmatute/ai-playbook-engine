@@ -7,3 +7,5 @@ export type {
   RegisterPlaybookSourceError,
 } from './commands/index.js';
 export { RegisterPlaybookSourceHandler } from './commands/index.js';
+export type { GetPlaybookSourceQuery, GetPlaybookSourceError } from './queries/index.js';
+export { GetPlaybookSourceHandler } from './queries/index.js';
