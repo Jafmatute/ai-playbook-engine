@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-
 import { parseArgs } from './args.js';
 
 describe('parseArgs', () => {
@@ -67,7 +66,8 @@ describe('parseArgs', () => {
     expect(result.success).toBe(false);
     if (result.success) return;
 
-    expect(result.error).toBe('Invalid flag: "--=value".');
+    expect(result.error.code).toBe('INVALID_FLAG');
+    expect(result.error.message).toBe('Invalid flag: "--=value".');
   });
 
   it('rejects bare double dash', () => {
@@ -76,6 +76,53 @@ describe('parseArgs', () => {
     expect(result.success).toBe(false);
     if (result.success) return;
 
-    expect(result.error).toBe('Invalid flag: "--".');
+    expect(result.error.code).toBe('INVALID_FLAG');
+    expect(result.error.message).toBe('Invalid flag: "--".');
+  });
+
+  it('rejects duplicate flags', () => {
+    const cases = [
+      { args: ['--output', 'json', '--output', 'human'], flag: 'output' },
+      { args: ['--name', 'A', '--name', 'B'], flag: 'name' },
+      { args: ['--help', '--help'], flag: 'help' },
+      { args: ['--name=A', '--name=B'], flag: 'name' },
+    ];
+
+    for (const c of cases) {
+      const result = parseArgs(c.args);
+      expect(result.success).toBe(false);
+      if (result.success) continue;
+      expect(result.error.code).toBe('DUPLICATE_FLAG');
+      expect(result.error.message).toBe(`Duplicate flag: "${c.flag}".`);
+    }
+  });
+
+  it('rejects empty flag values for required flags', () => {
+    const cases = [
+      { args: ['--name='], flag: 'name' },
+      { args: ['--name', ''], flag: 'name' },
+      { args: ['--name'], flag: 'name' },
+      { args: ['--id='], flag: 'id' },
+      { args: ['--id'], flag: 'id' },
+      { args: ['--output='], flag: 'output' },
+      { args: ['--output'], flag: 'output' },
+      { args: ['--workspace-id='], flag: 'workspace-id' },
+      { args: ['--workspace-id'], flag: 'workspace-id' },
+      { args: ['--offset='], flag: 'offset' },
+      { args: ['--offset'], flag: 'offset' },
+      { args: ['--limit='], flag: 'limit' },
+      { args: ['--limit'], flag: 'limit' },
+      { args: ['--status='], flag: 'status' },
+      { args: ['--status'], flag: 'status' },
+      { args: ['--has-active-version='], flag: 'has-active-version' },
+      { args: ['--has-active-version'], flag: 'has-active-version' },
+    ];
+
+    for (const c of cases) {
+      const result = parseArgs(c.args);
+      expect(result.success).toBe(false);
+      if (result.success) continue;
+      expect(result.error.code).toBe('INVALID_FLAG');
+    }
   });
 });

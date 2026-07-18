@@ -39,21 +39,19 @@ export interface BuildServicesError {
 
 export function buildServices(
   config: RawConfig,
-  cliWorkspaceIdOverride?: string,
 ): Result<Services, BuildServicesError> {
   const dbUrlResult = requireDatabaseUrl(config);
   if (!dbUrlResult.success) {
     return err({ kind: 'config', error: dbUrlResult.error });
   }
 
-  const pool = new DatabasePool({ connectionString: dbUrlResult.value });
+  const pool = new DatabasePool(dbUrlResult.value);
 
   const clock = new SystemClock();
   const workspaceIdGenerator = new CryptoWorkspaceIdGenerator();
   const playbookIdGenerator = new CryptoPlaybookIdGenerator();
 
-  const effectiveWorkspaceId = cliWorkspaceIdOverride ?? config.workspaceId;
-  const currentWorkspaceProvider = new ConfiguredCurrentWorkspaceProvider(effectiveWorkspaceId);
+  const currentWorkspaceProvider = new ConfiguredCurrentWorkspaceProvider(config.workspaceId);
 
   const workspaceRepository = new PostgresWorkspaceRepository(pool);
   const playbookRepository = new PostgresPlaybookRepository(pool);
