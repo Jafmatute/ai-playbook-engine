@@ -1668,19 +1668,49 @@ describe('SynchronizationRunRepository', () => {
   });
 
   describe('findStaleRunning — wrong workspace', () => {
-    it('returns a frozen empty page when queried from a different workspace', async () => {
-      const repository = StubSynchronizationRunRepository.returningEmptyStaleRunningPage(
-        Object.freeze({ offset: 0, limit: 25 }),
-      );
-      const workspaceB = parseWorkspaceId('00000000-0000-0000-0000-000000000005');
-      if (!workspaceB.success) {
+    it('returns a frozen empty page when the stale run belongs to a different workspace', async () => {
+      const workspaceAResult = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceAResult.success) {
         throw new Error('Expected a valid workspace ID fixture.');
       }
 
+      const workspaceBResult = parseWorkspaceId('00000000-0000-0000-0000-000000000005');
+      if (!workspaceBResult.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+
+      expect(workspaceAResult.value).not.toBe(workspaceBResult.value);
+
+      const olderThan = Instant.parse('2026-07-15T10:00:00.000Z');
+      if (!olderThan.success) {
+        throw new Error('Expected a valid instant fixture.');
+      }
+
+      const staleRunInWorkspaceA = createRunningSynchronizationRun({
+        workspaceId: '00000000-0000-0000-0000-000000000002',
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        playbookSourceId: '00000000-0000-0000-0000-000000000004',
+        startedAt: '2026-07-15T08:00:00.000Z',
+      });
+
+      const startedAt = staleRunInWorkspaceA.startedAt;
+      if (startedAt === null) {
+        throw new Error('Expected running run to have startedAt.');
+      }
+
+      expect(staleRunInWorkspaceA.status).toBe('running');
+      expect(staleRunInWorkspaceA.workspaceId).toBe(workspaceAResult.value);
+      expect(staleRunInWorkspaceA.workspaceId).not.toBe(workspaceBResult.value);
+      expect(startedAt.compare(olderThan.value)).toBeLessThan(0);
+
+      const pagination: PaginationRequest = Object.freeze({ offset: 0, limit: 25 });
+      const repository =
+        StubSynchronizationRunRepository.returningEmptyStaleRunningPage(pagination);
+
       const result = await repository.findStaleRunning(
-        workspaceB.value,
-        parseOlderThanInstant(),
-        Object.freeze({ offset: 0, limit: 25 }),
+        workspaceBResult.value,
+        olderThan.value,
+        pagination,
       );
 
       expect(result.success).toBe(true);
@@ -1689,6 +1719,10 @@ describe('SynchronizationRunRepository', () => {
       }
 
       expect(result.value.items).toHaveLength(0);
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(25);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(0);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
     });
