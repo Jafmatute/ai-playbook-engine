@@ -46,6 +46,18 @@ type FindLatestByPlaybookVersionIdCall = Readonly<{
   playbookVersionId: PlaybookVersionId;
 }>;
 
+type ListByPlaybookVersionIdStubResult =
+  | {
+      readonly kind: 'normalizationAttempts';
+      readonly normalizationAttempts: readonly NormalizationAttempt[];
+    }
+  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
+
+type ListByPlaybookVersionIdCall = Readonly<{
+  workspaceId: WorkspaceId;
+  playbookVersionId: PlaybookVersionId;
+}>;
+
 // ---------------------------------------------------------------------------
 // Stub
 // ---------------------------------------------------------------------------
@@ -53,14 +65,18 @@ type FindLatestByPlaybookVersionIdCall = Readonly<{
 class StubNormalizationAttemptRepository implements NormalizationAttemptRepository {
   readonly #findByIdResult: FindByIdStubResult;
   readonly #findLatestResult: FindLatestByPlaybookVersionIdStubResult;
+  readonly #listResult: ListByPlaybookVersionIdStubResult;
   #findLatestCall: FindLatestByPlaybookVersionIdCall | null = null;
+  #listCall: ListByPlaybookVersionIdCall | null = null;
 
   private constructor(
     findByIdResult: FindByIdStubResult,
     findLatestResult: FindLatestByPlaybookVersionIdStubResult,
+    listResult: ListByPlaybookVersionIdStubResult,
   ) {
     this.#findByIdResult = findByIdResult;
     this.#findLatestResult = findLatestResult;
+    this.#listResult = listResult;
   }
 
   // -- findById factories ---------------------------------------------------
@@ -71,17 +87,26 @@ class StubNormalizationAttemptRepository implements NormalizationAttemptReposito
     return new StubNormalizationAttemptRepository(
       { kind: 'normalizationAttempt', normalizationAttempt },
       { kind: 'null' },
+      { kind: 'normalizationAttempts', normalizationAttempts: [] },
     );
   }
 
   static returningNull(): StubNormalizationAttemptRepository {
-    return new StubNormalizationAttemptRepository({ kind: 'null' }, { kind: 'null' });
+    return new StubNormalizationAttemptRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'normalizationAttempts', normalizationAttempts: [] },
+    );
   }
 
   static returningError(
     error: PersistenceOperationFailedError,
   ): StubNormalizationAttemptRepository {
-    return new StubNormalizationAttemptRepository({ kind: 'error', error }, { kind: 'null' });
+    return new StubNormalizationAttemptRepository(
+      { kind: 'error', error },
+      { kind: 'null' },
+      { kind: 'normalizationAttempts', normalizationAttempts: [] },
+    );
   }
 
   // -- findLatestByPlaybookVersionId factories ------------------------------
@@ -92,17 +117,81 @@ class StubNormalizationAttemptRepository implements NormalizationAttemptReposito
     return new StubNormalizationAttemptRepository(
       { kind: 'null' },
       { kind: 'normalizationAttempt', normalizationAttempt },
+      { kind: 'normalizationAttempts', normalizationAttempts: [] },
     );
   }
 
   static returningNoLatestNormalizationAttempt(): StubNormalizationAttemptRepository {
-    return new StubNormalizationAttemptRepository({ kind: 'null' }, { kind: 'null' });
+    return new StubNormalizationAttemptRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'normalizationAttempts', normalizationAttempts: [] },
+    );
   }
 
   static returningFindLatestByPlaybookVersionIdError(
     error: PersistenceOperationFailedError,
   ): StubNormalizationAttemptRepository {
-    return new StubNormalizationAttemptRepository({ kind: 'null' }, { kind: 'error', error });
+    return new StubNormalizationAttemptRepository(
+      { kind: 'null' },
+      { kind: 'error', error },
+      { kind: 'normalizationAttempts', normalizationAttempts: [] },
+    );
+  }
+
+  // -- listByPlaybookVersionId factories ------------------------------------
+
+  static returningNormalizationAttempts(
+    normalizationAttempts: readonly NormalizationAttempt[],
+  ): StubNormalizationAttemptRepository {
+    return new StubNormalizationAttemptRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      {
+        kind: 'normalizationAttempts',
+        normalizationAttempts: Object.freeze([...normalizationAttempts]),
+      },
+    );
+  }
+
+  static returningNoNormalizationAttempts(): StubNormalizationAttemptRepository {
+    return new StubNormalizationAttemptRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'normalizationAttempts', normalizationAttempts: Object.freeze([]) },
+    );
+  }
+
+  static returningListByPlaybookVersionIdError(
+    error: PersistenceOperationFailedError,
+  ): StubNormalizationAttemptRepository {
+    return new StubNormalizationAttemptRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'error', error },
+    );
+  }
+
+  // -- listByPlaybookVersionId ---------------------------------------------
+
+  get listCall(): ListByPlaybookVersionIdCall | null {
+    return this.#listCall;
+  }
+
+  async listByPlaybookVersionId(
+    workspaceId: WorkspaceId,
+    playbookVersionId: PlaybookVersionId,
+  ): Promise<Result<readonly NormalizationAttempt[], PersistenceOperationFailedError>> {
+    this.#listCall = Object.freeze({ workspaceId, playbookVersionId });
+
+    switch (this.#listResult.kind) {
+      case 'normalizationAttempts': {
+        return ok(this.#listResult.normalizationAttempts);
+      }
+      case 'error': {
+        return err(this.#listResult.error);
+      }
+    }
   }
 
   // -- findById -------------------------------------------------------------
@@ -608,6 +697,363 @@ describe('NormalizationAttemptRepository', () => {
         wsId,
         pvId,
       ) => repository.findLatestByPlaybookVersionId(wsId, pvId);
+
+      void _acceptsTypedIds;
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // listByPlaybookVersionId
+  // -------------------------------------------------------------------------
+
+  describe('listByPlaybookVersionId — history found', () => {
+    it('returns all attempts ordered by startedAt ascending', async () => {
+      const attempt1 = createValidNormalizationAttempt({
+        normalizationAttemptId: '00000000-0000-0000-0000-000000000001',
+        startedAt: '2026-07-15T10:00:00.000Z',
+      });
+      const attempt2 = createValidNormalizationAttempt({
+        normalizationAttemptId: '00000000-0000-0000-0000-000000000002',
+        playbookVersionId: '00000000-0000-0000-0000-000000000002',
+        startedAt: '2026-07-15T11:00:00.000Z',
+      });
+      const attempt3 = createValidNormalizationAttempt({
+        normalizationAttemptId: '00000000-0000-0000-0000-000000000003',
+        playbookVersionId: '00000000-0000-0000-0000-000000000002',
+        startedAt: '2026-07-15T12:00:00.000Z',
+      });
+
+      expect(attempt1.playbookVersionId).toBe(attempt2.playbookVersionId);
+      expect(attempt2.playbookVersionId).toBe(attempt3.playbookVersionId);
+      expect(attempt1.id).not.toBe(attempt2.id);
+      expect(attempt2.id).not.toBe(attempt3.id);
+      expect(attempt1.startedAt.compare(attempt2.startedAt)).toBe(-1);
+      expect(attempt2.startedAt.compare(attempt3.startedAt)).toBe(-1);
+
+      const repository = StubNormalizationAttemptRepository.returningNormalizationAttempts([
+        attempt1,
+        attempt2,
+        attempt3,
+      ]);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000003');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000002');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookVersionId(
+        workspaceId.value,
+        playbookVersionId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toHaveLength(3);
+      expect(result.value[0]).toBe(attempt1);
+      expect(result.value[1]).toBe(attempt2);
+      expect(result.value[2]).toBe(attempt3);
+      expect(Object.isFrozen(result.value)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookVersionId — no attempts', () => {
+    it('returns an empty frozen array when the version has no attempts', async () => {
+      const repository = StubNormalizationAttemptRepository.returningNoNormalizationAttempts();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000003');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000002');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookVersionId(
+        workspaceId.value,
+        playbookVersionId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toHaveLength(0);
+      expect(Object.isFrozen(result.value)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookVersionId — version not found', () => {
+    it('returns an empty array when the playbook version does not exist', async () => {
+      const repository = StubNormalizationAttemptRepository.returningNoNormalizationAttempts();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000003');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const nonExistentVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-00000000ffff');
+      if (!nonExistentVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookVersionId(
+        workspaceId.value,
+        nonExistentVersionId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toHaveLength(0);
+    });
+  });
+
+  describe('listByPlaybookVersionId — wrong workspace', () => {
+    it('returns an empty array when queried from a different workspace', async () => {
+      const repository = StubNormalizationAttemptRepository.returningNoNormalizationAttempts();
+      const workspaceB = parseWorkspaceId('00000000-0000-0000-0000-000000000004');
+      if (!workspaceB.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000002');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookVersionId(
+        workspaceB.value,
+        playbookVersionId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toHaveLength(0);
+    });
+  });
+
+  describe('listByPlaybookVersionId — attempts from another version', () => {
+    it('returns only attempts belonging to the queried version', async () => {
+      const versionA1 = createValidNormalizationAttempt({
+        normalizationAttemptId: '00000000-0000-0000-0000-000000000001',
+        playbookVersionId: '00000000-0000-0000-0000-00000000000a',
+        startedAt: '2026-07-15T10:00:00.000Z',
+      });
+      const versionA2 = createValidNormalizationAttempt({
+        normalizationAttemptId: '00000000-0000-0000-0000-000000000002',
+        playbookVersionId: '00000000-0000-0000-0000-00000000000a',
+        startedAt: '2026-07-15T11:00:00.000Z',
+      });
+
+      const repository = StubNormalizationAttemptRepository.returningNormalizationAttempts([
+        versionA1,
+        versionA2,
+      ]);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000003');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const versionAId = parsePlaybookVersionId('00000000-0000-0000-0000-00000000000a');
+      if (!versionAId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookVersionId(workspaceId.value, versionAId.value);
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toHaveLength(2);
+      expect(result.value[0]!.playbookVersionId).toBe(versionAId.value);
+      expect(result.value[1]!.playbookVersionId).toBe(versionAId.value);
+    });
+  });
+
+  describe('listByPlaybookVersionId — mixed statuses', () => {
+    it('includes attempts regardless of their status', async () => {
+      const runningAttempt = createValidNormalizationAttempt({
+        normalizationAttemptId: '00000000-0000-0000-0000-000000000001',
+        startedAt: '2026-07-15T10:00:00.000Z',
+      });
+      const completedAttempt = createValidNormalizationAttempt({
+        normalizationAttemptId: '00000000-0000-0000-0000-000000000002',
+        playbookVersionId: '00000000-0000-0000-0000-000000000002',
+        startedAt: '2026-07-15T11:00:00.000Z',
+      });
+      const completedAt = Instant.parse('2026-07-15T11:30:00.000Z');
+      if (!completedAt.success) {
+        throw new Error('Expected a valid instant fixture.');
+      }
+      expect(completedAttempt.complete({ completedAt: completedAt.value }).success).toBe(true);
+
+      const failedAttempt = createValidNormalizationAttempt({
+        normalizationAttemptId: '00000000-0000-0000-0000-000000000003',
+        playbookVersionId: '00000000-0000-0000-0000-000000000002',
+        startedAt: '2026-07-15T12:00:00.000Z',
+      });
+      const failedAt = Instant.parse('2026-07-15T12:30:00.000Z');
+      if (!failedAt.success) {
+        throw new Error('Expected a valid instant fixture.');
+      }
+      expect(failedAttempt.fail({ failedAt: failedAt.value }).success).toBe(true);
+
+      const repository = StubNormalizationAttemptRepository.returningNormalizationAttempts([
+        runningAttempt,
+        completedAttempt,
+        failedAttempt,
+      ]);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000003');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000002');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookVersionId(
+        workspaceId.value,
+        playbookVersionId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toHaveLength(3);
+      expect(result.value[0]!.status).toBe('running');
+      expect(result.value[1]!.status).toBe('completed');
+      expect(result.value[2]!.status).toBe('failed');
+    });
+  });
+
+  describe('listByPlaybookVersionId — persistence failure', () => {
+    it('returns a failed Result with PersistenceOperationFailedError', async () => {
+      const error = persistenceOperationFailed('normalizationAttempt.listByPlaybookVersionId');
+      const repository =
+        StubNormalizationAttemptRepository.returningListByPlaybookVersionIdError(error);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000003');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000002');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookVersionId(
+        workspaceId.value,
+        playbookVersionId.value,
+      );
+
+      expect(result.success).toBe(false);
+      if (result.success) {
+        return;
+      }
+
+      expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+      expect(result.error.details.operation).toBe('normalizationAttempt.listByPlaybookVersionId');
+    });
+  });
+
+  describe('listByPlaybookVersionId — argument capture', () => {
+    it('captures the workspaceId and playbookVersionId from the last call', async () => {
+      const attempt = createValidNormalizationAttempt();
+      const repository = StubNormalizationAttemptRepository.returningNormalizationAttempts([
+        attempt,
+      ]);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000003');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000002');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      await repository.listByPlaybookVersionId(workspaceId.value, playbookVersionId.value);
+
+      const call = repository.listCall;
+
+      expect(call).not.toBeNull();
+      expect(call!.workspaceId).toBe(workspaceId.value);
+      expect(call!.playbookVersionId).toBe(playbookVersionId.value);
+      expect(Object.isFrozen(call)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookVersionId — array independence', () => {
+    it('is not affected by external mutations to the source array after configuration', async () => {
+      const attempt1 = createValidNormalizationAttempt({
+        normalizationAttemptId: '00000000-0000-0000-0000-000000000001',
+      });
+      const attempt2 = createValidNormalizationAttempt({
+        normalizationAttemptId: '00000000-0000-0000-0000-000000000002',
+        playbookVersionId: '00000000-0000-0000-0000-000000000002',
+        startedAt: '2026-07-15T11:00:00.000Z',
+      });
+      const attempt3 = createValidNormalizationAttempt({
+        normalizationAttemptId: '00000000-0000-0000-0000-000000000003',
+        playbookVersionId: '00000000-0000-0000-0000-000000000002',
+        startedAt: '2026-07-15T12:00:00.000Z',
+      });
+
+      const configured: NormalizationAttempt[] = [attempt1, attempt2];
+      const repository =
+        StubNormalizationAttemptRepository.returningNormalizationAttempts(configured);
+      configured.push(attempt3);
+
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000003');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000002');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookVersionId(
+        workspaceId.value,
+        playbookVersionId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toHaveLength(2);
+      expect(result.value[0]).toBe(attempt1);
+      expect(result.value[1]).toBe(attempt2);
+    });
+  });
+
+  describe('listByPlaybookVersionId — accepts typed IDs', () => {
+    it('compiles with WorkspaceId and PlaybookVersionId parameter types', () => {
+      const attempt = createValidNormalizationAttempt();
+      const repository = StubNormalizationAttemptRepository.returningNormalizationAttempts([
+        attempt,
+      ]);
+
+      const _acceptsTypedIds: (
+        workspaceId: WorkspaceId,
+        playbookVersionId: PlaybookVersionId,
+      ) => Promise<Result<readonly NormalizationAttempt[], PersistenceOperationFailedError>> = (
+        wsId,
+        pvId,
+      ) => repository.listByPlaybookVersionId(wsId, pvId);
 
       void _acceptsTypedIds;
     });

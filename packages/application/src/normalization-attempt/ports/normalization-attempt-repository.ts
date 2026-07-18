@@ -18,4 +18,9 @@ export interface NormalizationAttemptRepository {
     workspaceId: WorkspaceId,
     playbookVersionId: PlaybookVersionId,
   ): Promise<Result<NormalizationAttempt | null, PersistenceOperationFailedError>>;
+
+  listByPlaybookVersionId(
+    workspaceId: WorkspaceId,
+    playbookVersionId: PlaybookVersionId,
+  ): Promise<Result<readonly NormalizationAttempt[], PersistenceOperationFailedError>>;
 }

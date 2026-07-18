@@ -21,6 +21,7 @@ const operations = [
   'playbookVersion.findBySequence',
   'playbookVersion.findLatestByPlaybookId',
   'normalizationAttempt.findLatestByPlaybookVersionId',
+  'normalizationAttempt.listByPlaybookVersionId',
 ] as const;
 
 describe('persistenceOperationFailed', () => {
