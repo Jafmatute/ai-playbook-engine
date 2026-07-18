@@ -343,6 +343,16 @@ describe('RegisterPlaybookSourceHandler', () => {
     expectNoCalls(context);
   });
 
+  it('accepts NOTION as a supported source type', async () => {
+    const context = setup();
+    const result = await context.handler.handle({ ...command, type: 'notion' });
+    expect(result.success).toBe(true);
+    expect(context.source.insertCalls).toHaveLength(1);
+    const inserted = context.source.insertCalls[0];
+    if (inserted === undefined) throw new Error('Expected inserted source.');
+    expect(inserted.type).toBe('notion');
+  });
+
   it('rejects an invalid external root reference before making calls', async () => {
     const context = setup();
     const invalid = { ...command, externalRootReference: '' };
@@ -498,6 +508,9 @@ describe('RegisterPlaybookSourceHandler', () => {
     const context = setup(undefined, undefined, undefined, new SourceStub(ok(null), err(failure)));
     const result = await context.handler.handle(command);
     expect(errorFrom(result)).toEqual(failure);
+    expect(context.current.calls).toHaveLength(1);
+    expect(context.workspace.findByIdCalls).toHaveLength(1);
+    expect(context.playbook.findByIdCalls).toHaveLength(1);
     expect(context.source.findEnabledByPlaybookIdCalls).toHaveLength(1);
     expect(context.source.insertCalls).toHaveLength(1);
     expect(context.clock.calls).toHaveLength(1);
@@ -509,6 +522,9 @@ describe('RegisterPlaybookSourceHandler', () => {
     const context = setup(undefined, undefined, undefined, new SourceStub(ok(null), err(failure)));
     const result = await context.handler.handle(command);
     expect(errorFrom(result)).toEqual(failure);
+    expect(context.current.calls).toHaveLength(1);
+    expect(context.workspace.findByIdCalls).toHaveLength(1);
+    expect(context.playbook.findByIdCalls).toHaveLength(1);
     expect(context.source.findEnabledByPlaybookIdCalls).toHaveLength(1);
     expect(context.source.insertCalls).toHaveLength(1);
     expect(context.clock.calls).toHaveLength(1);
@@ -535,6 +551,7 @@ describe('RegisterPlaybookSourceHandler', () => {
       lastFailedSynchronizationRunId: null,
     });
     expect(Object.isFrozen(result.value)).toBe(true);
+    expect(context.current.calls).toHaveLength(1);
     expect(context.workspace.findByIdCalls).toEqual([Object.freeze({ workspaceId })]);
     expect(context.playbook.findByIdCalls).toEqual([Object.freeze({ workspaceId, playbookId })]);
     expect(context.source.findEnabledByPlaybookIdCalls).toEqual([
@@ -543,18 +560,20 @@ describe('RegisterPlaybookSourceHandler', () => {
     expect(context.source.insertCalls).toHaveLength(1);
     const inserted = context.source.insertCalls[0];
     if (inserted === undefined) throw new Error('Expected inserted source.');
-    expect(inserted.id).toBe(sourceId);
-    expect(inserted.workspaceId).toBe(workspaceId);
-    expect(inserted.playbookId).toBe(playbookId);
-    expect(inserted.type).toBe('notion');
-    expect(inserted.externalRootReference).toEqual(
-      valueFrom(PlaybookSourceExternalRootReference.create(command.externalRootReference)),
-    );
-    expect(inserted.configurationReference).toEqual(
-      valueFrom(PlaybookSourceConfigurationReference.create(command.configurationReference)),
-    );
-    expect(inserted.status).toBe('enabled');
-    expect(inserted.createdAt).toEqual(instant());
+    expect(inserted.toSnapshot()).toEqual({
+      playbookSourceId: sourceId,
+      workspaceId,
+      playbookId,
+      type: 'notion',
+      externalRootReference: 'https://example.com/root',
+      configurationReference: 'config-1',
+      status: 'enabled',
+      createdAt: '2026-07-17T12:00:00.000Z',
+      lastSuccessfulSynchronizationAt: null,
+      lastSuccessfulSynchronizationRunId: null,
+      lastFailedSynchronizationAt: null,
+      lastFailedSynchronizationRunId: null,
+    });
     expect(context.clock.calls).toEqual([undefined]);
     expect(context.idGenerator.calls).toEqual([undefined]);
   });
