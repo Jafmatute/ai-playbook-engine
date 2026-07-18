@@ -20,6 +20,7 @@ import {
   playbookNameConflict,
   playbookSourceTypeUnsupported,
   playbookSourceNotFound,
+  workspaceNotFound,
   persistenceRevisionConflict,
   PersistenceRevision,
 } from '@ai-playbook-engine/application';
@@ -157,6 +158,14 @@ function createPlaybookSourceId(value: string): PlaybookSourceId {
 function createInvalidPlaybookIdError() {
   const result = parsePlaybookId('not-a-uuid');
   if (result.success) throw new Error('Expected an invalid playbook ID error.');
+  return result.error;
+}
+
+function createInvalidPlaybookSourceIdError() {
+  const result = parsePlaybookSourceId('not-a-uuid');
+  if (result.success) {
+    throw new Error('Expected an invalid playbook source ID error.');
+  }
   return result.error;
 }
 
@@ -1477,18 +1486,25 @@ describe('runCli playbook source show command', () => {
       ),
     ).toBe(ExitCode.SUCCESS);
     expect(human.stdout).toContain('Playbook Source:');
+    expect(human.stdout).toContain('00000000-0000-0000-0000-000000000003');
+    expect(human.stdout).toContain('00000000-0000-0000-0000-000000000002');
+    expect(human.stdout).toContain('Type:                     notion');
+    expect(human.stdout).toContain('Status:                   enabled');
+    expect(human.stdout).toContain('External Root Reference:  notion-root');
     expect(human.stdout).toContain('Configuration Reference:  notion/main');
+    expect(human.stdout).toContain('Created At:               2026-07-12T10:00:00.000Z');
     expect(human.stdout).not.toMatch(/credential|secret|token/i);
     expect(human.stderr).toBe('');
     expect(pool.closeCalled).toBe(1);
 
+    const jsonPool = new MockPool();
     const json = new MockIo();
     expect(
       await runCli(
         [...args, '--output', 'json'],
         envReader,
         json,
-        createMockDependencies(createMockServices()),
+        createMockDependencies(createMockServices({ pool: jsonPool })),
       ),
     ).toBe(ExitCode.SUCCESS);
     const parsed: unknown = JSON.parse(json.stdout);
@@ -1543,14 +1559,17 @@ describe('runCli playbook source show command', () => {
       throw new Error('Invalid playbook source show JSON success output structure.');
     }
     expect(json.stderr).toBe('');
+    expect(jsonPool.closeCalled).toBe(1);
   });
 
   it.each([
-    [createInvalidPlaybookIdError(), ExitCode.INVALID_INPUT],
+    [createInvalidPlaybookSourceIdError(), ExitCode.INVALID_INPUT],
+    [workspaceNotFound(), ExitCode.NOT_FOUND],
     [
       playbookSourceNotFound(createPlaybookSourceId('00000000-0000-0000-0000-000000000003')),
       ExitCode.NOT_FOUND,
     ],
+    [persistenceOperationFailed('playbookSource.findById'), ExitCode.INFRASTRUCTURE_ERROR],
   ])('maps real $0.code errors to exits and closes once', async (error, expected) => {
     const pool = new MockPool();
     const getPlaybookSource: CliServices['getPlaybookSource'] = {
@@ -1568,6 +1587,55 @@ describe('runCli playbook source show command', () => {
     ).toBe(expected);
     expect(io.stderr).toContain(error.message);
     expect(io.stdout).toBe('');
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  it('renders expected JSON error for PLAYBOOK_SOURCE_NOT_FOUND', async () => {
+    const failure = playbookSourceNotFound(
+      createPlaybookSourceId('00000000-0000-0000-0000-000000000003'),
+    );
+    const pool = new MockPool();
+    const getPlaybookSource: CliServices['getPlaybookSource'] = {
+      handle: async () => err(failure),
+    };
+    const io = new MockIo();
+
+    expect(
+      await runCli(
+        [...args, '--output', 'json'],
+        envReader,
+        io,
+        createMockDependencies(createMockServices({ pool, getPlaybookSource })),
+      ),
+    ).toBe(ExitCode.NOT_FOUND);
+    expect(io.stderr).toBe('');
+    const parsed: unknown = JSON.parse(io.stdout);
+    if (
+      parsed !== null &&
+      typeof parsed === 'object' &&
+      'success' in parsed &&
+      'error' in parsed &&
+      parsed.error !== null &&
+      typeof parsed.error === 'object' &&
+      'code' in parsed.error &&
+      'message' in parsed.error &&
+      'details' in parsed.error &&
+      parsed.error.details !== null &&
+      typeof parsed.error.details === 'object'
+    ) {
+      expect(parsed.success).toBe(false);
+      expect(parsed.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
+      expect(parsed.error.message).toBe(
+        'The playbook source was not found in the current workspace.',
+      );
+      expect('playbookSourceId' in parsed.error.details).toBe(true);
+      if ('playbookSourceId' in parsed.error.details) {
+        expect(parsed.error.details.playbookSourceId).toBe('00000000-0000-0000-0000-000000000003');
+      }
+      expect(io.stdout).not.toMatch(/token|credential|secret/i);
+    } else {
+      throw new Error('Invalid PLAYBOOK_SOURCE_NOT_FOUND JSON error structure.');
+    }
     expect(pool.closeCalled).toBe(1);
   });
 

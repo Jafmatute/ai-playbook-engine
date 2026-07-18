@@ -5,6 +5,7 @@ import {
   Instant,
   parsePlaybookId,
   parsePlaybookSourceId,
+  parseSynchronizationRunId,
   parseWorkspaceId,
   PlaybookSource as PlaybookSourceClass,
   PlaybookSourceConfigurationReference,
@@ -22,11 +23,8 @@ import { currentWorkspaceUnavailable } from '../../ports/index.js';
 import type { WorkspaceRepository } from '../../workspace/ports/workspace-repository.js';
 import type { PlaybookSourceRepository } from '../ports/playbook-source-repository.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
-import {
-  persistenceOperationFailed,
-  PERSISTENCE_OPERATION_FAILED,
-} from '../../persistence/index.js';
-import { PLAYBOOK_SOURCE_NOT_FOUND, WORKSPACE_NOT_FOUND } from '../../errors/index.js';
+import { persistenceOperationFailed } from '../../persistence/index.js';
+import { workspaceNotFound, playbookSourceNotFound } from '../../errors/index.js';
 import { GetPlaybookSourceHandler, type GetPlaybookSourceQuery } from './get-playbook-source.js';
 
 // ---------------------------------------------------------------------------
@@ -265,6 +263,11 @@ describe('GetPlaybookSourceHandler', () => {
   });
 
   it('returns INVALID_IDENTIFIER before making calls', async () => {
+    const parsed = parsePlaybookSourceId('not-a-uuid');
+    if (parsed.success) {
+      throw new Error('Expected an invalid playbook source identifier.');
+    }
+
     const provider = new StubCurrentWorkspaceProvider({
       kind: 'workspaceId',
       workspaceId: workspaceIdValue,
@@ -282,8 +285,10 @@ describe('GetPlaybookSourceHandler', () => {
     const result = await handler.handle({ playbookSourceId: 'not-a-uuid' });
 
     expect(result.success).toBe(false);
-    if (result.success) return;
-    expect(result.error).toMatchObject({ code: 'INVALID_IDENTIFIER' });
+    if (result.success) {
+      throw new Error('Expected identifier rejection.');
+    }
+    expect(result.error).toEqual(parsed.error);
 
     expect(provider.calls).toEqual([]);
     expect(workspaceRepo.findByIdCalls).toEqual([]);
@@ -291,6 +296,7 @@ describe('GetPlaybookSourceHandler', () => {
   });
 
   it('returns CURRENT_WORKSPACE_UNAVAILABLE without repository calls', async () => {
+    const failure = currentWorkspaceUnavailable();
     const provider = new StubCurrentWorkspaceProvider({ kind: 'unavailable' });
     const workspaceRepo = new StubWorkspaceRepository({
       kind: 'workspace',
@@ -306,21 +312,19 @@ describe('GetPlaybookSourceHandler', () => {
 
     expect(result.success).toBe(false);
     if (result.success) return;
-    expect(result.error).toMatchObject({ code: 'CURRENT_WORKSPACE_UNAVAILABLE' });
-
+    expect(result.error).toEqual(failure);
+    expect(provider.calls).toHaveLength(1);
     expect(workspaceRepo.findByIdCalls).toEqual([]);
     expect(sourceRepo.findByIdCalls).toEqual([]);
   });
 
   it('preserves the persistence error when workspace lookup fails', async () => {
+    const failure = persistenceOperationFailed('workspace.findById');
     const provider = new StubCurrentWorkspaceProvider({
       kind: 'workspaceId',
       workspaceId: workspaceIdValue,
     });
-    const workspaceRepo = new StubWorkspaceRepository({
-      kind: 'error',
-      error: persistenceOperationFailed('workspace.findById'),
-    });
+    const workspaceRepo = new StubWorkspaceRepository({ kind: 'error', error: failure });
     const sourceRepo = new StubPlaybookSourceRepository({
       kind: 'source',
       source: createEnabledSource(),
@@ -331,11 +335,9 @@ describe('GetPlaybookSourceHandler', () => {
 
     expect(result.success).toBe(false);
     if (result.success) return;
-    expect(result.error).toMatchObject({
-      code: PERSISTENCE_OPERATION_FAILED,
-      details: { operation: 'workspace.findById' },
-    });
-
+    expect(result.error).toEqual(failure);
+    expect(provider.calls).toHaveLength(1);
+    expect(workspaceRepo.findByIdCalls).toEqual([workspaceIdValue]);
     expect(sourceRepo.findByIdCalls).toEqual([]);
   });
 
@@ -355,12 +357,14 @@ describe('GetPlaybookSourceHandler', () => {
 
     expect(result.success).toBe(false);
     if (result.success) return;
-    expect(result.error).toMatchObject({ code: WORKSPACE_NOT_FOUND });
-
+    expect(result.error).toEqual(workspaceNotFound());
+    expect(provider.calls).toHaveLength(1);
+    expect(workspaceRepo.findByIdCalls).toHaveLength(1);
     expect(sourceRepo.findByIdCalls).toEqual([]);
   });
 
   it('preserves the persistence error when source lookup fails', async () => {
+    const failure = persistenceOperationFailed('playbookSource.findById');
     const provider = new StubCurrentWorkspaceProvider({
       kind: 'workspaceId',
       workspaceId: workspaceIdValue,
@@ -369,27 +373,92 @@ describe('GetPlaybookSourceHandler', () => {
       kind: 'workspace',
       workspace: createActiveWorkspace(),
     });
-    const sourceRepo = new StubPlaybookSourceRepository({
-      kind: 'error',
-      error: persistenceOperationFailed('playbookSource.findById'),
-    });
+    const sourceRepo = new StubPlaybookSourceRepository({ kind: 'error', error: failure });
     const handler = new GetPlaybookSourceHandler(provider, workspaceRepo, sourceRepo);
 
     const result = await handler.handle(validQuery());
 
     expect(result.success).toBe(false);
     if (result.success) return;
-    expect(result.error).toMatchObject({
-      code: PERSISTENCE_OPERATION_FAILED,
-      details: { operation: 'playbookSource.findById' },
-    });
-
+    expect(result.error).toEqual(failure);
+    expect(provider.calls).toHaveLength(1);
     expect(workspaceRepo.findByIdCalls).toHaveLength(1);
     expect(sourceRepo.findByIdCalls).toHaveLength(1);
     const persistenceCall = sourceRepo.findByIdCalls[0];
     if (persistenceCall === undefined) throw new Error('Expected a source findById call.');
     expect(persistenceCall.workspaceId).toBe(workspaceIdValue);
     expect(persistenceCall.playbookSourceId).toBe(sourceIdValue);
+  });
+
+  it('preserves full synchronization history for a restored source', async () => {
+    const expectedSuccessfulRunId = valueFrom(
+      parseSynchronizationRunId('00000000-0000-0000-0000-000000000010'),
+    );
+    const expectedFailedRunId = valueFrom(
+      parseSynchronizationRunId('00000000-0000-0000-0000-000000000011'),
+    );
+    const syncNow = valueFrom(Instant.parse('2026-07-17T12:00:00.000Z'));
+    const successAt = valueFrom(Instant.parse('2026-07-17T13:00:00.000Z'));
+    const failedAt = valueFrom(Instant.parse('2026-07-17T14:00:00.000Z'));
+
+    const source = valueFrom(
+      PlaybookSourceClass.restore({
+        playbookSourceId: sourceIdValue,
+        workspaceId: workspaceIdValue,
+        playbookId: playbookIdValue,
+        type: 'notion',
+        status: 'disabled',
+        externalRootReference: valueFrom(
+          PlaybookSourceExternalRootReference.create('https://example.com/root'),
+        ),
+        configurationReference: valueFrom(PlaybookSourceConfigurationReference.create('config-1')),
+        createdAt: syncNow,
+        lastSuccessfulSynchronizationRunId: expectedSuccessfulRunId,
+        lastSuccessfulSynchronizationAt: successAt,
+        lastFailedSynchronizationRunId: expectedFailedRunId,
+        lastFailedSynchronizationAt: failedAt,
+      }),
+    );
+
+    const snapshotBefore = source.toSnapshot();
+
+    const provider = new StubCurrentWorkspaceProvider({
+      kind: 'workspaceId',
+      workspaceId: workspaceIdValue,
+    });
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: createActiveWorkspace(),
+    });
+    const sourceRepo = new StubPlaybookSourceRepository({ kind: 'source', source });
+    const handler = new GetPlaybookSourceHandler(provider, workspaceRepo, sourceRepo);
+
+    const result = await handler.handle(validQuery());
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    expect(result.value).toEqual({
+      playbookSourceId: sourceIdValue,
+      workspaceId: workspaceIdValue,
+      playbookId: playbookIdValue,
+      type: 'notion',
+      status: 'disabled',
+      externalRootReference: 'https://example.com/root',
+      configurationReference: 'config-1',
+      createdAt: '2026-07-17T12:00:00.000Z',
+      lastSuccessfulSynchronizationRunId: '00000000-0000-0000-0000-000000000010',
+      lastSuccessfulSynchronizationAt: '2026-07-17T13:00:00.000Z',
+      lastFailedSynchronizationRunId: '00000000-0000-0000-0000-000000000011',
+      lastFailedSynchronizationAt: '2026-07-17T14:00:00.000Z',
+    });
+
+    expect(Object.isFrozen(result.value)).toBe(true);
+    expect('revision' in result.value).toBe(false);
+    expect('token' in result.value).toBe(false);
+    expect('credential' in result.value).toBe(false);
+    expect('secret' in result.value).toBe(false);
+    expect(source.toSnapshot()).toEqual(snapshotBefore);
   });
 
   it('returns PLAYBOOK_SOURCE_NOT_FOUND when source is null', async () => {
@@ -408,11 +477,11 @@ describe('GetPlaybookSourceHandler', () => {
 
     expect(result.success).toBe(false);
     if (result.success) return;
-    expect(result.error).toMatchObject({
-      code: PLAYBOOK_SOURCE_NOT_FOUND,
-      message: 'The playbook source was not found in the current workspace.',
-      details: { playbookSourceId: '00000000-0000-0000-0000-000000000003' },
-    });
+
+    const expected = playbookSourceNotFound(sourceIdValue);
+    expect(result.error).toEqual(expected);
+    expect(Object.isFrozen(result.error)).toBe(true);
+    expect(Object.isFrozen(result.error.details)).toBe(true);
 
     expect(sourceRepo.findByIdCalls).toHaveLength(1);
   });
