@@ -87,7 +87,7 @@ class StubNormalizationAttemptRepository implements NormalizationAttemptReposito
     return new StubNormalizationAttemptRepository(
       { kind: 'normalizationAttempt', normalizationAttempt },
       { kind: 'null' },
-      { kind: 'normalizationAttempts', normalizationAttempts: [] },
+      { kind: 'normalizationAttempts', normalizationAttempts: Object.freeze([]) },
     );
   }
 
@@ -95,7 +95,7 @@ class StubNormalizationAttemptRepository implements NormalizationAttemptReposito
     return new StubNormalizationAttemptRepository(
       { kind: 'null' },
       { kind: 'null' },
-      { kind: 'normalizationAttempts', normalizationAttempts: [] },
+      { kind: 'normalizationAttempts', normalizationAttempts: Object.freeze([]) },
     );
   }
 
@@ -105,7 +105,7 @@ class StubNormalizationAttemptRepository implements NormalizationAttemptReposito
     return new StubNormalizationAttemptRepository(
       { kind: 'error', error },
       { kind: 'null' },
-      { kind: 'normalizationAttempts', normalizationAttempts: [] },
+      { kind: 'normalizationAttempts', normalizationAttempts: Object.freeze([]) },
     );
   }
 
@@ -117,7 +117,7 @@ class StubNormalizationAttemptRepository implements NormalizationAttemptReposito
     return new StubNormalizationAttemptRepository(
       { kind: 'null' },
       { kind: 'normalizationAttempt', normalizationAttempt },
-      { kind: 'normalizationAttempts', normalizationAttempts: [] },
+      { kind: 'normalizationAttempts', normalizationAttempts: Object.freeze([]) },
     );
   }
 
@@ -125,7 +125,7 @@ class StubNormalizationAttemptRepository implements NormalizationAttemptReposito
     return new StubNormalizationAttemptRepository(
       { kind: 'null' },
       { kind: 'null' },
-      { kind: 'normalizationAttempts', normalizationAttempts: [] },
+      { kind: 'normalizationAttempts', normalizationAttempts: Object.freeze([]) },
     );
   }
 
@@ -135,7 +135,7 @@ class StubNormalizationAttemptRepository implements NormalizationAttemptReposito
     return new StubNormalizationAttemptRepository(
       { kind: 'null' },
       { kind: 'error', error },
-      { kind: 'normalizationAttempts', normalizationAttempts: [] },
+      { kind: 'normalizationAttempts', normalizationAttempts: Object.freeze([]) },
     );
   }
 
@@ -765,6 +765,33 @@ describe('NormalizationAttemptRepository', () => {
   describe('listByPlaybookVersionId — no attempts', () => {
     it('returns an empty frozen array when the version has no attempts', async () => {
       const repository = StubNormalizationAttemptRepository.returningNoNormalizationAttempts();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000003');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookVersionId = parsePlaybookVersionId('00000000-0000-0000-0000-000000000002');
+      if (!playbookVersionId.success) {
+        throw new Error('Expected a valid playbook version ID fixture.');
+      }
+
+      const result = await repository.listByPlaybookVersionId(
+        workspaceId.value,
+        playbookVersionId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toHaveLength(0);
+      expect(Object.isFrozen(result.value)).toBe(true);
+    });
+  });
+
+  describe('listByPlaybookVersionId — default empty result from other factory is frozen', () => {
+    it('returns a frozen empty array when using a factory from another operation', async () => {
+      const repository = StubNormalizationAttemptRepository.returningNull();
       const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000003');
       if (!workspaceId.success) {
         throw new Error('Expected a valid workspace ID fixture.');
