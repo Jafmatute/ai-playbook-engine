@@ -35,17 +35,31 @@ type FindActiveByPlaybookSourceIdCall = Readonly<{
   playbookSourceId: PlaybookSourceId;
 }>;
 
+type FindLatestCompletedByPlaybookSourceIdStubResult =
+  | { readonly kind: 'synchronizationRun'; readonly synchronizationRun: SynchronizationRun }
+  | { readonly kind: 'null' }
+  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
+
+type FindLatestCompletedByPlaybookSourceIdCall = Readonly<{
+  workspaceId: WorkspaceId;
+  playbookSourceId: PlaybookSourceId;
+}>;
+
 class StubSynchronizationRunRepository implements SynchronizationRunRepository {
   readonly #findByIdResult: FindByIdStubResult;
   readonly #findActiveByPlaybookSourceIdResult: FindActiveByPlaybookSourceIdStubResult;
+  readonly #findLatestCompletedResult: FindLatestCompletedByPlaybookSourceIdStubResult;
   #findActiveByPlaybookSourceIdCall: FindActiveByPlaybookSourceIdCall | null = null;
+  #findLatestCompletedCall: FindLatestCompletedByPlaybookSourceIdCall | null = null;
 
   private constructor(
     findByIdResult: FindByIdStubResult,
     findActiveByPlaybookSourceIdResult: FindActiveByPlaybookSourceIdStubResult = { kind: 'null' },
+    findLatestCompletedResult: FindLatestCompletedByPlaybookSourceIdStubResult = { kind: 'null' },
   ) {
     this.#findByIdResult = findByIdResult;
     this.#findActiveByPlaybookSourceIdResult = findActiveByPlaybookSourceIdResult;
+    this.#findLatestCompletedResult = findLatestCompletedResult;
   }
 
   static returningSynchronizationRun(
@@ -82,6 +96,36 @@ class StubSynchronizationRunRepository implements SynchronizationRunRepository {
     error: PersistenceOperationFailedError,
   ): StubSynchronizationRunRepository {
     return new StubSynchronizationRunRepository({ kind: 'null' }, { kind: 'error', error });
+  }
+
+  // -- findLatestCompletedByPlaybookSourceId factories ----------------------
+
+  static returningLatestCompletedSynchronizationRun(
+    synchronizationRun: SynchronizationRun,
+  ): StubSynchronizationRunRepository {
+    return new StubSynchronizationRunRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'synchronizationRun', synchronizationRun },
+    );
+  }
+
+  static returningNoLatestCompletedSynchronizationRun(): StubSynchronizationRunRepository {
+    return new StubSynchronizationRunRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'null' },
+    );
+  }
+
+  static returningFindLatestCompletedError(
+    error: PersistenceOperationFailedError,
+  ): StubSynchronizationRunRepository {
+    return new StubSynchronizationRunRepository(
+      { kind: 'null' },
+      { kind: 'null' },
+      { kind: 'error', error },
+    );
   }
 
   get findActiveByPlaybookSourceIdCall(): FindActiveByPlaybookSourceIdCall | null {
@@ -126,6 +170,31 @@ class StubSynchronizationRunRepository implements SynchronizationRunRepository {
       }
     }
   }
+
+  // -- findLatestCompletedByPlaybookSourceId ---------------------------------
+
+  get findLatestCompletedCall(): FindLatestCompletedByPlaybookSourceIdCall | null {
+    return this.#findLatestCompletedCall;
+  }
+
+  async findLatestCompletedByPlaybookSourceId(
+    workspaceId: WorkspaceId,
+    playbookSourceId: PlaybookSourceId,
+  ): Promise<Result<SynchronizationRun | null, PersistenceOperationFailedError>> {
+    this.#findLatestCompletedCall = Object.freeze({ workspaceId, playbookSourceId });
+
+    switch (this.#findLatestCompletedResult.kind) {
+      case 'synchronizationRun': {
+        return ok(this.#findLatestCompletedResult.synchronizationRun);
+      }
+      case 'null': {
+        return ok(null);
+      }
+      case 'error': {
+        return err(this.#findLatestCompletedResult.error);
+      }
+    }
+  }
 }
 
 function createValidSynchronizationRun(): SynchronizationRun {
@@ -165,10 +234,54 @@ function createValidSynchronizationRun(): SynchronizationRun {
   });
 }
 
-function createCompletedSynchronizationRun(): SynchronizationRun {
-  const run = createValidSynchronizationRun();
+interface SynchronizationRunFixtureOptions {
+  readonly synchronizationRunId: string;
+  readonly playbookSourceId: string;
+  readonly startedAt: string;
+  readonly completedAt: string;
+}
 
-  const startedAtResult = Instant.parse('2026-07-15T10:00:00.000Z');
+function createCompletedSynchronizationRun(
+  options?: Partial<SynchronizationRunFixtureOptions>,
+): SynchronizationRun {
+  const synchronizationRunIdRaw =
+    options?.synchronizationRunId ?? '00000000-0000-0000-0000-000000000001';
+  const synchronizationRunIdResult = parseSynchronizationRunId(synchronizationRunIdRaw);
+  if (!synchronizationRunIdResult.success) {
+    throw new Error('Expected a valid synchronization run ID fixture.');
+  }
+
+  const workspaceIdResult = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+  if (!workspaceIdResult.success) {
+    throw new Error('Expected a valid workspace ID fixture.');
+  }
+
+  const playbookIdResult = parsePlaybookId('00000000-0000-0000-0000-000000000003');
+  if (!playbookIdResult.success) {
+    throw new Error('Expected a valid playbook ID fixture.');
+  }
+
+  const playbookSourceIdRaw = options?.playbookSourceId ?? '00000000-0000-0000-0000-000000000004';
+  const playbookSourceIdResult = parsePlaybookSourceId(playbookSourceIdRaw);
+  if (!playbookSourceIdResult.success) {
+    throw new Error('Expected a valid playbook source ID fixture.');
+  }
+
+  const createdAtResult = Instant.parse('2026-07-15T10:00:00.000Z');
+  if (!createdAtResult.success) {
+    throw new Error('Expected a valid instant fixture.');
+  }
+
+  const run = SynchronizationRun.create({
+    synchronizationRunId: synchronizationRunIdResult.value,
+    workspaceId: workspaceIdResult.value,
+    playbookId: playbookIdResult.value,
+    playbookSourceId: playbookSourceIdResult.value,
+    createdAt: createdAtResult.value,
+  });
+
+  const startedAtRaw = options?.startedAt ?? '2026-07-15T10:00:00.000Z';
+  const startedAtResult = Instant.parse(startedAtRaw);
   if (!startedAtResult.success) {
     throw new Error('Expected a valid instant fixture.');
   }
@@ -178,7 +291,8 @@ function createCompletedSynchronizationRun(): SynchronizationRun {
     throw new Error('Expected the start transition to succeed.');
   }
 
-  const completedAtResult = Instant.parse('2026-07-15T11:00:00.000Z');
+  const completedAtRaw = options?.completedAt ?? '2026-07-15T11:00:00.000Z';
+  const completedAtResult = Instant.parse(completedAtRaw);
   if (!completedAtResult.success) {
     throw new Error('Expected a valid instant fixture.');
   }
@@ -591,6 +705,320 @@ describe('SynchronizationRunRepository', () => {
         wsId,
         psId,
       ) => repository.findActiveByPlaybookSourceId(wsId, psId);
+
+      void _acceptsTypedIds;
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // findLatestCompletedByPlaybookSourceId
+  // -------------------------------------------------------------------------
+
+  describe('findLatestCompletedByPlaybookSourceId — found', () => {
+    it('returns the most recently completed SynchronizationRun for the source', async () => {
+      const olderCompletedRun = createCompletedSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        startedAt: '2026-07-15T10:00:00.000Z',
+        completedAt: '2026-07-15T11:00:00.000Z',
+      });
+      const latestCompletedRun = createCompletedSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000002',
+        startedAt: '2026-07-15T12:00:00.000Z',
+        completedAt: '2026-07-15T13:00:00.000Z',
+      });
+
+      expect(olderCompletedRun.status).toBe('completed');
+      expect(latestCompletedRun.status).toBe('completed');
+      expect(olderCompletedRun.playbookSourceId).toBe(latestCompletedRun.playbookSourceId);
+      expect(olderCompletedRun.id).not.toBe(latestCompletedRun.id);
+      expect(olderCompletedRun.completedAt!.compare(latestCompletedRun.completedAt!)).toBe(-1);
+
+      const repository =
+        StubSynchronizationRunRepository.returningLatestCompletedSynchronizationRun(
+          latestCompletedRun,
+        );
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findLatestCompletedByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(latestCompletedRun);
+      expect(result.value).not.toBe(olderCompletedRun);
+      expect(result.value!.status).toBe('completed');
+    });
+  });
+
+  describe('findLatestCompletedByPlaybookSourceId — no runs', () => {
+    it('returns a successful Result with null when no runs exist', async () => {
+      const repository =
+        StubSynchronizationRunRepository.returningNoLatestCompletedSynchronizationRun();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findLatestCompletedByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestCompletedByPlaybookSourceId — no completed runs', () => {
+    it('returns null when only pending, running, or failed runs exist', async () => {
+      // Pending run (never started)
+      const pendingRun = createValidSynchronizationRun();
+      void pendingRun;
+
+      const repository =
+        StubSynchronizationRunRepository.returningNoLatestCompletedSynchronizationRun();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findLatestCompletedByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestCompletedByPlaybookSourceId — source does not exist', () => {
+    it('returns a successful Result with null', async () => {
+      const repository =
+        StubSynchronizationRunRepository.returningNoLatestCompletedSynchronizationRun();
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const nonExistentSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-00000000ffff');
+      if (!nonExistentSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findLatestCompletedByPlaybookSourceId(
+        workspaceId.value,
+        nonExistentSourceId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestCompletedByPlaybookSourceId — wrong workspace', () => {
+    it('returns a successful Result with null when queried from a different workspace', async () => {
+      const repository =
+        StubSynchronizationRunRepository.returningNoLatestCompletedSynchronizationRun();
+      const workspaceB = parseWorkspaceId('00000000-0000-0000-0000-000000000005');
+      if (!workspaceB.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findLatestCompletedByPlaybookSourceId(
+        workspaceB.value,
+        playbookSourceId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBeNull();
+    });
+  });
+
+  describe('findLatestCompletedByPlaybookSourceId — another source has more recent run', () => {
+    it('returns only the run for the queried source', async () => {
+      const sourceARun = createCompletedSynchronizationRun({
+        synchronizationRunId: '00000000-0000-0000-0000-000000000001',
+        startedAt: '2026-07-15T10:00:00.000Z',
+        completedAt: '2026-07-15T11:00:00.000Z',
+      });
+
+      const repository =
+        StubSynchronizationRunRepository.returningLatestCompletedSynchronizationRun(sourceARun);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const sourceAId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!sourceAId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findLatestCompletedByPlaybookSourceId(
+        workspaceId.value,
+        sourceAId.value,
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) {
+        return;
+      }
+
+      expect(result.value).toBe(sourceARun);
+      expect(result.value!.playbookSourceId).toBe(sourceAId.value);
+    });
+  });
+
+  describe('findLatestCompletedByPlaybookSourceId — independence from other operations', () => {
+    it('does not affect the default null results of findById and findActiveByPlaybookSourceId', async () => {
+      const completedRun = createCompletedSynchronizationRun();
+      const repository =
+        StubSynchronizationRunRepository.returningLatestCompletedSynchronizationRun(completedRun);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const runId = parseSynchronizationRunId('00000000-0000-0000-0000-000000000001');
+      if (!runId.success) {
+        throw new Error('Expected a valid synchronization run ID fixture.');
+      }
+      const sourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!sourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const findByIdResult = await repository.findById(workspaceId.value, runId.value);
+      const findActiveResult = await repository.findActiveByPlaybookSourceId(
+        workspaceId.value,
+        sourceId.value,
+      );
+
+      expect(findByIdResult.success).toBe(true);
+      if (!findByIdResult.success) {
+        return;
+      }
+      expect(findByIdResult.value).toBeNull();
+
+      expect(findActiveResult.success).toBe(true);
+      if (!findActiveResult.success) {
+        return;
+      }
+      expect(findActiveResult.value).toBeNull();
+    });
+  });
+
+  describe('findLatestCompletedByPlaybookSourceId — persistence failure', () => {
+    it('returns a failed Result with PersistenceOperationFailedError', async () => {
+      const error = persistenceOperationFailed(
+        'synchronizationRun.findLatestCompletedByPlaybookSourceId',
+      );
+      const repository = StubSynchronizationRunRepository.returningFindLatestCompletedError(error);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      const result = await repository.findLatestCompletedByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+      );
+
+      expect(result.success).toBe(false);
+      if (result.success) {
+        return;
+      }
+
+      expect(result.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+      expect(result.error.details.operation).toBe(
+        'synchronizationRun.findLatestCompletedByPlaybookSourceId',
+      );
+    });
+  });
+
+  describe('findLatestCompletedByPlaybookSourceId — argument capture', () => {
+    it('captures the workspaceId and playbookSourceId from the last call', async () => {
+      const completedRun = createCompletedSynchronizationRun();
+      const repository =
+        StubSynchronizationRunRepository.returningLatestCompletedSynchronizationRun(completedRun);
+      const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
+      if (!workspaceId.success) {
+        throw new Error('Expected a valid workspace ID fixture.');
+      }
+      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000004');
+      if (!playbookSourceId.success) {
+        throw new Error('Expected a valid playbook source ID fixture.');
+      }
+
+      await repository.findLatestCompletedByPlaybookSourceId(
+        workspaceId.value,
+        playbookSourceId.value,
+      );
+
+      const call = repository.findLatestCompletedCall;
+
+      expect(call).not.toBeNull();
+      expect(call!.workspaceId).toBe(workspaceId.value);
+      expect(call!.playbookSourceId).toBe(playbookSourceId.value);
+      expect(Object.isFrozen(call)).toBe(true);
+    });
+  });
+
+  describe('findLatestCompletedByPlaybookSourceId — accepts typed IDs', () => {
+    it('compiles with WorkspaceId and PlaybookSourceId parameter types', () => {
+      const completedRun = createCompletedSynchronizationRun();
+      const repository =
+        StubSynchronizationRunRepository.returningLatestCompletedSynchronizationRun(completedRun);
+
+      const _acceptsTypedIds: (
+        workspaceId: WorkspaceId,
+        playbookSourceId: PlaybookSourceId,
+      ) => Promise<Result<SynchronizationRun | null, PersistenceOperationFailedError>> = (
+        wsId,
+        psId,
+      ) => repository.findLatestCompletedByPlaybookSourceId(wsId, psId);
 
       void _acceptsTypedIds;
     });

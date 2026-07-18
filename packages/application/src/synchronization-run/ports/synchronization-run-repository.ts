@@ -18,4 +18,9 @@ export interface SynchronizationRunRepository {
     workspaceId: WorkspaceId,
     playbookSourceId: PlaybookSourceId,
   ): Promise<Result<SynchronizationRun | null, PersistenceOperationFailedError>>;
+
+  findLatestCompletedByPlaybookSourceId(
+    workspaceId: WorkspaceId,
+    playbookSourceId: PlaybookSourceId,
+  ): Promise<Result<SynchronizationRun | null, PersistenceOperationFailedError>>;
 }
