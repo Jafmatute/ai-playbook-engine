@@ -197,6 +197,10 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
         ],
       );
 
+      if (result.rows.length !== 1) {
+        return err(persistenceOperationFailed('playbook.insert'));
+      }
+
       const row = result.rows[0];
       if (row === undefined) {
         return err(persistenceOperationFailed('playbook.insert'));
@@ -252,8 +256,11 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
         ],
       );
 
-      const row = result.rows[0];
-      if (row === undefined) {
+      if (result.rows.length > 1) {
+        return err(persistenceOperationFailed('playbook.update'));
+      }
+
+      if (result.rows.length === 0) {
         const existResult = await this.#pool.query<{ playbook_id: string }>(
           'SELECT playbook_id FROM playbooks WHERE workspace_id = $1 AND playbook_id = $2',
           [snapshot.workspaceId, snapshot.playbookId],
@@ -262,6 +269,11 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
           return err(playbookNotFound());
         }
         return err(persistenceRevisionConflict(expectedRevision));
+      }
+
+      const row = result.rows[0];
+      if (row === undefined) {
+        return err(persistenceOperationFailed('playbook.update'));
       }
 
       const revisionResult = PersistenceRevision.from(row.revision);
