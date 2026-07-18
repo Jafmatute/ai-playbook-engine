@@ -24,6 +24,7 @@ const operations = [
   'normalizationAttempt.listByPlaybookVersionId',
   'knowledgeItem.findBySourceStableKey',
   'knowledgeItem.countByVersion',
+  'validationAttempt.findByPlaybookVersionId',
 ] as const;
 
 describe('persistenceOperationFailed', () => {
