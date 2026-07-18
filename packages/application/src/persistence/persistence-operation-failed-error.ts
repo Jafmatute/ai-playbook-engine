@@ -24,7 +24,8 @@ export type PersistenceOperation =
   | 'knowledgeItem.countByVersion'
   | 'validationAttempt.findByPlaybookVersionId'
   | 'synchronizationRun.findLatestCompletedByPlaybookSourceId'
-  | 'synchronizationSnapshot.findLatestByChecksum';
+  | 'synchronizationSnapshot.findLatestByChecksum'
+  | 'knowledgeRelationship.listBySourceItem';
 
 export interface PersistenceOperationFailedError {
   readonly code: typeof PERSISTENCE_OPERATION_FAILED;

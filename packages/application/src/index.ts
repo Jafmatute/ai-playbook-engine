@@ -11,3 +11,4 @@ export type { SynchronizationSnapshotRepository } from './synchronization-snapsh
 export type { NormalizationAttemptRepository } from './normalization-attempt/index.js';
 export type { KnowledgeItemRepository } from './knowledge-item/index.js';
 export type { ValidationAttemptRepository } from './validation-attempt/index.js';
+export type { KnowledgeRelationshipRepository } from './knowledge-relationship/index.js';
