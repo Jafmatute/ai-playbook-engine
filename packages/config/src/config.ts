@@ -61,7 +61,7 @@ export function loadConfig(
     return outputResult;
   }
 
-  let effectiveWorkspaceId: string | undefined = undefined;
+  let effectiveWorkspaceId: string | undefined;
   if (overrides?.workspaceId !== undefined) {
     effectiveWorkspaceId = overrides.workspaceId.trim().toLowerCase();
     if (!isCanonicalUuid(effectiveWorkspaceId)) {
