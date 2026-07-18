@@ -4,6 +4,7 @@ import { Instant, parseWorkspaceId, WorkspaceName, Workspace } from '@ai-playboo
 import { WORKSPACE_ALREADY_INITIALIZED } from '@ai-playbook-engine/application';
 
 import { DatabasePool } from '../connection/pool.js';
+import type { DatabaseConfig } from '../connection/pool.js';
 import { runMigrations } from '../migrations/runner.js';
 import { PostgresWorkspaceRepository } from './postgres-workspace-repository.js';
 
@@ -39,10 +40,15 @@ function createWorkspaceFixture(description?: string) {
 }
 
 describe.runIf(TEST_DATABASE_URL)('PostgresWorkspaceRepository', () => {
-  const pool = new DatabasePool(TEST_DATABASE_URL!);
+  let pool: DatabasePool;
   let repo: PostgresWorkspaceRepository;
 
   beforeAll(async () => {
+    if (!TEST_DATABASE_URL) {
+      throw new Error('TEST_DATABASE_URL not set');
+    }
+    const config: DatabaseConfig = { connectionString: TEST_DATABASE_URL };
+    pool = new DatabasePool(config);
     const migrationResult = await runMigrations(pool);
     if (!migrationResult.success) {
       throw new Error('Failed to run migrations for test setup.');
@@ -51,7 +57,7 @@ describe.runIf(TEST_DATABASE_URL)('PostgresWorkspaceRepository', () => {
   });
 
   afterAll(async () => {
-    await pool.close();
+    await pool?.close();
   });
 
   beforeEach(async () => {

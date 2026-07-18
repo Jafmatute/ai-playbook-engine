@@ -77,12 +77,16 @@ function createPlaybookFixture(
 }
 
 describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
-  const pool = new DatabasePool(TEST_DATABASE_URL!);
+  let pool: DatabasePool;
   let workspaceRepo: PostgresWorkspaceRepository;
   let playbookRepo: PostgresPlaybookRepository;
   let workspaceId: WorkspaceId;
 
   beforeAll(async () => {
+    if (!TEST_DATABASE_URL) {
+      throw new Error('TEST_DATABASE_URL not set');
+    }
+    pool = new DatabasePool({ connectionString: TEST_DATABASE_URL });
     const migrationResult = await runMigrations(pool);
     if (!migrationResult.success) {
       throw new Error('Failed to run migrations for test setup.');
@@ -92,7 +96,7 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
   });
 
   afterAll(async () => {
-    await pool.close();
+    await pool?.close();
   });
 
   beforeEach(async () => {

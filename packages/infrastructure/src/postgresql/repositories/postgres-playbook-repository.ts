@@ -4,6 +4,8 @@ import type {
   PlaybookListFilter,
   PersistenceOperationFailedError,
   PlaybookNameConflictError,
+  PaginationRequest,
+  Page,
 } from '@ai-playbook-engine/application';
 import {
   persistenceOperationFailed,
@@ -14,10 +16,9 @@ import type { Playbook, PlaybookId, WorkspaceId } from '@ai-playbook-engine/core
 import type { Result } from '@ai-playbook-engine/shared';
 import { err, ok } from '@ai-playbook-engine/shared';
 
-import type { DatabasePool } from '../connection/pool.js';
+import type { DatabasePool, PostgresParameter } from '../connection/pool.js';
 import { mapRowToPlaybook } from '../mapping/playbook-mapper.js';
-
-import type { PaginationRequest, Page } from '@ai-playbook-engine/application';
+import type { PlaybookRow } from '../mapping/playbook-mapper.js';
 
 const PLAYBOOK_NAME_CONFLICT_CONSTRAINT = 'idx_playbooks_workspace_normalized_name';
 
@@ -33,7 +34,7 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
     playbookId: PlaybookId,
   ): Promise<Result<Playbook | null, PersistenceOperationFailedError>> {
     try {
-      const result = await this.#pool.query(
+      const result = await this.#pool.query<PlaybookRow>(
         'SELECT * FROM playbooks WHERE workspace_id = $1 AND playbook_id = $2',
         [workspaceId, playbookId],
       );
@@ -42,7 +43,7 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
         return ok(null);
       }
 
-      const playbook = mapRowToPlaybook(result.rows[0] as Record<string, unknown>);
+      const playbook = mapRowToPlaybook(result.rows[0]!);
       if (playbook === null) {
         return err(persistenceOperationFailed('playbook.findById'));
       }
@@ -60,7 +61,7 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
   ): Promise<Result<Playbook | null, PersistenceOperationFailedError>> {
     try {
       let query: string;
-      let params: unknown[];
+      let params: PostgresParameter[];
 
       if (options.includeArchived) {
         query = 'SELECT * FROM playbooks WHERE workspace_id = $1 AND normalized_name = $2';
@@ -71,13 +72,13 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
         params = [workspaceId, normalizedName, 'archived'];
       }
 
-      const result = await this.#pool.query(query, params);
+      const result = await this.#pool.query<PlaybookRow>(query, params);
 
       if (result.rows.length === 0) {
         return ok(null);
       }
 
-      const playbook = mapRowToPlaybook(result.rows[0] as Record<string, unknown>);
+      const playbook = mapRowToPlaybook(result.rows[0]!);
       if (playbook === null) {
         return err(persistenceOperationFailed('playbook.findByNormalizedName'));
       }
@@ -95,7 +96,7 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
   ): Promise<Result<Page<Playbook>, PersistenceOperationFailedError>> {
     try {
       const conditions: string[] = ['workspace_id = $1'];
-      const params: unknown[] = [workspaceId];
+      const params: PostgresParameter[] = [workspaceId];
       let paramIndex = 2;
 
       if (filter.status !== undefined) {
@@ -106,15 +107,10 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
 
       if (filter.normalizedNamePrefix !== undefined) {
         conditions.push(
-          `normalized_name >= $${paramIndex} AND normalized_name < $${paramIndex + 1}`,
+          `LEFT(normalized_name, CHAR_LENGTH($${paramIndex}::text)) = $${paramIndex}`,
         );
-
-        const prefix = filter.normalizedNamePrefix;
-        const nextPrefix =
-          prefix.slice(0, -1) + String.fromCharCode(prefix.charCodeAt(prefix.length - 1) + 1);
-
-        params.push(prefix, nextPrefix);
-        paramIndex += 2;
+        params.push(filter.normalizedNamePrefix);
+        paramIndex++;
       }
 
       if (filter.hasActiveVersion === true) {
@@ -125,25 +121,28 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
 
       const whereClause = conditions.join(' AND ');
 
-      const countResult = await this.#pool.query(
+      const countResult = await this.#pool.query<{ total: string }>(
         `SELECT COUNT(*) AS total FROM playbooks WHERE ${whereClause}`,
         params,
       );
       const totalCount = Number(countResult.rows[0]?.total ?? 0);
 
+      const limitParam = paramIndex;
+      const offsetParam = paramIndex + 1;
       params.push(pagination.offset, pagination.limit);
 
-      const dataResult = await this.#pool.query(
-        `SELECT * FROM playbooks WHERE ${whereClause} ORDER BY normalized_name ASC, playbook_id ASC OFFSET $${paramIndex} LIMIT $${paramIndex + 1}`,
+      const dataResult = await this.#pool.query<PlaybookRow>(
+        `SELECT * FROM playbooks WHERE ${whereClause} ORDER BY normalized_name ASC, playbook_id ASC OFFSET $${limitParam} LIMIT $${offsetParam}`,
         params,
       );
 
       const items: Playbook[] = [];
       for (const row of dataResult.rows) {
-        const playbook = mapRowToPlaybook(row as Record<string, unknown>);
-        if (playbook !== null) {
-          items.push(playbook);
+        const playbook = mapRowToPlaybook(row);
+        if (playbook === null) {
+          return err(persistenceOperationFailed('playbook.list'));
         }
+        items.push(playbook);
       }
 
       const hasMore = pagination.offset + items.length < totalCount;

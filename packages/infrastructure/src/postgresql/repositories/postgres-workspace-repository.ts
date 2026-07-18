@@ -12,6 +12,9 @@ import { err, ok, type Result } from '@ai-playbook-engine/shared';
 
 import type { DatabasePool } from '../connection/pool.js';
 import { mapRowToWorkspace } from '../mapping/workspace-mapper.js';
+import type { WorkspaceRow } from '../mapping/workspace-mapper.js';
+
+const BOOTSTRAP_LOCK_KEY = 'ai-playbook-engine:personal-workspace-bootstrap';
 
 export class PostgresWorkspaceRepository implements WorkspaceRepository {
   readonly #pool: DatabasePool;
@@ -24,15 +27,16 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     workspaceId: WorkspaceId,
   ): Promise<Result<Workspace | null, PersistenceOperationFailedError>> {
     try {
-      const result = await this.#pool.query('SELECT * FROM workspaces WHERE workspace_id = $1', [
-        workspaceId,
-      ]);
+      const result = await this.#pool.query<WorkspaceRow>(
+        'SELECT * FROM workspaces WHERE workspace_id = $1',
+        [workspaceId],
+      );
 
       if (result.rows.length === 0) {
         return ok(null);
       }
 
-      const workspace = mapRowToWorkspace(result.rows[0] as Record<string, unknown>);
+      const workspace = mapRowToWorkspace(result.rows[0]!);
       if (workspace === null) {
         return err(persistenceOperationFailed('workspace.findById'));
       }
@@ -45,7 +49,9 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
 
   async hasAnyWorkspace(): Promise<Result<boolean, PersistenceOperationFailedError>> {
     try {
-      const result = await this.#pool.query('SELECT COUNT(*) AS count FROM workspaces');
+      const result = await this.#pool.query<{ count: string }>(
+        'SELECT COUNT(*) AS count FROM workspaces',
+      );
 
       const count = Number(result.rows[0]?.count ?? 0);
       return ok(count > 0);
@@ -57,16 +63,22 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
   async insert(
     workspace: Workspace,
   ): Promise<Result<void, WorkspaceAlreadyInitializedError | PersistenceOperationFailedError>> {
-    const client = await this.#pool.pool.connect();
+    const client = await this.#pool.connect();
+
+    let transactionStarted = false;
 
     try {
       await client.query('BEGIN');
+      transactionStarted = true;
 
-      const existing = await client.query('SELECT COUNT(*) AS count FROM workspaces');
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [BOOTSTRAP_LOCK_KEY]);
+
+      const existing = await client.query<{ count: string }>(
+        'SELECT COUNT(*) AS count FROM workspaces',
+      );
 
       if (Number(existing.rows[0]?.count ?? 0) > 0) {
         await client.query('ROLLBACK');
-        client.release();
         return err(workspaceAlreadyInitialized());
       }
 
@@ -90,16 +102,19 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       );
 
       await client.query('COMMIT');
-      client.release();
       return ok(undefined);
     } catch {
-      try {
-        await client.query('ROLLBACK');
-      } catch {
-        // ignore rollback error
+      if (transactionStarted) {
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          // ignore rollback errors
+        }
       }
-      client.release();
+
       return err(persistenceOperationFailed('workspace.insert'));
+    } finally {
+      client.release();
     }
   }
 }
