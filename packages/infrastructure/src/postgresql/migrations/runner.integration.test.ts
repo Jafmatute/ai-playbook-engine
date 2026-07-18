@@ -7,6 +7,25 @@ import { UP as UP_001 } from './001-initial.js';
 
 const TEST_DATABASE_URL = process.env.AI_PLAYBOOK_ENGINE_TEST_DATABASE_URL;
 
+interface PostgresError {
+  readonly code: string;
+  readonly constraint?: string;
+  readonly message: string;
+}
+
+function isPostgresError(error: unknown): error is PostgresError {
+  if (!(error instanceof Error)) return false;
+  if (!('code' in error) || typeof error.code !== 'string') return false;
+  if (
+    'constraint' in error &&
+    error.constraint !== undefined &&
+    typeof error.constraint !== 'string'
+  ) {
+    return false;
+  }
+  return true;
+}
+
 describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
   let pool: DatabasePool;
 
@@ -33,8 +52,7 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.value.appliedVersions).toContain(1);
-      expect(result.value.appliedVersions).toContain(2);
+      expect(result.value.appliedVersions).toEqual([1, 2]);
     }
 
     // Verify playbooks table column structure
@@ -55,6 +73,16 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
       expect(col.data_type).toBe('integer');
       expect(col.is_nullable).toBe('NO');
       expect(col.column_default).toContain('1');
+    }
+
+    const constraintInfo = await pool.query<{ conname: string }>(
+      `SELECT conname FROM pg_constraint WHERE conname = 'playbooks_revision_positive'`,
+    );
+    expect(constraintInfo.rows).toHaveLength(1);
+    const constraintRow = constraintInfo.rows[0];
+    expect(constraintRow).toBeDefined();
+    if (constraintRow !== undefined) {
+      expect(constraintRow.conname).toBe('playbooks_revision_positive');
     }
   });
 
@@ -134,7 +162,11 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
         [pbId1, wsId],
       );
     } catch (e) {
-      if (e instanceof Error && e.message.includes('playbooks_revision_positive')) {
+      if (
+        isPostgresError(e) &&
+        e.code === '23514' &&
+        e.constraint === 'playbooks_revision_positive'
+      ) {
         failedConstraint0 = true;
       }
     }
@@ -150,7 +182,11 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
         [pbId2, wsId],
       );
     } catch (e) {
-      if (e instanceof Error && e.message.includes('playbooks_revision_positive')) {
+      if (
+        isPostgresError(e) &&
+        e.code === '23514' &&
+        e.constraint === 'playbooks_revision_positive'
+      ) {
         failedConstraintNegative = true;
       }
     }

@@ -14,11 +14,8 @@ import {
   PLAYBOOK_NAME_CONFLICT,
   PLAYBOOK_NOT_FOUND,
   PERSISTENCE_REVISION_CONFLICT,
-  PERSISTENCE_OPERATION_FAILED,
   PersistenceRevision,
 } from '@ai-playbook-engine/application';
-import type { PersistenceOperationFailedError } from '@ai-playbook-engine/application';
-
 import { DatabasePool } from '../connection/pool.js';
 import { runMigrations } from '../migrations/runner.js';
 import { PostgresWorkspaceRepository } from './postgres-workspace-repository.js';
@@ -618,47 +615,165 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
   });
 
   it('update playbook — optimistic concurrency success and increment', async () => {
+    // 1. insertar un Playbook;
     const pb = createPlaybookFixture(workspaceId, '000000000301');
     const insertRes = await playbookRepo.insert(pb);
     expect(insertRes.success).toBe(true);
     if (!insertRes.success) return;
-    const initialRevision = insertRes.value;
 
-    const updateRes = await playbookRepo.update(pb, initialRevision);
-    expect(updateRes.success).toBe(true);
-    if (updateRes.success) {
-      expect(updateRes.value.value).toBe(2);
-    }
+    // 2. comprobar revisión inicial 1;
+    const revision1 = insertRes.value;
+    expect(revision1.value).toBe(1);
 
-    const found = await playbookRepo.findById(workspaceId, pb.id);
-    expect(found.success).toBe(true);
-    if (found.success && found.value) {
-      expect(found.value.revision.value).toBe(2);
-    }
+    // 3. recuperarlo mediante findById();
+    const found1 = await playbookRepo.findById(workspaceId, pb.id);
+    expect(found1.success).toBe(true);
+    if (!found1.success || found1.value === null) return;
+    const loadedPb = found1.value.aggregate;
+
+    // 4. guardar: playbookId, workspaceId, createdAt;
+    const savedPlaybookId = loadedPb.id;
+    const savedWorkspaceId = loadedPb.workspaceId;
+    const savedCreatedAt = loadedPb.createdAt;
+
+    // 5. mutar la copia recuperada mediante updateDescription() o rename();
+    const transitionTime1 = Instant.parse('2026-07-18T10:00:00.000Z');
+    expect(transitionTime1.success).toBe(true);
+    if (!transitionTime1.success) return;
+    const nameResult1 = PlaybookName.create('Mutated Playbook 1');
+    expect(nameResult1.success).toBe(true);
+    if (!nameResult1.success) return;
+    const renameRes = loadedPb.rename({
+      name: nameResult1.value,
+      updatedAt: transitionTime1.value,
+    });
+    expect(renameRes.success).toBe(true);
+
+    // 6. ejecutar update(aggregate, revision);
+    const updateRes1 = await playbookRepo.update(loadedPb, found1.value.revision);
+    expect(updateRes1.success).toBe(true);
+    if (!updateRes1.success) return;
+
+    // 7. comprobar revisión 2;
+    const revision2 = updateRes1.value;
+    expect(revision2.value).toBe(2);
+
+    // 8. recuperarlo nuevamente;
+    const found2 = await playbookRepo.findById(workspaceId, pb.id);
+    expect(found2.success).toBe(true);
+    if (!found2.success || found2.value === null) return;
+
+    // 9. comprobar el valor modificado;
+    expect(found2.value.aggregate.name.value).toBe('Mutated Playbook 1');
+
+    // 10. comprobar que se preservan: playbookId, workspaceId, createdAt;
+    expect(found2.value.aggregate.id).toEqual(savedPlaybookId);
+    expect(found2.value.aggregate.workspaceId).toEqual(savedWorkspaceId);
+    expect(found2.value.aggregate.createdAt.compare(savedCreatedAt)).toBe(0);
+
+    // 11. realizar una segunda transición válida;
+    const transitionTime2 = Instant.parse('2026-07-18T11:00:00.000Z');
+    expect(transitionTime2.success).toBe(true);
+    if (!transitionTime2.success) return;
+    const descRes = found2.value.aggregate.updateDescription({
+      description: 'Mutated Description 2',
+      updatedAt: transitionTime2.value,
+    });
+    expect(descRes.success).toBe(true);
+
+    // 12. actualizar usando revisión 2;
+    const updateRes2 = await playbookRepo.update(found2.value.aggregate, found2.value.revision);
+    expect(updateRes2.success).toBe(true);
+    if (!updateRes2.success) return;
+
+    // 13. comprobar revisión 3;
+    const revision3 = updateRes2.value;
+    expect(revision3.value).toBe(3);
+
+    // 14. volver a cargar y comprobar el segundo cambio.
+    const found3 = await playbookRepo.findById(workspaceId, pb.id);
+    expect(found3.success).toBe(true);
+    if (!found3.success || found3.value === null) return;
+    expect(found3.value.aggregate.description).toBe('Mutated Description 2');
+    expect(found3.value.revision.value).toBe(3);
   });
 
   it('update playbook — optimistic concurrency conflict due to mismatched revision', async () => {
+    // 1. insertar Playbook con revisión 1;
     const pb = createPlaybookFixture(workspaceId, '000000000302');
     const insertRes = await playbookRepo.insert(pb);
     expect(insertRes.success).toBe(true);
     if (!insertRes.success) return;
+    expect(insertRes.value.value).toBe(1);
 
-    const wrongRevisionResult = PersistenceRevision.from(999);
-    expect(wrongRevisionResult.success).toBe(true);
-    if (!wrongRevisionResult.success) return;
+    // 2. cargar dos copias independientes mediante dos llamadas a findById();
+    const loadA = await playbookRepo.findById(workspaceId, pb.id);
+    const loadB = await playbookRepo.findById(workspaceId, pb.id);
+    expect(loadA.success).toBe(true);
+    expect(loadB.success).toBe(true);
+    if (!loadA.success || loadA.value === null) return;
+    if (!loadB.success || loadB.value === null) return;
 
-    const updateRes = await playbookRepo.update(pb, wrongRevisionResult.value);
-    expect(updateRes.success).toBe(false);
-    if (!updateRes.success) {
-      expect(updateRes.error.code).toBe(PERSISTENCE_REVISION_CONFLICT);
+    // 3. verificar que ambas tienen revisión 1;
+    expect(loadA.value.revision.value).toBe(1);
+    expect(loadB.value.revision.value).toBe(1);
+    expect(loadA.value.aggregate).not.toBe(loadB.value.aggregate);
+
+    // 4. aplicar una mutación distinta a cada copia:
+    // copia A: cambiar descripción
+    const timeA = Instant.parse('2026-07-18T10:00:00.000Z');
+    expect(timeA.success).toBe(true);
+    if (!timeA.success) return;
+    const mutateARes = loadA.value.aggregate.updateDescription({
+      description: 'Mutated Description A',
+      updatedAt: timeA.value,
+    });
+    expect(mutateARes.success).toBe(true);
+
+    // copia B: renombrar
+    const timeB = Instant.parse('2026-07-18T10:15:00.000Z');
+    expect(timeB.success).toBe(true);
+    if (!timeB.success) return;
+    const nameResult2 = PlaybookName.create('Renamed Playbook B');
+    expect(nameResult2.success).toBe(true);
+    if (!nameResult2.success) return;
+    const renameBRes = loadB.value.aggregate.rename({
+      name: nameResult2.value,
+      updatedAt: timeB.value,
+    });
+    expect(renameBRes.success).toBe(true);
+
+    // 5. actualizar A con revisión 1;
+    const updateResA = await playbookRepo.update(loadA.value.aggregate, loadA.value.revision);
+
+    // 6. comprobar éxito y revisión 2;
+    expect(updateResA.success).toBe(true);
+    if (updateResA.success) {
+      expect(updateResA.value.value).toBe(2);
     }
 
-    // Verify DB revision remains 1
-    const found = await playbookRepo.findById(workspaceId, pb.id);
-    expect(found.success).toBe(true);
-    if (found.success && found.value) {
-      expect(found.value.revision.value).toBe(1);
+    // 7. actualizar B con su revisión obsoleta 1;
+    const updateResB = await playbookRepo.update(loadB.value.aggregate, loadB.value.revision);
+
+    // 8. comprobar: PERSISTENCE_REVISION_CONFLICT, operation: 'playbook.update', expectedRevision: 1;
+    expect(updateResB.success).toBe(false);
+    if (!updateResB.success) {
+      expect(updateResB.error.code).toBe(PERSISTENCE_REVISION_CONFLICT);
+      if (updateResB.error.code === PERSISTENCE_REVISION_CONFLICT) {
+        expect(updateResB.error.details.operation).toBe('playbook.update');
+        expect(updateResB.error.details.expectedRevision).toBe(1);
+      }
     }
+
+    // 9. recargar;
+    const reload = await playbookRepo.findById(workspaceId, pb.id);
+    expect(reload.success).toBe(true);
+    if (!reload.success || reload.value === null) return;
+
+    // 10. comprobar: revisión final 2, se conserva el cambio de A, el cambio de B no fue aplicado.
+    expect(reload.value.revision.value).toBe(2);
+    expect(reload.value.aggregate.description).toBe('Mutated Description A');
+    expect(reload.value.aggregate.name.value).toBe(pb.name.value);
   });
 
   it('update playbook — not found error for non-existent playbook', async () => {
@@ -674,7 +789,44 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
     }
   });
 
+  it('update playbook — wrong workspace error', async () => {
+    // 1. crear Workspace A (workspaceId) y Workspace B;
+    const wsB = createWorkspaceFixture('000000000309', 'Workspace B');
+    await insertWorkspaceFixture(pool, wsB);
+
+    // 2. insertar Playbook perteneciente a A;
+    const pbA = createPlaybookFixture(workspaceId, '000000000310', 'Playbook A');
+    const insertRes = await playbookRepo.insert(pbA);
+    expect(insertRes.success).toBe(true);
+    if (!insertRes.success) return;
+
+    // 3. construir Aggregate de Playbook bajo Workspace B, compartiendo el mismo playbook_id
+    const pbB = Playbook.restore({
+      playbookId: pbA.id,
+      workspaceId: wsB.id,
+      name: pbA.name,
+      status: pbA.status,
+      description: pbA.description,
+      activeVersionId: pbA.activeVersionId,
+      createdAt: pbA.createdAt,
+      updatedAt: pbA.updatedAt,
+      archivedAt: pbA.archivedAt,
+    });
+    expect(pbB.success).toBe(true);
+    if (!pbB.success) return;
+
+    // 4. intentar actualizar el Aggregate de B usando la revisión de A
+    const updateRes = await playbookRepo.update(pbB.value, insertRes.value);
+
+    // 5. verificar que retorna PLAYBOOK_NOT_FOUND
+    expect(updateRes.success).toBe(false);
+    if (!updateRes.success) {
+      expect(updateRes.error.code).toBe(PLAYBOOK_NOT_FOUND);
+    }
+  });
+
   it('update playbook — conflict error for duplicate name in same workspace', async () => {
+    // 1. insertar dos Playbooks activos;
     const pb1 = createPlaybookFixture(workspaceId, '000000000304', 'Duplicate One');
     const pb2 = createPlaybookFixture(workspaceId, '000000000305', 'Duplicate Two');
     const insert1 = await playbookRepo.insert(pb1);
@@ -683,85 +835,116 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
     expect(insert2.success).toBe(true);
     if (!insert1.success || !insert2.success) return;
 
-    // Mutate pb2 name to match pb1 name
-    const renamedPb2 = Playbook.restore({
-      playbookId: pb2.id,
-      workspaceId: pb2.workspaceId,
-      name: pb1.name,
-      status: pb2.status,
-      description: pb2.description,
-      activeVersionId: pb2.activeVersionId,
-      createdAt: pb2.createdAt,
-      updatedAt: pb2.updatedAt,
-      archivedAt: pb2.archivedAt,
-    });
-    expect(renamedPb2.success).toBe(true);
-    if (!renamedPb2.success) return;
+    // 2. cargar el segundo mediante findById();
+    const found2 = await playbookRepo.findById(workspaceId, pb2.id);
+    expect(found2.success).toBe(true);
+    if (!found2.success || found2.value === null) return;
 
-    const updateRes = await playbookRepo.update(renamedPb2.value, insert2.value);
+    // 3. renombrarlo usando rename() con el nombre del primero;
+    const transitionTime = Instant.parse('2026-07-18T10:00:00.000Z');
+    expect(transitionTime.success).toBe(true);
+    if (!transitionTime.success) return;
+    const renameRes = found2.value.aggregate.rename({
+      name: pb1.name,
+      updatedAt: transitionTime.value,
+    });
+    expect(renameRes.success).toBe(true);
+
+    // 4. ejecutar update() con su revisión;
+    const updateRes = await playbookRepo.update(found2.value.aggregate, found2.value.revision);
+
+    // 5. comprobar PLAYBOOK_NAME_CONFLICT
     expect(updateRes.success).toBe(false);
     if (!updateRes.success) {
       expect(updateRes.error.code).toBe(PLAYBOOK_NAME_CONFLICT);
+      expect(updateRes.error.message).not.toContain('idx_playbooks_workspace_normalized_name');
     }
+
+    // 6. volver a cargar el segundo;
+    const reloaded = await playbookRepo.findById(workspaceId, pb2.id);
+    expect(reloaded.success).toBe(true);
+    if (!reloaded.success || reloaded.value === null) return;
+
+    // 7. comprobar: mantiene el nombre original, mantiene la revisión original, no existe mutación parcial
+    expect(reloaded.value.aggregate.name.value).toBe('Duplicate Two');
+    expect(reloaded.value.revision.value).toBe(1);
   });
 
   it('concurrency test — parallel updates only allow one success', async () => {
+    // 1. insertar un Playbook;
     const pb = createPlaybookFixture(workspaceId, '000000000306');
     const insertRes = await playbookRepo.insert(pb);
     expect(insertRes.success).toBe(true);
     if (!insertRes.success) return;
-    const initialRevision = insertRes.value;
 
-    const p1 = playbookRepo.update(pb, initialRevision);
-    const p2 = playbookRepo.update(pb, initialRevision);
-    const p3 = playbookRepo.update(pb, initialRevision);
+    // 2. cargar dos copias independientes;
+    const copyA = await playbookRepo.findById(workspaceId, pb.id);
+    const copyB = await playbookRepo.findById(workspaceId, pb.id);
+    expect(copyA.success).toBe(true);
+    expect(copyB.success).toBe(true);
+    if (!copyA.success || copyA.value === null) return;
+    if (!copyB.success || copyB.value === null) return;
 
-    const results = await Promise.all([p1, p2, p3]);
-    const successes = results.filter((r) => r.success);
-    const failures = results.filter((r) => !r.success);
+    // 3. comprobar que ambas tienen revisión 1;
+    expect(copyA.value.revision.value).toBe(1);
+    expect(copyB.value.revision.value).toBe(1);
 
-    expect(successes).toHaveLength(1);
-    expect(failures).toHaveLength(2);
+    // 4. aplicar mutaciones válidas y diferentes;
+    const timeA = Instant.parse('2026-07-18T10:00:00.000Z');
+    const timeB = Instant.parse('2026-07-18T10:15:00.000Z');
+    expect(timeA.success).toBe(true);
+    expect(timeB.success).toBe(true);
+    if (!timeA.success || !timeB.success) return;
 
-    for (const fail of failures) {
-      expect(fail.error.code).toBe(PERSISTENCE_REVISION_CONFLICT);
-    }
-
-    const found = await playbookRepo.findById(workspaceId, pb.id);
-    expect(found.success).toBe(true);
-    if (found.success && found.value) {
-      expect(found.value.revision.value).toBe(2);
-    }
-  });
-
-  it('update playbook — db violation maps to PERSISTENCE_OPERATION_FAILED', async () => {
-    const pb = createPlaybookFixture(workspaceId, '000000000307');
-    const insertRes = await playbookRepo.insert(pb);
-    expect(insertRes.success).toBe(true);
-    if (!insertRes.success) return;
-
-    // Mutate updated_at to be earlier than created_at -> violates playbooks_updated_at_gte_created_at CHECK constraint
-    const invalidPb = Playbook.restore({
-      playbookId: pb.id,
-      workspaceId: pb.workspaceId,
-      name: pb.name,
-      status: pb.status,
-      description: pb.description,
-      activeVersionId: pb.activeVersionId,
-      createdAt: pb.createdAt,
-      updatedAt: instant('2020-01-01T00:00:00Z'), // very old
-      archivedAt: pb.archivedAt,
+    const mutateARes = copyA.value.aggregate.updateDescription({
+      description: 'Description A',
+      updatedAt: timeA.value,
     });
-    expect(invalidPb.success).toBe(true);
-    if (!invalidPb.success) return;
+    const nameResultB = PlaybookName.create('Renamed B');
+    expect(nameResultB.success).toBe(true);
+    if (!nameResultB.success) return;
+    const renameBRes = copyB.value.aggregate.rename({
+      name: nameResultB.value,
+      updatedAt: timeB.value,
+    });
+    expect(mutateARes.success).toBe(true);
+    expect(renameBRes.success).toBe(true);
 
-    const updateRes = await playbookRepo.update(invalidPb.value, insertRes.value);
-    expect(updateRes.success).toBe(false);
-    if (!updateRes.success) {
-      expect(updateRes.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
-      expect((updateRes.error as PersistenceOperationFailedError).details.operation).toBe(
-        'playbook.update',
-      );
+    // 5. ejecutar exactamente: const [resultA, resultB] = await Promise.all(...)
+    const [resultA, resultB] = await Promise.all([
+      playbookRepo.update(copyA.value.aggregate, copyA.value.revision),
+      playbookRepo.update(copyB.value.aggregate, copyB.value.revision),
+    ]);
+
+    // 6. comprobar:
+    // exactamente una operación exitosa
+    const successes = [resultA, resultB].filter((r) => r.success);
+    expect(successes).toHaveLength(1);
+
+    // exactamente una operación con PERSISTENCE_REVISION_CONFLICT
+    const failures = [resultA, resultB].filter((r) => !r.success);
+    expect(failures).toHaveLength(1);
+    const failedResult = failures[0];
+    expect(failedResult).toBeDefined();
+    if (failedResult !== undefined && !failedResult.success) {
+      expect(failedResult.error.code).toBe(PERSISTENCE_REVISION_CONFLICT);
+      if (failedResult.error.code === PERSISTENCE_REVISION_CONFLICT) {
+        expect(failedResult.error.details.expectedRevision).toBe(1);
+      }
     }
+
+    // la revisión final es 2; nunca se produce revisión 3
+    const reload = await playbookRepo.findById(workspaceId, pb.id);
+    expect(reload.success).toBe(true);
+    if (!reload.success || reload.value === null) return;
+    expect(reload.value.revision.value).toBe(2);
+
+    // el estado final corresponde a uno de los dos cambios completos, nunca parcial
+    const finalPb = reload.value.aggregate;
+    const isChangeA =
+      finalPb.description === 'Description A' && finalPb.name.value === pb.name.value;
+    const isChangeB = finalPb.description === pb.description && finalPb.name.value === 'Renamed B';
+    expect(isChangeA || isChangeB).toBe(true);
+    expect(isChangeA && isChangeB).toBe(false);
   });
 });

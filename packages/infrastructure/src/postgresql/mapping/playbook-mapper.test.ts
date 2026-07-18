@@ -33,6 +33,7 @@ describe('mapRowToPersistedPlaybook', () => {
       expect(result.aggregate.id).toBe(validUuid);
       expect(result.aggregate.status).toBe('active');
       expect(result.revision.value).toBe(1);
+      expect(Object.isFrozen(result)).toBe(true);
     }
   });
 
@@ -54,7 +55,7 @@ describe('mapRowToPersistedPlaybook', () => {
     expect(result).not.toBeNull();
     if (result !== null) {
       const snapshot = result.aggregate.toSnapshot();
-      expect((snapshot as Record<string, unknown>).revision).toBeUndefined();
+      expect('revision' in snapshot).toBe(false);
     }
   });
 
@@ -82,8 +83,74 @@ describe('mapRowToPersistedPlaybook', () => {
     expect(result).toBeNull();
   });
 
-  it('returns null when another field is corrupted', () => {
-    const row = createRowFixture({ playbook_id: '' });
+  it('returns null when revision is Infinity', () => {
+    const row = createRowFixture({ revision: Infinity });
+    const result = mapRowToPersistedPlaybook(row);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when revision is -Infinity', () => {
+    const row = createRowFixture({ revision: -Infinity });
+    const result = mapRowToPersistedPlaybook(row);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when revision is unsafe integer', () => {
+    const row = createRowFixture({ revision: Number.MAX_SAFE_INTEGER + 1 });
+    const result = mapRowToPersistedPlaybook(row);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when playbook_id is corrupted', () => {
+    const row = createRowFixture({ playbook_id: 'invalid-uuid' });
+    const result = mapRowToPersistedPlaybook(row);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when workspace_id is corrupted', () => {
+    const row = createRowFixture({ workspace_id: 'invalid-uuid' });
+    const result = mapRowToPersistedPlaybook(row);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when name is corrupted', () => {
+    const row = createRowFixture({ name: '' });
+    const result = mapRowToPersistedPlaybook(row);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when normalized_name is inconsistent', () => {
+    const row = createRowFixture({ name: 'My Playbook', normalized_name: 'other-name' });
+    const result = mapRowToPersistedPlaybook(row);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when status is invalid', () => {
+    const row = createRowFixture({ status: 'invalid-status' });
+    const result = mapRowToPersistedPlaybook(row);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when active_version_id is invalid', () => {
+    const row = createRowFixture({ active_version_id: 'invalid-version-uuid' });
+    const result = mapRowToPersistedPlaybook(row);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when created_at timestamp is invalid', () => {
+    const row = createRowFixture({ created_at: new Date('invalid-date') });
+    const result = mapRowToPersistedPlaybook(row);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when updated_at timestamp is invalid', () => {
+    const row = createRowFixture({ updated_at: new Date('invalid-date') });
+    const result = mapRowToPersistedPlaybook(row);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when archived_at timestamp is invalid', () => {
+    const row = createRowFixture({ archived_at: new Date('invalid-date') });
     const result = mapRowToPersistedPlaybook(row);
     expect(result).toBeNull();
   });
