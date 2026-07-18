@@ -10,6 +10,7 @@ const workspaceA = '00000000-0000-0000-0000-000000000001';
 const workspaceB = '00000000-0000-0000-0000-000000000002';
 const playbookA = '00000000-0000-0000-0000-000000000011';
 const playbookB = '00000000-0000-0000-0000-000000000012';
+const playbookC = '00000000-0000-0000-0000-000000000013';
 
 function workspaceId(value: string) {
   const result = parseWorkspaceId(value);
@@ -42,11 +43,12 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     await pool.close();
   });
   beforeEach(async () => {
-    await pool.query('DELETE FROM workspaces CASCADE');
+    await pool.query('TRUNCATE TABLE playbook_sources, playbooks, workspaces CASCADE');
     await insertWorkspace(workspaceA, 'Workspace A');
     await insertWorkspace(workspaceB, 'Workspace B');
     await insertPlaybook(workspaceA, playbookA, 'Playbook A');
     await insertPlaybook(workspaceA, playbookB, 'Playbook B');
+    await insertPlaybook(workspaceB, playbookC, 'Playbook C');
   });
 
   async function insertWorkspace(id: string, name: string): Promise<void> {
@@ -87,14 +89,38 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
       ],
     );
   }
-  async function rejects(query: string, values: readonly PostgresParameter[]): Promise<void> {
-    let rejected = false;
+  interface PostgresConstraintError {
+    readonly code: string;
+    readonly constraint?: string;
+  }
+  function isPostgresConstraintError(error: unknown): error is PostgresConstraintError {
+    return (
+      error !== null &&
+      typeof error === 'object' &&
+      'code' in error &&
+      typeof error.code === 'string' &&
+      (!('constraint' in error) ||
+        error.constraint === undefined ||
+        typeof error.constraint === 'string')
+    );
+  }
+  async function rejects(
+    query: string,
+    values: readonly PostgresParameter[],
+    expectedCode: string,
+    expectedConstraint: string,
+  ): Promise<void> {
     try {
       await pool.query(query, values);
-    } catch {
-      rejected = true;
+    } catch (error) {
+      expect(isPostgresConstraintError(error)).toBe(true);
+      if (!isPostgresConstraintError(error))
+        throw new Error('Expected PostgreSQL constraint error.');
+      expect(error.code).toBe(expectedCode);
+      expect(error.constraint).toBe(expectedConstraint);
+      return;
     }
-    expect(rejected).toBe(true);
+    throw new Error('Expected PostgreSQL to reject the statement.');
   }
 
   it('findById preserves fields and isolates workspace', async () => {
@@ -106,10 +132,23 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     });
     const found = await repository.findById(workspaceId(workspaceA), sourceId(id));
     expect(found.success).toBe(true);
-    if (found.success && found.value !== null)
-      expect(found.value.toSnapshot().lastSuccessfulSynchronizationRunId).toBe(
-        '00000000-0000-0000-0000-000000000201',
-      );
+    if (!found.success) throw new Error('Expected successful source lookup.');
+    expect(found.value).not.toBeNull();
+    if (found.value === null) throw new Error('Expected the playbook source to exist.');
+    expect(found.value.toSnapshot()).toEqual({
+      playbookSourceId: id,
+      workspaceId: workspaceA,
+      playbookId: playbookA,
+      type: 'notion',
+      status: 'enabled',
+      externalRootReference: 'root-page',
+      configurationReference: 'config-ref',
+      createdAt: '2026-07-01T10:00:00.000Z',
+      lastSuccessfulSynchronizationRunId: '00000000-0000-0000-0000-000000000201',
+      lastSuccessfulSynchronizationAt: '2026-07-01T11:00:00.000Z',
+      lastFailedSynchronizationRunId: null,
+      lastFailedSynchronizationAt: null,
+    });
     const wrongWorkspace = await repository.findById(workspaceId(workspaceB), sourceId(id));
     expect(wrongWorkspace.success).toBe(true);
     if (wrongWorkspace.success) expect(wrongWorkspace.value).toBeNull();
@@ -135,14 +174,49 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
       playbookId(playbookA),
     );
     expect(result.success).toBe(true);
-    if (result.success && result.value !== null)
-      expect(result.value.id).toBe('00000000-0000-0000-0000-000000000103');
+    if (!result.success) throw new Error('Expected enabled source lookup.');
+    expect(result.value).not.toBeNull();
+    if (result.value === null) throw new Error('Expected enabled source.');
+    expect(result.value.toSnapshot()).toMatchObject({
+      playbookSourceId: '00000000-0000-0000-0000-000000000103',
+      workspaceId: workspaceA,
+      playbookId: playbookA,
+      status: 'enabled',
+    });
+    await insertSource({ id: '00000000-0000-0000-0000-000000000107', playbook: playbookB });
+    await insertSource({
+      id: '00000000-0000-0000-0000-000000000108',
+      workspace: workspaceB,
+      playbook: playbookC,
+    });
     const otherPlaybook = await repository.findEnabledByPlaybookId(
       workspaceId(workspaceA),
       playbookId(playbookB),
     );
     expect(otherPlaybook.success).toBe(true);
-    if (otherPlaybook.success) expect(otherPlaybook.value).toBeNull();
+    if (!otherPlaybook.success || otherPlaybook.value === null)
+      throw new Error('Expected Playbook B source.');
+    expect(otherPlaybook.value.toSnapshot()).toMatchObject({
+      playbookId: playbookB,
+      workspaceId: workspaceA,
+    });
+    const workspaceBSource = await repository.findEnabledByPlaybookId(
+      workspaceId(workspaceB),
+      playbookId(playbookC),
+    );
+    expect(workspaceBSource.success).toBe(true);
+    if (!workspaceBSource.success || workspaceBSource.value === null)
+      throw new Error('Expected Playbook C source.');
+    expect(workspaceBSource.value.toSnapshot()).toMatchObject({
+      playbookId: playbookC,
+      workspaceId: workspaceB,
+    });
+    const wrongWorkspace = await repository.findEnabledByPlaybookId(
+      workspaceId(workspaceA),
+      playbookId(playbookC),
+    );
+    expect(wrongWorkspace.success).toBe(true);
+    if (wrongWorkspace.success) expect(wrongWorkspace.value).toBeNull();
   });
 
   it('lists both statuses in deterministic order with pagination', async () => {
@@ -160,6 +234,17 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
       status: 'disabled',
       createdAt: '2026-07-01T11:00:00.000Z',
     });
+    await insertSource({
+      id: '00000000-0000-0000-0000-000000000109',
+      status: 'disabled',
+      createdAt: '2026-07-01T10:30:00.000Z',
+    });
+    await insertSource({ id: '00000000-0000-0000-0000-000000000107', playbook: playbookB });
+    await insertSource({
+      id: '00000000-0000-0000-0000-000000000108',
+      workspace: workspaceB,
+      playbook: playbookC,
+    });
     const page = await repository.listByPlaybookId(workspaceId(workspaceA), playbookId(playbookA), {
       offset: 0,
       limit: 2,
@@ -170,20 +255,44 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
         '00000000-0000-0000-0000-000000000104',
         '00000000-0000-0000-0000-000000000105',
       ]);
-      expect(page.value.totalCount).toBe(3);
+      expect(page.value.totalCount).toBe(4);
       expect(page.value.hasMore).toBe(true);
+      expect(page.value.offset).toBe(0);
+      expect(page.value.limit).toBe(2);
+      expect(
+        page.value.items.every(
+          (item) =>
+            item.workspaceId === workspaceId(workspaceA) &&
+            item.playbookId === playbookId(playbookA),
+        ),
+      ).toBe(true);
     }
+    const second = await repository.listByPlaybookId(
+      workspaceId(workspaceA),
+      playbookId(playbookA),
+      { offset: 2, limit: 2 },
+    );
+    expect(second.success).toBe(true);
+    if (!second.success) throw new Error('Expected second page.');
+    expect(second.value.items.map((item) => item.id)).toEqual([
+      '00000000-0000-0000-0000-000000000106',
+      '00000000-0000-0000-0000-000000000109',
+    ]);
+    expect(second.value.offset).toBe(2);
+    expect(second.value.limit).toBe(2);
+    expect(second.value.totalCount).toBe(4);
+    expect(second.value.hasMore).toBe(false);
     const empty = await repository.listByPlaybookId(
       workspaceId(workspaceA),
-      playbookId(playbookB),
-      { offset: 3, limit: 2 },
+      playbookId(playbookA),
+      { offset: 20, limit: 5 },
     );
     expect(empty.success).toBe(true);
     if (empty.success) {
       expect(empty.value.items).toEqual([]);
-      expect(empty.value.offset).toBe(3);
-      expect(empty.value.limit).toBe(2);
-      expect(empty.value.totalCount).toBe(0);
+      expect(empty.value.offset).toBe(20);
+      expect(empty.value.limit).toBe(5);
+      expect(empty.value.totalCount).toBe(4);
     }
   });
 
@@ -194,91 +303,121 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     const root = 'root';
     const configuration = 'config';
     const created = '2026-07-01T10:00:00.000Z';
-    await rejects(base, [
-      '00000000-0000-0000-0000-000000000110',
-      workspaceA,
-      playbookA,
-      'other',
-      status,
-      root,
-      configuration,
-      created,
-      null,
-      null,
-      null,
-      null,
-    ]);
-    await rejects(base, [
-      '00000000-0000-0000-0000-000000000111',
-      workspaceA,
-      playbookA,
-      type,
-      'other',
-      root,
-      configuration,
-      created,
-      null,
-      null,
-      null,
-      null,
-    ]);
-    await rejects(base, [
-      '00000000-0000-0000-0000-000000000112',
-      workspaceA,
-      playbookA,
-      type,
-      status,
-      ' ',
-      configuration,
-      created,
-      null,
-      null,
-      null,
-      null,
-    ]);
-    await rejects(base, [
-      '00000000-0000-0000-0000-000000000113',
-      workspaceA,
-      playbookA,
-      type,
-      status,
-      root,
-      configuration,
-      created,
-      '00000000-0000-0000-0000-000000000211',
-      null,
-      null,
-      null,
-    ]);
-    await rejects(base, [
-      '00000000-0000-0000-0000-000000000114',
-      workspaceB,
-      playbookA,
-      type,
-      status,
-      root,
-      configuration,
-      created,
-      null,
-      null,
-      null,
-      null,
-    ]);
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000110',
+        workspaceA,
+        playbookA,
+        'other',
+        status,
+        root,
+        configuration,
+        created,
+        null,
+        null,
+        null,
+        null,
+      ],
+      '23514',
+      'playbook_sources_type_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000111',
+        workspaceA,
+        playbookA,
+        type,
+        'other',
+        root,
+        configuration,
+        created,
+        null,
+        null,
+        null,
+        null,
+      ],
+      '23514',
+      'playbook_sources_status_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000112',
+        workspaceA,
+        playbookA,
+        type,
+        status,
+        ' ',
+        configuration,
+        created,
+        null,
+        null,
+        null,
+        null,
+      ],
+      '23514',
+      'playbook_sources_external_root_reference_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000113',
+        workspaceA,
+        playbookA,
+        type,
+        status,
+        root,
+        configuration,
+        created,
+        '00000000-0000-0000-0000-000000000211',
+        null,
+        null,
+        null,
+      ],
+      '23514',
+      'playbook_sources_success_metadata_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000114',
+        workspaceB,
+        playbookA,
+        type,
+        status,
+        root,
+        configuration,
+        created,
+        null,
+        null,
+        null,
+        null,
+      ],
+      '23503',
+      'playbook_sources_playbook_owner_fk',
+    );
     await insertSource({ id: '00000000-0000-0000-0000-000000000115' });
-    await rejects(base, [
-      '00000000-0000-0000-0000-000000000116',
-      workspaceA,
-      playbookA,
-      type,
-      'enabled',
-      root,
-      configuration,
-      created,
-      null,
-      null,
-      null,
-      null,
-    ]);
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000116',
+        workspaceA,
+        playbookA,
+        type,
+        'enabled',
+        root,
+        configuration,
+        created,
+        null,
+        null,
+        null,
+        null,
+      ],
+      '23505',
+      'idx_playbook_sources_one_enabled_per_playbook',
+    );
     await insertSource({ id: '00000000-0000-0000-0000-000000000117', status: 'disabled' });
   });
 });

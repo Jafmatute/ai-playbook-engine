@@ -60,6 +60,11 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
     );
     expect(sourcesTable.rows).toHaveLength(1);
 
+    const versions = await pool.query<{ version: number }>(
+      'SELECT version FROM schema_migrations ORDER BY version ASC',
+    );
+    expect(versions.rows.map((row) => row.version)).toEqual([1, 2, 3]);
+
     // Verify playbooks table column structure
     const colInfo = await pool.query<{
       column_name: string;
@@ -100,6 +105,10 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
     if (second.success) {
       expect(second.value.appliedVersions).toHaveLength(0);
     }
+    const versions = await pool.query<{ version: number }>(
+      'SELECT version FROM schema_migrations ORDER BY version ASC',
+    );
+    expect(versions.rows.map((row) => row.version)).toEqual([1, 2, 3]);
   });
 
   it('backfills existing playbooks with default revision 1 when migrating v1 to v2', async () => {
