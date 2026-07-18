@@ -9,7 +9,12 @@ import type { WorkspaceOutput, PlaybookOutput, Page } from '@ai-playbook-engine/
 import {
   workspaceAlreadyInitialized,
   persistenceOperationFailed,
+  playbookNotFound,
+  playbookNameConflict,
+  persistenceRevisionConflict,
+  PersistenceRevision,
 } from '@ai-playbook-engine/application';
+import type { PlaybookOperationNotAllowedError } from '@ai-playbook-engine/core';
 import { migrationFailed } from '@ai-playbook-engine/infrastructure';
 import type { BuildServicesError } from './composition-root.js';
 
@@ -72,6 +77,27 @@ function createPlaybookPageFixture(
     totalCount: 0,
     ...overrides,
   };
+}
+
+function createPersistenceRevision(value: number): PersistenceRevision {
+  const result = PersistenceRevision.from(value);
+
+  if (!result.success) {
+    throw new Error('Expected a valid persistence revision fixture.');
+  }
+
+  return result.value;
+}
+
+function createRenameNotAllowedError(): PlaybookOperationNotAllowedError {
+  return Object.freeze({
+    code: 'PLAYBOOK_OPERATION_NOT_ALLOWED',
+    message: 'Playbook operation is not allowed.',
+    details: Object.freeze({
+      currentStatus: 'archived',
+      operation: 'rename',
+    }),
+  });
 }
 
 function createMockServices(overrides: MockServicesOverrides = {}): CliServices {
@@ -665,9 +691,9 @@ describe('runCli playbook rename command', () => {
   // 11. PLAYBOOK_NOT_FOUND
   it('maps PLAYBOOK_NOT_FOUND to exit code NOT_FOUND (3)', async () => {
     const pool = new MockPool();
+    const error = playbookNotFound();
     const renamePlaybook = {
-      handle: async () =>
-        err({ code: 'PLAYBOOK_NOT_FOUND' as const, message: 'Playbook not found', details: {} }),
+      handle: async () => err(error),
     };
     const services = createMockServices({ pool, renamePlaybook });
     const deps = createMockDependencies(services);
@@ -681,7 +707,7 @@ describe('runCli playbook rename command', () => {
     );
     expect(code).toBe(ExitCode.NOT_FOUND);
     // 18. Human error escribe en stderr
-    expect(io.stderr).toContain('Playbook not found');
+    expect(io.stderr).toContain(error.message);
     expect(io.stdout).toBe('');
     // 20. El pool se cierra cuando el Handler retorna error
     expect(pool.closeCalled).toBe(1);
@@ -691,9 +717,9 @@ describe('runCli playbook rename command', () => {
   // 16. El exit code de conflictos es 4
   it('maps PLAYBOOK_NAME_CONFLICT to exit code CONFLICT (4)', async () => {
     const pool = new MockPool();
+    const error = playbookNameConflict();
     const renamePlaybook = {
-      handle: async () =>
-        err({ code: 'PLAYBOOK_NAME_CONFLICT' as const, message: 'Name conflict', details: {} }),
+      handle: async () => err(error),
     };
     const services = createMockServices({ pool, renamePlaybook });
     const deps = createMockDependencies(services);
@@ -706,20 +732,16 @@ describe('runCli playbook rename command', () => {
       deps,
     );
     expect(code).toBe(ExitCode.CONFLICT);
-    expect(io.stderr).toContain('Name conflict');
+    expect(io.stderr).toContain(error.message);
     expect(pool.closeCalled).toBe(1);
   });
 
   // 13. PERSISTENCE_REVISION_CONFLICT
   it('maps PERSISTENCE_REVISION_CONFLICT to exit code CONFLICT (4)', async () => {
     const pool = new MockPool();
+    const error = persistenceRevisionConflict(createPersistenceRevision(1));
     const renamePlaybook = {
-      handle: async () =>
-        err({
-          code: 'PERSISTENCE_REVISION_CONFLICT' as const,
-          message: 'Revision conflict',
-          details: { operation: 'playbook.update' as const, expectedRevision: 1 },
-        }),
+      handle: async () => err(error),
     };
     const services = createMockServices({ pool, renamePlaybook });
     const deps = createMockDependencies(services);
@@ -732,20 +754,16 @@ describe('runCli playbook rename command', () => {
       deps,
     );
     expect(code).toBe(ExitCode.CONFLICT);
-    expect(io.stderr).toContain('Revision conflict');
+    expect(io.stderr).toContain(error.message);
     expect(pool.closeCalled).toBe(1);
   });
 
   // 14. PLAYBOOK_OPERATION_NOT_ALLOWED
   it('maps PLAYBOOK_OPERATION_NOT_ALLOWED to exit code CONFLICT (4)', async () => {
     const pool = new MockPool();
+    const error = createRenameNotAllowedError();
     const renamePlaybook = {
-      handle: async () =>
-        err({
-          code: 'PLAYBOOK_OPERATION_NOT_ALLOWED' as const,
-          message: 'Operation not allowed',
-          details: { currentStatus: 'archived' as const, operation: 'rename' as const },
-        }),
+      handle: async () => err(error),
     };
     const services = createMockServices({ pool, renamePlaybook });
     const deps = createMockDependencies(services);
@@ -758,7 +776,7 @@ describe('runCli playbook rename command', () => {
       deps,
     );
     expect(code).toBe(ExitCode.CONFLICT);
-    expect(io.stderr).toContain('Operation not allowed');
+    expect(io.stderr).toContain(error.message);
     expect(pool.closeCalled).toBe(1);
   });
 
