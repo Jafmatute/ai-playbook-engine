@@ -14,7 +14,11 @@ import {
   persistenceRevisionConflict,
   PersistenceRevision,
 } from '@ai-playbook-engine/application';
-import type { PlaybookOperationNotAllowedError } from '@ai-playbook-engine/core';
+import type {
+  PlaybookAlreadyArchivedError,
+  PlaybookOperationNotAllowedError,
+  PlaybookStateInvalidError,
+} from '@ai-playbook-engine/core';
 import { migrationFailed } from '@ai-playbook-engine/infrastructure';
 import type { BuildServicesError } from './composition-root.js';
 
@@ -32,6 +36,7 @@ interface MockServicesOverrides {
   readonly getCurrentWorkspace?: CliServices['getCurrentWorkspace'];
   readonly createPlaybook?: CliServices['createPlaybook'];
   readonly renamePlaybook?: CliServices['renamePlaybook'];
+  readonly archivePlaybook?: CliServices['archivePlaybook'];
   readonly getPlaybook?: CliServices['getPlaybook'];
   readonly listPlaybooks?: CliServices['listPlaybooks'];
 }
@@ -100,6 +105,22 @@ function createRenameNotAllowedError(): PlaybookOperationNotAllowedError {
   });
 }
 
+function createPlaybookAlreadyArchivedError(): PlaybookAlreadyArchivedError {
+  return Object.freeze({
+    code: 'PLAYBOOK_ALREADY_ARCHIVED',
+    message: 'The playbook is already archived.',
+    details: Object.freeze({ currentStatus: 'archived' }),
+  });
+}
+
+function createPlaybookStateInvalidError(): PlaybookStateInvalidError {
+  return Object.freeze({
+    code: 'PLAYBOOK_STATE_INVALID',
+    message: 'The playbook state is inconsistent.',
+    details: Object.freeze({ reason: 'TIMESTAMP_BEFORE_UPDATED_AT' }),
+  });
+}
+
 function createMockServices(overrides: MockServicesOverrides = {}): CliServices {
   const pool = overrides.pool ?? new MockPool();
   return {
@@ -116,6 +137,9 @@ function createMockServices(overrides: MockServicesOverrides = {}): CliServices 
     },
     renamePlaybook: overrides.renamePlaybook ?? {
       handle: async () => ok(createPlaybookOutputFixture()),
+    },
+    archivePlaybook: overrides.archivePlaybook ?? {
+      handle: async () => ok(createPlaybookOutputFixture({ status: 'archived' })),
     },
     getPlaybook: overrides.getPlaybook ?? {
       handle: async () => ok(createPlaybookOutputFixture()),
@@ -822,6 +846,121 @@ describe('runCli playbook rename command', () => {
     expect(code).toBe(1);
     expect(io.stderr).toContain('An unexpected error occurred.');
     expect(io.stderr).not.toContain('Secret DB crash details');
+    expect(pool.closeCalled).toBe(1);
+  });
+});
+
+describe('runCli playbook archive command', () => {
+  const envReader = new MapEnvReader(
+    new Map([['AI_PLAYBOOK_ENGINE_DATABASE_URL', 'postgres://localhost:5432/db']]),
+  );
+  const archiveArgs = ['playbook', 'archive', '--id', '00000000-0000-0000-0000-000000000002'];
+
+  it('includes playbook archive in help', async () => {
+    const io = new MockIo();
+    const deps = createMockDependencies(createMockServices());
+
+    const code = await runCli(['--help'], envReader, io, deps);
+
+    expect(code).toBe(ExitCode.SUCCESS);
+    expect(io.stdout).toContain('playbook archive       --id <uuid>       Archive a playbook');
+    expect(deps.getBuildCalled()).toBe(0);
+  });
+
+  it('rejects a missing id, flag value, and unknown flag without constructing services', async () => {
+    for (const args of [
+      ['playbook', 'archive'],
+      ['playbook', 'archive', '--id'],
+      ['playbook', 'archive', '--id', '00000000-0000-0000-0000-000000000002', '--extra'],
+    ]) {
+      const io = new MockIo();
+      const deps = createMockDependencies(createMockServices());
+
+      const code = await runCli(args, envReader, io, deps);
+
+      expect(code).toBe(ExitCode.INVALID_INPUT);
+      expect(deps.getBuildCalled()).toBe(0);
+    }
+  });
+
+  it('invokes the handler with the exact archive command and closes the pool once', async () => {
+    const pool = new MockPool();
+    const archivePlaybook: CliServices['archivePlaybook'] = {
+      handle: async (command) => {
+        expect(command).toEqual({ playbookId: '00000000-0000-0000-0000-000000000002' });
+        return ok(createPlaybookOutputFixture({ status: 'archived' }));
+      },
+    };
+    const deps = createMockDependencies(createMockServices({ pool, archivePlaybook }));
+
+    const code = await runCli(archiveArgs, envReader, new MockIo(), deps);
+
+    expect(code).toBe(ExitCode.SUCCESS);
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  it('writes human and JSON success output to stdout', async () => {
+    const humanIo = new MockIo();
+    const humanCode = await runCli(
+      [...archiveArgs, '--output', 'human'],
+      envReader,
+      humanIo,
+      createMockDependencies(createMockServices()),
+    );
+    expect(humanCode).toBe(ExitCode.SUCCESS);
+    expect(humanIo.stdout).toContain('Playbook:');
+    expect(humanIo.stderr).toBe('');
+
+    const jsonIo = new MockIo();
+    const jsonCode = await runCli(
+      [...archiveArgs, '--output', 'json'],
+      envReader,
+      jsonIo,
+      createMockDependencies(createMockServices()),
+    );
+    expect(jsonCode).toBe(ExitCode.SUCCESS);
+    expect(jsonIo.stdout).toContain('"success": true');
+    expect(jsonIo.stderr).toBe('');
+  });
+
+  it.each([
+    [playbookNotFound(), ExitCode.NOT_FOUND],
+    [createPlaybookAlreadyArchivedError(), ExitCode.CONFLICT],
+    [persistenceRevisionConflict(createPersistenceRevision(1)), ExitCode.CONFLICT],
+    [playbookNameConflict(), ExitCode.CONFLICT],
+    [createPlaybookStateInvalidError(), ExitCode.INFRASTRUCTURE_ERROR],
+    [persistenceOperationFailed('playbook.update'), ExitCode.INFRASTRUCTURE_ERROR],
+  ])('maps $0.code to the expected exit code', async (error, expectedCode) => {
+    const pool = new MockPool();
+    const archivePlaybook: CliServices['archivePlaybook'] = {
+      handle: async () => err(error),
+    };
+    const io = new MockIo();
+    const deps = createMockDependencies(createMockServices({ pool, archivePlaybook }));
+
+    const code = await runCli(archiveArgs, envReader, io, deps);
+
+    expect(code).toBe(expectedCode);
+    expect(io.stderr).toContain(error.message);
+    expect(io.stdout).toBe('');
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  it('closes the pool once and hides internal details on an unexpected exception', async () => {
+    const pool = new MockPool();
+    const archivePlaybook: CliServices['archivePlaybook'] = {
+      handle: async () => {
+        throw new Error('Secret archive failure');
+      },
+    };
+    const io = new MockIo();
+    const deps = createMockDependencies(createMockServices({ pool, archivePlaybook }));
+
+    const code = await runCli(archiveArgs, envReader, io, deps);
+
+    expect(code).toBe(ExitCode.UNEXPECTED_ERROR);
+    expect(io.stderr).toContain('An unexpected error occurred.');
+    expect(io.stderr).not.toContain('Secret archive failure');
     expect(pool.closeCalled).toBe(1);
   });
 });

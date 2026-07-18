@@ -21,6 +21,7 @@ export function mapErrorToExitCode(errorCode: string): ExitCode {
     case 'WORKSPACE_NOT_ACTIVE':
     case 'PERSISTENCE_REVISION_CONFLICT':
     case 'PLAYBOOK_OPERATION_NOT_ALLOWED':
+    case 'PLAYBOOK_ALREADY_ARCHIVED':
       return ExitCode.CONFLICT;
 
     case 'CURRENT_WORKSPACE_UNAVAILABLE':

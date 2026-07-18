@@ -24,6 +24,7 @@ describe('mapErrorToExitCode', () => {
     ['WORKSPACE_NOT_ACTIVE', 4],
     ['PERSISTENCE_REVISION_CONFLICT', 4],
     ['PLAYBOOK_OPERATION_NOT_ALLOWED', 4],
+    ['PLAYBOOK_ALREADY_ARCHIVED', 4],
   ])('maps %s to CONFLICT (%i)', (code, expected) => {
     expect(mapErrorToExitCode(code)).toBe(expected);
   });

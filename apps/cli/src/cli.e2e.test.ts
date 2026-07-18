@@ -221,7 +221,99 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     expect(listPbRenamedRes.stdout).not.toContain('Playbook con espacios');
     assertSafeOutput(listPbRenamedRes.stdout);
 
-    // 11. Create a second Playbook
+    // 11. Archive the renamed Playbook and verify its persisted state.
+    const archiveRes = runCli(['playbook', 'archive', '--id', playbookId, '--output', 'json'], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(archiveRes.status).toBe(0);
+    expect(archiveRes.stderr).toBe('');
+    assertSafeOutput(archiveRes.stdout);
+    const archiveJson: unknown = JSON.parse(archiveRes.stdout);
+    if (
+      archiveJson !== null &&
+      typeof archiveJson === 'object' &&
+      'success' in archiveJson &&
+      archiveJson.success === true &&
+      'data' in archiveJson &&
+      archiveJson.data !== null &&
+      typeof archiveJson.data === 'object' &&
+      'playbookId' in archiveJson.data &&
+      'name' in archiveJson.data &&
+      'status' in archiveJson.data &&
+      'archivedAt' in archiveJson.data &&
+      'updatedAt' in archiveJson.data
+    ) {
+      expect(archiveJson.data.playbookId).toBe(playbookId);
+      expect(archiveJson.data.name).toBe('Playbook renombrado');
+      expect(archiveJson.data.status).toBe('archived');
+      expect(typeof archiveJson.data.archivedAt).toBe('string');
+      expect(archiveJson.data.archivedAt).not.toBe('');
+      expect(archiveJson.data.updatedAt).toBe(archiveJson.data.archivedAt);
+      expect('revision' in archiveJson.data).toBe(false);
+    } else {
+      throw new Error('Invalid archive json output structure');
+    }
+
+    const showArchivedRes = runCli(['playbook', 'show', '--id', playbookId], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(showArchivedRes.status).toBe(0);
+    expect(showArchivedRes.stderr).toBe('');
+    expect(showArchivedRes.stdout).toContain('Playbook renombrado');
+    expect(showArchivedRes.stdout).toContain('Status:            archived');
+    expect(showArchivedRes.stdout).toContain('Archived At:');
+    assertSafeOutput(showArchivedRes.stdout);
+
+    const archivedListRes = runCli(['playbook', 'list', '--status', 'archived'], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(archivedListRes.status).toBe(0);
+    expect(archivedListRes.stderr).toBe('');
+    expect(archivedListRes.stdout).toContain('Playbook renombrado');
+    assertSafeOutput(archivedListRes.stdout);
+
+    const activeListRes = runCli(['playbook', 'list', '--status', 'active'], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(activeListRes.status).toBe(0);
+    expect(activeListRes.stderr).toBe('');
+    expect(activeListRes.stdout).not.toContain('Playbook renombrado');
+    assertSafeOutput(activeListRes.stdout);
+
+    const archiveAgainRes = runCli(
+      ['playbook', 'archive', '--id', playbookId, '--output', 'json'],
+      {
+        AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+      },
+    );
+    expect(archiveAgainRes.status).toBe(4);
+    expect(archiveAgainRes.stderr).toBe('');
+    assertSafeOutput(archiveAgainRes.stdout);
+    const archiveAgainJson: unknown = JSON.parse(archiveAgainRes.stdout);
+    if (
+      archiveAgainJson !== null &&
+      typeof archiveAgainJson === 'object' &&
+      'success' in archiveAgainJson &&
+      'error' in archiveAgainJson &&
+      archiveAgainJson.error !== null &&
+      typeof archiveAgainJson.error === 'object' &&
+      'code' in archiveAgainJson.error
+    ) {
+      expect(archiveAgainJson.success).toBe(false);
+      expect(archiveAgainJson.error.code).toBe('PLAYBOOK_ALREADY_ARCHIVED');
+    } else {
+      throw new Error('Invalid archive conflict json output structure');
+    }
+
+    const showAfterArchiveConflictRes = runCli(['playbook', 'show', '--id', playbookId], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(showAfterArchiveConflictRes.status).toBe(0);
+    expect(showAfterArchiveConflictRes.stdout).toContain('Playbook renombrado');
+    expect(showAfterArchiveConflictRes.stdout).toContain('Status:            archived');
+    assertSafeOutput(showAfterArchiveConflictRes.stdout);
+
+    // 12. Create a second Playbook
     const createRes2 = runCli(
       ['playbook', 'create', '--name', 'Segundo Playbook', '--output', 'json'],
       {
@@ -252,7 +344,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     }
     expect(playbookId2).not.toBe('');
 
-    // 12. Attempt to rename the second playbook to the name of the first playbook (conflict)
+    // 13. Attempt to rename the second playbook to the name of the first playbook (conflict)
     const renameConflictRes = runCli(
       [
         'playbook',
@@ -290,7 +382,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       throw new Error('Invalid rename conflict json output structure');
     }
 
-    // 13. Verify that the second playbook preserves its original name (no partial update)
+    // 14. Verify that the second playbook preserves its original name (no partial update)
     const showPb2Res = runCli(['playbook', 'show', '--id', playbookId2], {
       AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
     });

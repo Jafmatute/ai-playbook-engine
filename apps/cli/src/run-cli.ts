@@ -25,6 +25,7 @@ export interface CliServices {
   readonly getCurrentWorkspace: Pick<Services['getCurrentWorkspace'], 'handle'>;
   readonly createPlaybook: Pick<Services['createPlaybook'], 'handle'>;
   readonly renamePlaybook: Pick<Services['renamePlaybook'], 'handle'>;
+  readonly archivePlaybook: Pick<Services['archivePlaybook'], 'handle'>;
   readonly getPlaybook: Pick<Services['getPlaybook'], 'handle'>;
   readonly listPlaybooks: Pick<Services['listPlaybooks'], 'handle'>;
   readonly migrate: Services['migrate'];
@@ -60,6 +61,7 @@ const ALLOWED_FLAGS: ReadonlyMap<string, ReadonlySet<string>> = new Map<
   ],
   ['playbook show', new Set<string>(['id', 'output', 'help'])],
   ['playbook rename', new Set<string>(['id', 'name', 'output', 'help'])],
+  ['playbook archive', new Set<string>(['id', 'output', 'help'])],
 ]);
 
 const GLOBAL_FLAGS = new Set<string>(['output', 'workspace-id', 'help']);
@@ -179,6 +181,9 @@ export async function runCli(
       }
       case 'playbook rename': {
         return await runPlaybookRename(config, output, flags, io, dependencies);
+      }
+      case 'playbook archive': {
+        return await runPlaybookArchive(config, output, flags, io, dependencies);
       }
       default: {
         return await handleError(`Unknown command: "${subcommand}".`, 'INVALID_INPUT', output, io);
@@ -562,6 +567,41 @@ async function runPlaybookRename(
   }
 }
 
+async function runPlaybookArchive(
+  config: RawConfig,
+  output: CliOutput,
+  flags: ReadonlyMap<string, string | boolean>,
+  io: CliIo,
+  dependencies: RunCliDependencies,
+): Promise<ExitCode> {
+  const id = flags.get('id');
+  if (typeof id !== 'string' || id.length === 0) {
+    return await handleError('--id is required', 'INVALID_INPUT', output, io);
+  }
+
+  const servicesResult = dependencies.buildServices(config);
+  if (!servicesResult.success) {
+    return await handleStructuredError(servicesResult.error, output, io);
+  }
+
+  const services = servicesResult.value;
+  try {
+    const result = await services.archivePlaybook.handle({ playbookId: id });
+    if (!result.success) {
+      return await handleUseCaseError(result.error, output, io);
+    }
+
+    if (output === 'json') {
+      io.writeStdout(renderJsonSuccess(result.value) + '\n');
+    } else {
+      io.writeStdout(renderPlaybook(result.value) + '\n');
+    }
+    return ExitCode.SUCCESS;
+  } finally {
+    await services.pool.close();
+  }
+}
+
 async function handleError(
   message: string,
   errorCode: string,
@@ -632,6 +672,7 @@ Usage:
   playbook list          [options]         List playbooks
   playbook show          --id <uuid>       Show playbook details
   playbook rename        --id <uuid> --name <value>  Rename a playbook
+  playbook archive       --id <uuid>       Archive a playbook
 
 Global flags:
   --workspace-id <uuid>  Override the current workspace ID
