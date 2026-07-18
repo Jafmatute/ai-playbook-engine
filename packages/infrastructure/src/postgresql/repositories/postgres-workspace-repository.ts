@@ -1,3 +1,4 @@
+import pg from 'pg';
 import type {
   WorkspaceRepository,
   PersistenceOperationFailedError,
@@ -32,11 +33,12 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
         [workspaceId],
       );
 
-      if (result.rows.length === 0) {
+      const row = result.rows[0];
+      if (row === undefined) {
         return ok(null);
       }
 
-      const workspace = mapRowToWorkspace(result.rows[0]!);
+      const workspace = mapRowToWorkspace(row);
       if (workspace === null) {
         return err(persistenceOperationFailed('workspace.findById'));
       }
@@ -53,7 +55,8 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
         'SELECT COUNT(*) AS count FROM workspaces',
       );
 
-      const count = Number(result.rows[0]?.count ?? 0);
+      const row = result.rows[0];
+      const count = Number(row?.count ?? 0);
       return ok(count > 0);
     } catch {
       return err(persistenceOperationFailed('workspace.hasAnyWorkspace'));
@@ -63,11 +66,12 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
   async insert(
     workspace: Workspace,
   ): Promise<Result<void, WorkspaceAlreadyInitializedError | PersistenceOperationFailedError>> {
-    const client = await this.#pool.connect();
-
+    let client: pg.PoolClient | null = null;
     let transactionStarted = false;
 
     try {
+      client = await this.#pool.connect();
+
       await client.query('BEGIN');
       transactionStarted = true;
 
@@ -77,8 +81,10 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
         'SELECT COUNT(*) AS count FROM workspaces',
       );
 
-      if (Number(existing.rows[0]?.count ?? 0) > 0) {
+      const existingRow = existing.rows[0];
+      if (Number(existingRow?.count ?? 0) > 0) {
         await client.query('ROLLBACK');
+        transactionStarted = false;
         return err(workspaceAlreadyInitialized());
       }
 
@@ -102,9 +108,10 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       );
 
       await client.query('COMMIT');
+      transactionStarted = false;
       return ok(undefined);
     } catch {
-      if (transactionStarted) {
+      if (client !== null && transactionStarted) {
         try {
           await client.query('ROLLBACK');
         } catch {
@@ -114,7 +121,9 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
 
       return err(persistenceOperationFailed('workspace.insert'));
     } finally {
-      client.release();
+      if (client !== null) {
+        client.release();
+      }
     }
   }
 }

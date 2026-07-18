@@ -1,10 +1,7 @@
 import pg from 'pg';
+import type { DatabaseConfig } from '@ai-playbook-engine/config';
 
 export type PostgresParameter = string | number | boolean | Date | null;
-
-export interface DatabaseConfig {
-  readonly connectionString: string;
-}
 
 export class DatabasePool {
   readonly #pool: pg.Pool;
@@ -20,7 +17,16 @@ export class DatabasePool {
     queryText: string,
     values?: readonly PostgresParameter[],
   ): Promise<pg.QueryResult<Row>> {
-    return this.#pool.query<Row>(queryText, values as pg.QueryConfigValues<unknown[]>);
+    if (values === undefined) {
+      return this.#pool.query<Row>(
+        queryText,
+      );
+    }
+
+    return this.#pool.query<Row>(
+      queryText,
+      [...values],
+    );
   }
 
   async connect(): Promise<pg.PoolClient> {

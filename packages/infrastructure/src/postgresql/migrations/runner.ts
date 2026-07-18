@@ -1,3 +1,4 @@
+import pg from 'pg';
 import { ok, err, type Result } from '@ai-playbook-engine/shared';
 
 import type { DatabasePool } from '../connection/pool.js';
@@ -18,6 +19,10 @@ export interface MigrationResult {
   readonly appliedVersions: readonly number[];
 }
 
+interface AppliedMigrationRow extends pg.QueryResultRow {
+  readonly version: number;
+}
+
 export async function runMigrations(
   pool: DatabasePool,
 ): Promise<Result<MigrationResult, MigrationFailedError>> {
@@ -29,10 +34,16 @@ export async function runMigrations(
       )
     `);
 
-    const appliedResult = await pool.query('SELECT version FROM schema_migrations');
-    const appliedVersions = new Set<number>(
-      appliedResult.rows.map((row: Record<string, unknown>) => Number(row.version)),
-    );
+    const appliedResult = await pool.query<AppliedMigrationRow>('SELECT version FROM schema_migrations');
+    const versions: number[] = [];
+    for (const row of appliedResult.rows) {
+      const v = row.version;
+      if (typeof v !== 'number' || !Number.isSafeInteger(v) || v < 1) {
+        return err(migrationFailed());
+      }
+      versions.push(v);
+    }
+    const appliedVersions = new Set<number>(versions);
 
     const pending = MIGRATIONS.filter((m) => !appliedVersions.has(m.version)).sort(
       (a, b) => a.version - b.version,

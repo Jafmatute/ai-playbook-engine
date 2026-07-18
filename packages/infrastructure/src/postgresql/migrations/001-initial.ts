@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS workspaces (
   CONSTRAINT workspaces_updated_at_gte_created_at CHECK (updated_at >= created_at),
   CONSTRAINT workspaces_archived_at_gte_created_at CHECK (
     archived_at IS NULL OR archived_at >= created_at
+  ),
+  CONSTRAINT workspaces_updated_at_gte_archived_at CHECK (
+    archived_at IS NULL
+    OR updated_at >= archived_at
   )
 );
 
@@ -49,6 +53,10 @@ CREATE TABLE IF NOT EXISTS playbooks (
   CONSTRAINT playbooks_updated_at_gte_created_at CHECK (updated_at >= created_at),
   CONSTRAINT playbooks_archived_at_gte_created_at CHECK (
     archived_at IS NULL OR archived_at >= created_at
+  ),
+  CONSTRAINT playbooks_updated_at_gte_archived_at CHECK (
+    archived_at IS NULL
+    OR updated_at >= archived_at
   )
 );
 

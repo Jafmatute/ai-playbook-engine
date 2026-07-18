@@ -39,11 +39,12 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
         [workspaceId, playbookId],
       );
 
-      if (result.rows.length === 0) {
+      const row = result.rows[0];
+      if (row === undefined) {
         return ok(null);
       }
 
-      const playbook = mapRowToPlaybook(result.rows[0]!);
+      const playbook = mapRowToPlaybook(row);
       if (playbook === null) {
         return err(persistenceOperationFailed('playbook.findById'));
       }
@@ -74,11 +75,12 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
 
       const result = await this.#pool.query<PlaybookRow>(query, params);
 
-      if (result.rows.length === 0) {
+      const row = result.rows[0];
+      if (row === undefined) {
         return ok(null);
       }
 
-      const playbook = mapRowToPlaybook(result.rows[0]!);
+      const playbook = mapRowToPlaybook(row);
       if (playbook === null) {
         return err(persistenceOperationFailed('playbook.findByNormalizedName'));
       }
@@ -125,7 +127,8 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
         `SELECT COUNT(*) AS total FROM playbooks WHERE ${whereClause}`,
         params,
       );
-      const totalCount = Number(countResult.rows[0]?.total ?? 0);
+      const countRow = countResult.rows[0];
+      const totalCount = Number(countRow?.total ?? 0);
 
       const limitParam = paramIndex;
       const offsetParam = paramIndex + 1;
@@ -199,10 +202,12 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
 }
 
 function isUniqueConstraintViolation(error: unknown, constraintName: string): boolean {
-  if (error !== null && typeof error === 'object' && 'code' in error && 'constraint' in error) {
-    const pgError = error as { code: unknown; constraint: unknown };
-    return pgError.code === '23505' && pgError.constraint === constraintName;
-  }
-
-  return false;
+  return (
+    error !== null &&
+    typeof error === 'object' &&
+    'code' in error &&
+    error.code === '23505' &&
+    'constraint' in error &&
+    error.constraint === constraintName
+  );
 }
