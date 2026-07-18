@@ -343,14 +343,17 @@ describe('RegisterPlaybookSourceHandler', () => {
     expectNoCalls(context);
   });
 
-  it('accepts NOTION as a supported source type', async () => {
+  it('rejects an uppercase source type before making calls', async () => {
     const context = setup();
-    const result = await context.handler.handle({ ...command, type: 'notion' });
-    expect(result.success).toBe(true);
-    expect(context.source.insertCalls).toHaveLength(1);
-    const inserted = context.source.insertCalls[0];
-    if (inserted === undefined) throw new Error('Expected inserted source.');
-    expect(inserted.type).toBe('notion');
+
+    const result = await context.handler.handle({
+      ...command,
+      type: 'NOTION',
+    });
+
+    expect(errorFrom(result)).toEqual(playbookSourceTypeUnsupported('NOTION'));
+
+    expectNoCalls(context);
   });
 
   it('rejects an invalid external root reference before making calls', async () => {
@@ -551,6 +554,10 @@ describe('RegisterPlaybookSourceHandler', () => {
       lastFailedSynchronizationRunId: null,
     });
     expect(Object.isFrozen(result.value)).toBe(true);
+    expect('revision' in result.value).toBe(false);
+    expect('token' in result.value).toBe(false);
+    expect('credential' in result.value).toBe(false);
+    expect('secret' in result.value).toBe(false);
     expect(context.current.calls).toHaveLength(1);
     expect(context.workspace.findByIdCalls).toEqual([Object.freeze({ workspaceId })]);
     expect(context.playbook.findByIdCalls).toEqual([Object.freeze({ workspaceId, playbookId })]);
