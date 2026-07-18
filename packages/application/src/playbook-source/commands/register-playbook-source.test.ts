@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   Playbook,
+  PlaybookId,
   PlaybookSource,
   PlaybookSourceId,
   Workspace,
@@ -12,10 +13,10 @@ import {
   parsePlaybookSourceId,
   parseWorkspaceId,
   Playbook as PlaybookClass,
+  PlaybookName,
   PlaybookSource as PlaybookSourceClass,
   PlaybookSourceConfigurationReference,
   PlaybookSourceExternalRootReference,
-  PlaybookName,
   Workspace as WorkspaceClass,
   WorkspaceName,
 } from '@ai-playbook-engine/core';
@@ -25,65 +26,47 @@ import type {
   CurrentWorkspaceProvider,
   PlaybookSourceIdGenerator,
 } from '../../ports/index.js';
-import { currentWorkspaceUnavailable } from '../../ports/index.js';
-import type { CurrentWorkspaceUnavailableError } from '../../ports/index.js';
-import type { WorkspaceRepository } from '../../workspace/ports/workspace-repository.js';
-import type { PlaybookRepository } from '../../playbook/ports/playbook-repository.js';
-import type {
-  PersistedAggregate,
-  PersistenceRevision,
-  PersistenceOperationFailedError,
-} from '../../persistence/index.js';
 import {
-  PersistenceRevision as PersistenceRevisionClass,
-  persistenceOperationFailed,
-} from '../../persistence/index.js';
+  currentWorkspaceUnavailable,
+  type CurrentWorkspaceUnavailableError,
+} from '../../ports/index.js';
+import type { PlaybookRepository } from '../../playbook/ports/playbook-repository.js';
 import type { Page, PaginationRequest } from '../../pagination/index.js';
+import {
+  PersistenceRevision,
+  persistenceOperationFailed,
+  type PersistedAggregate,
+  type PersistenceOperationFailedError,
+  type PersistenceRevision as PersistenceRevisionType,
+} from '../../persistence/index.js';
+import type { WorkspaceRepository } from '../../workspace/ports/workspace-repository.js';
+import {
+  enabledPlaybookSourceConflict,
+  playbookArchived,
+  playbookNotFound,
+  playbookSourceTypeUnsupported,
+  workspaceNotActive,
+  workspaceNotFound,
+} from '../../errors/index.js';
 import type { PlaybookSourceRepository } from '../ports/index.js';
 import {
   RegisterPlaybookSourceHandler,
   type RegisterPlaybookSourceCommand,
 } from './register-playbook-source.js';
 
-function parsed<T>(result: Result<T, unknown>): T {
-  if (!result.success) throw new Error('invalid fixture');
-  return result.value;
-}
-const workspaceId = parsed(parseWorkspaceId('00000000-0000-0000-0000-000000000002'));
-const playbookId = parsed(parsePlaybookId('00000000-0000-0000-0000-000000000003'));
-const sourceId = parsed(parsePlaybookSourceId('00000000-0000-0000-0000-000000000004'));
-
-function instant(): Instant {
-  const result = Instant.parse('2026-07-17T12:00:00.000Z');
-  if (!result.success) throw new Error('invalid fixture');
+function valueFrom<T>(result: Result<T, unknown>): T {
+  if (!result.success) throw new Error('Invalid fixture.');
   return result.value;
 }
 
-function activeWorkspace(): Workspace {
-  const name = WorkspaceName.create('Test workspace');
-  if (!name.success) throw new Error('invalid fixture');
-  const result = WorkspaceClass.create({ workspaceId, name: name.value, createdAt: instant() });
-  if (!result.success) throw new Error('invalid fixture');
-  return result.value;
+function errorFrom<E>(result: Result<unknown, E>): E {
+  if (result.success) throw new Error('Expected an error fixture.');
+  return result.error;
 }
 
-function playbook(status: 'active' | 'archived' = 'active'): Playbook {
-  const name = PlaybookName.create('Test playbook');
-  if (!name.success) throw new Error('invalid fixture');
-  const result = PlaybookClass.create({
-    playbookId,
-    workspaceId,
-    name: name.value,
-    createdAt: instant(),
-  });
-  if (!result.success) throw new Error('invalid fixture');
-  if (status === 'archived') {
-    const archived = result.value.archive({ archivedAt: instant() });
-    if (!archived.success) throw new Error('invalid fixture');
-  }
-  return result.value;
-}
-
+const workspaceId = valueFrom(parseWorkspaceId('00000000-0000-0000-0000-000000000002'));
+const playbookId = valueFrom(parsePlaybookId('00000000-0000-0000-0000-000000000003'));
+const sourceId = valueFrom(parsePlaybookSourceId('00000000-0000-0000-0000-000000000004'));
 const command: RegisterPlaybookSourceCommand = Object.freeze({
   playbookId: '00000000-0000-0000-0000-000000000003',
   type: 'notion',
@@ -91,45 +74,110 @@ const command: RegisterPlaybookSourceCommand = Object.freeze({
   configurationReference: 'config-1',
 });
 
-type WorkspaceResult =
-  | { readonly kind: 'workspace'; readonly value: Workspace }
-  | { readonly kind: 'null' }
-  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
+function instant(): Instant {
+  return valueFrom(Instant.parse('2026-07-17T12:00:00.000Z'));
+}
+
+function revision(): PersistenceRevisionType {
+  return valueFrom(PersistenceRevision.from(1));
+}
+
+function activeWorkspace(): Workspace {
+  return valueFrom(
+    WorkspaceClass.create({
+      workspaceId,
+      name: valueFrom(WorkspaceName.create('Test workspace')),
+      createdAt: instant(),
+    }),
+  );
+}
+
+function archivedWorkspace(): Workspace {
+  const workspace = activeWorkspace();
+  valueFrom(workspace.archive({ archivedAt: instant() }));
+  return workspace;
+}
+
+function playbook(archived = false): Playbook {
+  const aggregate = valueFrom(
+    PlaybookClass.create({
+      playbookId,
+      workspaceId,
+      name: valueFrom(PlaybookName.create('Test playbook')),
+      createdAt: instant(),
+    }),
+  );
+  if (archived) valueFrom(aggregate.archive({ archivedAt: instant() }));
+  return aggregate;
+}
+
+function existingSource(): PlaybookSource {
+  return PlaybookSourceClass.create({
+    playbookSourceId: sourceId,
+    workspaceId,
+    playbookId,
+    type: 'notion',
+    externalRootReference: valueFrom(
+      PlaybookSourceExternalRootReference.create(command.externalRootReference),
+    ),
+    configurationReference: valueFrom(
+      PlaybookSourceConfigurationReference.create(command.configurationReference),
+    ),
+    createdAt: instant(),
+  });
+}
+
+type WorkspaceFindCall = Readonly<{ workspaceId: WorkspaceId }>;
 class WorkspaceStub implements WorkspaceRepository {
-  constructor(private readonly result: WorkspaceResult) {}
-  async findById(): Promise<Result<Workspace | null, PersistenceOperationFailedError>> {
-    return this.result.kind === 'workspace'
-      ? ok(this.result.value)
-      : this.result.kind === 'null'
-        ? ok(null)
-        : err(this.result.error);
+  readonly findByIdCalls: WorkspaceFindCall[] = [];
+
+  constructor(
+    private readonly findResult: Result<Workspace | null, PersistenceOperationFailedError> = ok(
+      activeWorkspace(),
+    ),
+  ) {}
+
+  async findById(
+    requestedWorkspaceId: WorkspaceId,
+  ): Promise<Result<Workspace | null, PersistenceOperationFailedError>> {
+    this.findByIdCalls.push(Object.freeze({ workspaceId: requestedWorkspaceId }));
+    return this.findResult;
   }
+
   async hasAnyWorkspace(): Promise<Result<boolean, PersistenceOperationFailedError>> {
     return ok(true);
   }
+
   async insert(): Promise<Result<void, PersistenceOperationFailedError>> {
     return ok(undefined);
   }
 }
 
-type PlaybookResult =
-  | { readonly kind: 'playbook'; readonly value: Playbook }
-  | { readonly kind: 'null' }
-  | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
+type PlaybookFindCall = Readonly<{ workspaceId: WorkspaceId; playbookId: PlaybookId }>;
 class PlaybookStub implements PlaybookRepository {
-  constructor(private readonly result: PlaybookResult) {}
-  async findById(): Promise<
-    Result<PersistedAggregate<Playbook> | null, PersistenceOperationFailedError>
-  > {
-    return this.result.kind === 'playbook'
-      ? ok({ aggregate: this.result.value, revision: revision() })
-      : this.result.kind === 'null'
-        ? ok(null)
-        : err(this.result.error);
+  readonly findByIdCalls: PlaybookFindCall[] = [];
+
+  constructor(
+    private readonly findResult: Result<
+      PersistedAggregate<Playbook> | null,
+      PersistenceOperationFailedError
+    > = ok({ aggregate: playbook(), revision: revision() }),
+  ) {}
+
+  async findById(
+    requestedWorkspaceId: WorkspaceId,
+    requestedPlaybookId: PlaybookId,
+  ): Promise<Result<PersistedAggregate<Playbook> | null, PersistenceOperationFailedError>> {
+    this.findByIdCalls.push(
+      Object.freeze({ workspaceId: requestedWorkspaceId, playbookId: requestedPlaybookId }),
+    );
+    return this.findResult;
   }
+
   async findByNormalizedName(): Promise<Result<Playbook | null, PersistenceOperationFailedError>> {
     return ok(null);
   }
+
   async list(
     _: WorkspaceId,
     __: never,
@@ -137,168 +185,294 @@ class PlaybookStub implements PlaybookRepository {
   ): Promise<Result<Page<Playbook>, PersistenceOperationFailedError>> {
     return ok({ items: [], offset: 0, limit: 25, hasMore: false });
   }
+
   async insert(): Promise<never> {
-    throw new Error('not used');
+    throw new Error('Not used.');
   }
+
   async update(): Promise<never> {
-    throw new Error('not used');
+    throw new Error('Not used.');
   }
 }
 
-function revision(): PersistenceRevision {
-  const result = PersistenceRevisionClass.from(1);
-  if (!result.success) throw new Error('invalid fixture');
-  return result.value;
-}
-class CurrentStub implements CurrentWorkspaceProvider {
-  constructor(private readonly result: Result<WorkspaceId, CurrentWorkspaceUnavailableError>) {}
-  getCurrentWorkspaceId(): Result<WorkspaceId, CurrentWorkspaceUnavailableError> {
-    return this.result;
-  }
-}
-class ClockStub implements Clock {
-  now(): Instant {
-    return instant();
-  }
-}
-class IdStub implements PlaybookSourceIdGenerator {
-  generate(): PlaybookSourceId {
-    return sourceId;
-  }
-}
+type SourcePrecheckCall = Readonly<{ workspaceId: WorkspaceId; playbookId: PlaybookId }>;
 class SourceStub implements PlaybookSourceRepository {
+  readonly findEnabledByPlaybookIdCalls: SourcePrecheckCall[] = [];
+  readonly insertCalls: PlaybookSource[] = [];
+
   constructor(
-    private readonly existing: PlaybookSource | null = null,
-    private readonly failure: PersistenceOperationFailedError | null = null,
+    private readonly precheckResult: Result<
+      PlaybookSource | null,
+      PersistenceOperationFailedError
+    > = ok(null),
+    private readonly insertResult: Result<void, PersistenceOperationFailedError> = ok(undefined),
   ) {}
-  inserted: PlaybookSource | null = null;
-  async insert(source: PlaybookSource): Promise<Result<void, PersistenceOperationFailedError>> {
-    this.inserted = source;
-    return this.failure === null ? ok(undefined) : err(this.failure);
+
+  async findEnabledByPlaybookId(
+    requestedWorkspaceId: WorkspaceId,
+    requestedPlaybookId: PlaybookId,
+  ): Promise<Result<PlaybookSource | null, PersistenceOperationFailedError>> {
+    this.findEnabledByPlaybookIdCalls.push(
+      Object.freeze({ workspaceId: requestedWorkspaceId, playbookId: requestedPlaybookId }),
+    );
+    return this.precheckResult;
   }
+
+  async insert(source: PlaybookSource): Promise<Result<void, PersistenceOperationFailedError>> {
+    this.insertCalls.push(source);
+    return this.insertResult;
+  }
+
   async findById(): Promise<Result<PlaybookSource | null, PersistenceOperationFailedError>> {
     return ok(null);
   }
-  async findEnabledByPlaybookId(): Promise<
-    Result<PlaybookSource | null, PersistenceOperationFailedError>
-  > {
-    return ok(this.existing);
-  }
+
   async listByPlaybookId(): Promise<Result<Page<PlaybookSource>, PersistenceOperationFailedError>> {
     return ok({ items: [], offset: 0, limit: 25, hasMore: false });
   }
 }
 
-function existingSource(): PlaybookSource {
-  const external = parsed(
-    PlaybookSourceExternalRootReference.create(command.externalRootReference),
-  );
-  const configuration = parsed(
-    PlaybookSourceConfigurationReference.create(command.configurationReference),
-  );
-  return PlaybookSourceClass.create({
-    playbookSourceId: sourceId,
-    workspaceId,
-    playbookId,
-    type: 'notion',
-    externalRootReference: external,
-    configurationReference: configuration,
-    createdAt: instant(),
+class CurrentWorkspaceStub implements CurrentWorkspaceProvider {
+  readonly calls: undefined[] = [];
+
+  constructor(
+    private readonly result: Result<WorkspaceId, CurrentWorkspaceUnavailableError> = ok(
+      workspaceId,
+    ),
+  ) {}
+
+  getCurrentWorkspaceId(): Result<WorkspaceId, CurrentWorkspaceUnavailableError> {
+    this.calls.push(undefined);
+    return this.result;
+  }
+}
+
+class ClockStub implements Clock {
+  readonly calls: undefined[] = [];
+
+  now(): Instant {
+    this.calls.push(undefined);
+    return instant();
+  }
+}
+
+class SourceIdGeneratorStub implements PlaybookSourceIdGenerator {
+  readonly calls: undefined[] = [];
+
+  generate(): PlaybookSourceId {
+    this.calls.push(undefined);
+    return sourceId;
+  }
+}
+
+function setup(
+  current = new CurrentWorkspaceStub(),
+  workspace = new WorkspaceStub(),
+  playbookRepository = new PlaybookStub(),
+  source = new SourceStub(),
+): Readonly<{
+  handler: RegisterPlaybookSourceHandler;
+  current: CurrentWorkspaceStub;
+  workspace: WorkspaceStub;
+  playbook: PlaybookStub;
+  source: SourceStub;
+  clock: ClockStub;
+  idGenerator: SourceIdGeneratorStub;
+}> {
+  const clock = new ClockStub();
+  const idGenerator = new SourceIdGeneratorStub();
+  return Object.freeze({
+    handler: new RegisterPlaybookSourceHandler(
+      current,
+      workspace,
+      playbookRepository,
+      source,
+      clock,
+      idGenerator,
+    ),
+    current,
+    workspace,
+    playbook: playbookRepository,
+    source,
+    clock,
+    idGenerator,
   });
 }
 
-function handler(
-  workspace: WorkspaceResult = { kind: 'workspace', value: activeWorkspace() },
-  pb: PlaybookResult = { kind: 'playbook', value: playbook() },
-  source = new SourceStub(),
-  current: Result<WorkspaceId, CurrentWorkspaceUnavailableError> = ok(workspaceId),
-): RegisterPlaybookSourceHandler {
-  return new RegisterPlaybookSourceHandler(
-    new CurrentStub(current),
-    new WorkspaceStub(workspace),
-    new PlaybookStub(pb),
-    source,
-    new ClockStub(),
-    new IdStub(),
-  );
+function expectNoCalls(context: ReturnType<typeof setup>): void {
+  expect(context.current.calls).toEqual([]);
+  expect(context.workspace.findByIdCalls).toEqual([]);
+  expect(context.playbook.findByIdCalls).toEqual([]);
+  expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
+  expect(context.source.insertCalls).toEqual([]);
+  expect(context.clock.calls).toEqual([]);
+  expect(context.idGenerator.calls).toEqual([]);
 }
-
-const missingWorkspace: WorkspaceResult = { kind: 'null' };
-const inactiveWorkspace: WorkspaceResult = {
-  kind: 'workspace',
-  value: (() => {
-    const value = activeWorkspace();
-    const result = value.archive({ archivedAt: instant() });
-    if (!result.success) throw new Error('fixture');
-    return value;
-  })(),
-};
-const missingPlaybook: PlaybookResult = { kind: 'null' };
-const archivedPlaybook: PlaybookResult = { kind: 'playbook', value: playbook('archived') };
 
 describe('RegisterPlaybookSourceHandler', () => {
-  it('registers a source and returns a frozen output', async () => {
-    const repository = new SourceStub();
-    const result = await handler(
-      { kind: 'workspace', value: activeWorkspace() },
-      { kind: 'playbook', value: playbook() },
-      repository,
-    ).handle(command);
+  it('rejects an invalid playbook id before making calls', async () => {
+    const context = setup();
+    const invalid = { ...command, playbookId: 'bad' };
+    const result = await context.handler.handle(invalid);
+    expect(errorFrom(result)).toEqual(errorFrom(parsePlaybookId(invalid.playbookId)));
+    expectNoCalls(context);
+  });
+
+  it('rejects an unsupported source type before making calls', async () => {
+    const context = setup();
+    const result = await context.handler.handle({ ...command, type: 'csv' });
+    expect(errorFrom(result)).toEqual(playbookSourceTypeUnsupported('csv'));
+    expectNoCalls(context);
+  });
+
+  it('rejects an invalid external root reference before making calls', async () => {
+    const context = setup();
+    const invalid = { ...command, externalRootReference: '' };
+    const result = await context.handler.handle(invalid);
+    expect(errorFrom(result)).toEqual(
+      errorFrom(PlaybookSourceExternalRootReference.create(invalid.externalRootReference)),
+    );
+    expectNoCalls(context);
+  });
+
+  it('rejects an invalid configuration reference before making calls', async () => {
+    const context = setup();
+    const invalid = { ...command, configurationReference: '' };
+    const result = await context.handler.handle(invalid);
+    expect(errorFrom(result)).toEqual(
+      errorFrom(PlaybookSourceConfigurationReference.create(invalid.configurationReference)),
+    );
+    expectNoCalls(context);
+  });
+
+  it('returns the current workspace error without repository calls', async () => {
+    const context = setup(new CurrentWorkspaceStub(err(currentWorkspaceUnavailable())));
+    const result = await context.handler.handle(command);
+    expect(errorFrom(result)).toEqual(currentWorkspaceUnavailable());
+    expect(context.current.calls).toHaveLength(1);
+    expect(context.workspace.findByIdCalls).toEqual([]);
+    expect(context.playbook.findByIdCalls).toEqual([]);
+    expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(context.source.insertCalls).toEqual([]);
+  });
+
+  it('returns the workspace lookup error without later calls', async () => {
+    const failure = persistenceOperationFailed('workspace.findById');
+    const context = setup(undefined, new WorkspaceStub(err(failure)));
+    const result = await context.handler.handle(command);
+    expect(errorFrom(result)).toEqual(failure);
+    expect(context.workspace.findByIdCalls).toEqual([Object.freeze({ workspaceId })]);
+    expect(context.playbook.findByIdCalls).toEqual([]);
+    expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(context.source.insertCalls).toEqual([]);
+  });
+
+  it('returns workspace not found without later calls', async () => {
+    const context = setup(undefined, new WorkspaceStub(ok(null)));
+    const result = await context.handler.handle(command);
+    expect(errorFrom(result)).toEqual(workspaceNotFound());
+    expect(context.playbook.findByIdCalls).toEqual([]);
+    expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(context.source.insertCalls).toEqual([]);
+  });
+
+  it('returns workspace not active without later calls', async () => {
+    const context = setup(undefined, new WorkspaceStub(ok(archivedWorkspace())));
+    const result = await context.handler.handle(command);
+    expect(errorFrom(result)).toEqual(workspaceNotActive(workspaceId, 'archived'));
+    expect(context.playbook.findByIdCalls).toEqual([]);
+    expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(context.source.insertCalls).toEqual([]);
+  });
+
+  it('returns the playbook lookup error without source calls', async () => {
+    const failure = persistenceOperationFailed('playbook.findById');
+    const context = setup(undefined, undefined, new PlaybookStub(err(failure)));
+    const result = await context.handler.handle(command);
+    expect(errorFrom(result)).toEqual(failure);
+    expect(context.playbook.findByIdCalls).toEqual([Object.freeze({ workspaceId, playbookId })]);
+    expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(context.source.insertCalls).toEqual([]);
+  });
+
+  it('returns playbook not found without source calls', async () => {
+    const context = setup(undefined, undefined, new PlaybookStub(ok(null)));
+    const result = await context.handler.handle(command);
+    expect(errorFrom(result)).toEqual(playbookNotFound());
+    expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(context.source.insertCalls).toEqual([]);
+  });
+
+  it('returns playbook archived without source calls', async () => {
+    const context = setup(
+      undefined,
+      undefined,
+      new PlaybookStub(ok({ aggregate: playbook(true), revision: revision() })),
+    );
+    const result = await context.handler.handle(command);
+    expect(errorFrom(result)).toEqual(playbookArchived(playbookId));
+    expect(context.source.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(context.source.insertCalls).toEqual([]);
+  });
+
+  it('returns the source precheck error without inserting', async () => {
+    const failure = persistenceOperationFailed('playbookSource.findEnabledByPlaybookId');
+    const context = setup(undefined, undefined, undefined, new SourceStub(err(failure)));
+    const result = await context.handler.handle(command);
+    expect(errorFrom(result)).toEqual(failure);
+    expect(context.source.findEnabledByPlaybookIdCalls).toEqual([
+      Object.freeze({ workspaceId, playbookId }),
+    ]);
+    expect(context.source.insertCalls).toEqual([]);
+    expect(context.clock.calls).toEqual([]);
+    expect(context.idGenerator.calls).toEqual([]);
+  });
+
+  it('returns the enabled source conflict without inserting', async () => {
+    const context = setup(undefined, undefined, undefined, new SourceStub(ok(existingSource())));
+    const result = await context.handler.handle(command);
+    expect(errorFrom(result)).toEqual(enabledPlaybookSourceConflict(playbookId));
+    expect(context.source.insertCalls).toEqual([]);
+    expect(context.clock.calls).toEqual([]);
+    expect(context.idGenerator.calls).toEqual([]);
+  });
+
+  it('returns an insert error after creating the source', async () => {
+    const failure = persistenceOperationFailed('playbookSource.insert');
+    const context = setup(undefined, undefined, undefined, new SourceStub(ok(null), err(failure)));
+    const result = await context.handler.handle(command);
+    expect(errorFrom(result)).toEqual(failure);
+    expect(context.source.insertCalls).toHaveLength(1);
+    expect(context.clock.calls).toHaveLength(1);
+    expect(context.idGenerator.calls).toHaveLength(1);
+  });
+
+  it('registers a source with the checked workspace and playbook and returns frozen output', async () => {
+    const context = setup();
+    const result = await context.handler.handle(command);
     expect(result.success).toBe(true);
-    if (!result.success) return;
-    expect(result.value).toMatchObject({
-      playbookId,
+    if (!result.success) throw new Error('Expected registration to succeed.');
+    expect(result.value).toEqual({
+      playbookSourceId: sourceId,
       workspaceId,
+      playbookId,
       type: 'notion',
+      externalRootReference: 'https://example.com/root',
+      configurationReference: 'config-1',
       status: 'enabled',
+      createdAt: '2026-07-17T12:00:00.000Z',
+      lastSuccessfulSynchronizationAt: null,
+      lastSuccessfulSynchronizationRunId: null,
+      lastFailedSynchronizationAt: null,
+      lastFailedSynchronizationRunId: null,
     });
     expect(Object.isFrozen(result.value)).toBe(true);
-    expect(repository.inserted?.id).toBe(sourceId);
-  });
-  it.each([
-    ['invalid playbook id', { ...command, playbookId: 'bad' }],
-    ['unsupported type', { ...command, type: 'csv' }],
-    ['invalid external reference', { ...command, externalRootReference: '' }],
-    ['invalid configuration reference', { ...command, configurationReference: '' }],
-  ])('rejects %s', async (_, invalid) => {
-    const result = await handler().handle(invalid);
-    expect(result.success).toBe(false);
-  });
-  it('propagates unavailable current workspace', async () => {
-    const result = await handler(
-      undefined,
-      undefined,
-      undefined,
-      err(currentWorkspaceUnavailable()),
-    ).handle(command);
-    expect(result.success).toBe(false);
-  });
-  it.each([
-    ['workspace missing', missingWorkspace],
-    ['workspace inactive', inactiveWorkspace],
-  ])('rejects %s', async (_, configuration) => {
-    const result = await handler(configuration).handle(command);
-    expect(result.success).toBe(false);
-  });
-  it.each([
-    ['playbook missing', missingPlaybook],
-    ['playbook archived', archivedPlaybook],
-  ])('rejects %s', async (_, configuration) => {
-    const result = await handler(undefined, configuration).handle(command);
-    expect(result.success).toBe(false);
-  });
-  it('rejects an existing enabled source', async () => {
-    const result = await handler(undefined, undefined, new SourceStub(existingSource())).handle(
-      command,
-    );
-    expect(result.success).toBe(false);
-  });
-  it('propagates source persistence failure', async () => {
-    const result = await handler(
-      undefined,
-      undefined,
-      new SourceStub(null, persistenceOperationFailed('playbookSource.insert')),
-    ).handle(command);
-    expect(result.success).toBe(false);
+    expect(context.workspace.findByIdCalls).toEqual([Object.freeze({ workspaceId })]);
+    expect(context.playbook.findByIdCalls).toEqual([Object.freeze({ workspaceId, playbookId })]);
+    expect(context.source.findEnabledByPlaybookIdCalls).toEqual([
+      Object.freeze({ workspaceId, playbookId }),
+    ]);
+    expect(context.source.insertCalls).toHaveLength(1);
+    expect(context.source.insertCalls[0]?.id).toBe(sourceId);
   });
 });

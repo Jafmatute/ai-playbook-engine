@@ -330,7 +330,7 @@ describe('PlaybookSourceRepository', () => {
       expect(repository.insertedSource).toBe(source);
     });
 
-    it('preserves conflict and persistence errors without retry', async () => {
+    it('preserves an enabled conflict without retry', async () => {
       const source = createValidPlaybookSource();
       const conflict: EnabledPlaybookSourceConflictError = enabledPlaybookSourceConflict(
         source.playbookId,
@@ -339,6 +339,19 @@ describe('PlaybookSourceRepository', () => {
       const result = await repository.insert(source);
       expect(result.success).toBe(false);
       if (!result.success) expect(result.error).toBe(conflict);
+      expect(repository.insertCallCount).toBe(1);
+      expect(repository.insertedSource).toBe(source);
+    });
+
+    it('preserves a persistence failure and captures the exact aggregate once', async () => {
+      const source = createValidPlaybookSource();
+      const error = persistenceOperationFailed('playbookSource.insert');
+      const repository = StubPlaybookSourceRepository.returningInsertError(error);
+
+      const result = await repository.insert(source);
+
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error).toEqual(error);
       expect(repository.insertCallCount).toBe(1);
       expect(repository.insertedSource).toBe(source);
     });
