@@ -317,6 +317,12 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
         last_failed_synchronization_at: null,
       },
     ]);
+
+    const rebuilt = await repository.findById(source.workspaceId, source.id);
+    expect(rebuilt.success).toBe(true);
+    if (!rebuilt.success || rebuilt.value === null)
+      throw new Error('Expected inserted source to be rebuilt.');
+    expect(rebuilt.value.toSnapshot()).toEqual(source.toSnapshot());
   });
 
   it('returns an enabled-source conflict when the playbook already has one', async () => {
@@ -352,21 +358,35 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     expect(found.value.id).toBe(enabled.id);
   });
 
-  it('isolates inserted sources by workspace', async () => {
-    const source = createPlaybookSource({
-      id: '00000000-0000-0000-0000-000000000306',
-      workspace: workspaceB,
-      playbook: playbookC,
-    });
-    expect((await repository.insert(source)).success).toBe(true);
+  it('isolates real aggregate inserts across workspace and playbook scopes', async () => {
+    const sources = [
+      createPlaybookSource({ id: '00000000-0000-0000-0000-000000000306' }),
+      createPlaybookSource({ id: '00000000-0000-0000-0000-000000000307', playbook: playbookB }),
+      createPlaybookSource({
+        id: '00000000-0000-0000-0000-000000000308',
+        workspace: workspaceB,
+        playbook: playbookC,
+      }),
+    ];
+    for (const source of sources) expect((await repository.insert(source)).success).toBe(true);
 
-    const inOwnerWorkspace = await repository.findById(workspaceId(workspaceB), source.id);
-    expect(inOwnerWorkspace.success).toBe(true);
-    if (!inOwnerWorkspace.success) throw new Error('Expected isolated source lookup.');
-    expect(inOwnerWorkspace.value?.id).toBe(source.id);
-    const inOtherWorkspace = await repository.findById(workspaceId(workspaceA), source.id);
-    expect(inOtherWorkspace.success).toBe(true);
-    if (inOtherWorkspace.success) expect(inOtherWorkspace.value).toBeNull();
+    for (const source of sources) {
+      const found = await repository.findEnabledByPlaybookId(source.workspaceId, source.playbookId);
+      expect(found.success).toBe(true);
+      if (!found.success || found.value === null) throw new Error('Expected inserted source.');
+      expect(found.value.id).toBe(source.id);
+    }
+
+    const missingScopes = [
+      { workspace: workspaceId(workspaceA), playbook: playbookId(playbookC) },
+      { workspace: workspaceId(workspaceB), playbook: playbookId(playbookA) },
+      { workspace: workspaceId(workspaceB), playbook: playbookId(playbookB) },
+    ];
+    for (const scope of missingScopes) {
+      const found = await repository.findEnabledByPlaybookId(scope.workspace, scope.playbook);
+      expect(found.success).toBe(true);
+      if (found.success) expect(found.value).toBeNull();
+    }
   });
 
   it('returns a persistence failure when the source id already exists', async () => {
