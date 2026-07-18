@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import type { KnowledgeItemId, PlaybookVersionId, WorkspaceId } from '@ai-playbook-engine/core';
+import type {
+  KnowledgeItemId,
+  KnowledgeRelationshipType,
+  PlaybookVersionId,
+  WorkspaceId,
+} from '@ai-playbook-engine/core';
 import {
   Instant,
   KnowledgeRelationship,
@@ -99,8 +104,7 @@ interface KnowledgeRelationshipFixtureOptions {
   readonly playbookVersionId: string;
   readonly sourceKnowledgeItemId: string;
   readonly targetKnowledgeItemId: string;
-  readonly type:
-    'contains' | 'references' | 'implements' | 'uses' | 'evaluates' | 'supports' | 'related_to';
+  readonly type: KnowledgeRelationshipType;
   readonly createdAt: string;
 }
 
@@ -178,9 +182,10 @@ describe('KnowledgeRelationshipRepository', () => {
         createdAt: '2026-07-15T11:00:00.000Z',
       });
 
-      expect(relationshipA.workspaceId).toBe(relationshipB.workspaceId);
-      expect(relationshipA.playbookVersionId).toBe(relationshipB.playbookVersionId);
-      expect(relationshipA.sourceKnowledgeItemId).toBe(relationshipB.sourceKnowledgeItemId);
+      expect(relationshipA.type).not.toBe(relationshipB.type);
+
+      expect(relationshipB.createdAt.compare(relationshipA.createdAt)).toBeGreaterThan(0);
+
       expect(relationshipA.targetKnowledgeItemId).not.toBe(relationshipB.targetKnowledgeItemId);
 
       const repository = StubKnowledgeRelationshipRepository.returningKnowledgeRelationships([
@@ -214,6 +219,17 @@ describe('KnowledgeRelationshipRepository', () => {
       expect(result.value).toHaveLength(2);
       expect(result.value[0]).toBe(relationshipA);
       expect(result.value[1]).toBe(relationshipB);
+
+      for (const relationship of result.value) {
+        expect(relationship.workspaceId).toBe(workspaceId.value);
+        expect(relationship.playbookVersionId).toBe(playbookVersionId.value);
+        expect(relationship.sourceKnowledgeItemId).toBe(sourceItemId.value);
+      }
+
+      expect(result.value[0]?.targetKnowledgeItemId).not.toBe(
+        result.value[1]?.targetKnowledgeItemId,
+      );
+
       expect(Object.isFrozen(result.value)).toBe(true);
     });
   });
@@ -396,6 +412,15 @@ describe('KnowledgeRelationshipRepository', () => {
 
   describe('listBySourceItem — item appears only as target', () => {
     it('returns a frozen empty array when the item only appears as a target, not source', async () => {
+      const incomingRelationship = createValidKnowledgeRelationship({
+        sourceKnowledgeItemId: '00000000-0000-0000-0000-00000000000a',
+        targetKnowledgeItemId: '00000000-0000-0000-0000-00000000000b',
+      });
+
+      expect(incomingRelationship.sourceKnowledgeItemId).not.toBe(
+        incomingRelationship.targetKnowledgeItemId,
+      );
+
       const repository = StubKnowledgeRelationshipRepository.returningNoKnowledgeRelationships();
       const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000001');
       if (!workspaceId.success) {
@@ -405,15 +430,12 @@ describe('KnowledgeRelationshipRepository', () => {
       if (!playbookVersionId.success) {
         throw new Error('Expected a valid playbook version ID fixture.');
       }
-      const targetOnlyId = parseKnowledgeItemId('00000000-0000-0000-0000-00000000000b');
-      if (!targetOnlyId.success) {
-        throw new Error('Expected a valid knowledge item ID fixture.');
-      }
+      const targetOnlyId = incomingRelationship.targetKnowledgeItemId;
 
       const result = await repository.listBySourceItem(
         workspaceId.value,
         playbookVersionId.value,
-        targetOnlyId.value,
+        targetOnlyId,
       );
 
       expect(result.success).toBe(true);
@@ -422,11 +444,33 @@ describe('KnowledgeRelationshipRepository', () => {
       }
 
       expect(result.value).toHaveLength(0);
+      expect(Object.isFrozen(result.value)).toBe(true);
     });
   });
 
   describe('listBySourceItem — another item has relationships', () => {
     it('returns a frozen empty array when only another item has outgoing relationships', async () => {
+      const queriedSourceResult = parseKnowledgeItemId('00000000-0000-0000-0000-00000000000a');
+      if (!queriedSourceResult.success) {
+        throw new Error('Expected a valid knowledge item ID fixture.');
+      }
+
+      const otherSourceResult = parseKnowledgeItemId('00000000-0000-0000-0000-00000000000c');
+      if (!otherSourceResult.success) {
+        throw new Error('Expected a valid knowledge item ID fixture.');
+      }
+
+      const otherSourceRelationship = createValidKnowledgeRelationship({
+        sourceKnowledgeItemId: '00000000-0000-0000-0000-00000000000c',
+        targetKnowledgeItemId: '00000000-0000-0000-0000-00000000000d',
+      });
+
+      expect(queriedSourceResult.value).not.toBe(otherSourceResult.value);
+
+      expect(otherSourceRelationship.sourceKnowledgeItemId).toBe(otherSourceResult.value);
+
+      expect(otherSourceRelationship.sourceKnowledgeItemId).not.toBe(queriedSourceResult.value);
+
       const repository = StubKnowledgeRelationshipRepository.returningNoKnowledgeRelationships();
       const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000001');
       if (!workspaceId.success) {
@@ -436,15 +480,11 @@ describe('KnowledgeRelationshipRepository', () => {
       if (!playbookVersionId.success) {
         throw new Error('Expected a valid playbook version ID fixture.');
       }
-      const queriedSourceId = parseKnowledgeItemId('00000000-0000-0000-0000-00000000000a');
-      if (!queriedSourceId.success) {
-        throw new Error('Expected a valid knowledge item ID fixture.');
-      }
 
       const result = await repository.listBySourceItem(
         workspaceId.value,
         playbookVersionId.value,
-        queriedSourceId.value,
+        queriedSourceResult.value,
       );
 
       expect(result.success).toBe(true);
@@ -453,6 +493,7 @@ describe('KnowledgeRelationshipRepository', () => {
       }
 
       expect(result.value).toHaveLength(0);
+      expect(Object.isFrozen(result.value)).toBe(true);
     });
   });
 
