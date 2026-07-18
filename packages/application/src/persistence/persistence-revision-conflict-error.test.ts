@@ -19,5 +19,13 @@ describe('PersistenceRevisionConflictError', () => {
 
     expect(Object.isFrozen(error)).toBe(true);
     expect(Object.isFrozen(error.details)).toBe(true);
+
+    expect(Object.keys(error.details).sort()).toEqual(['expectedRevision', 'operation']);
+
+    const errorJson = JSON.stringify(error);
+    expect(errorJson).not.toContain('currentRevision');
+    expect(errorJson).not.toContain('SELECT');
+    expect(errorJson).not.toContain('UPDATE playbooks');
+    expect(errorJson).not.toContain('stack');
   });
 });

@@ -103,10 +103,10 @@ describe('PersistenceRevision', () => {
     const result = PersistenceRevision.from(1);
     expect(result.success).toBe(true);
     if (result.success) {
-      const revision = result.value as unknown as Record<string, unknown>;
-      expect(revision.increment).toBeUndefined();
-      expect(revision.next).toBeUndefined();
-      expect(revision.add).toBeUndefined();
+      const prototypeMembers = Object.getOwnPropertyNames(Object.getPrototypeOf(result.value));
+      expect(prototypeMembers).not.toContain('increment');
+      expect(prototypeMembers).not.toContain('next');
+      expect(prototypeMembers).not.toContain('add');
     }
   });
 });
