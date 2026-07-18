@@ -5,8 +5,10 @@ import { PERSISTENCE_OPERATION_FAILED, persistenceOperationFailed } from './inde
 const operations = [
   'workspace.findById',
   'workspace.hasAnyWorkspace',
+  'workspace.insert',
   'playbook.findById',
   'playbook.list',
+  'playbook.insert',
   'playbookSource.findById',
   'synchronizationRun.findById',
   'playbookVersion.findById',
@@ -35,6 +37,7 @@ const operations = [
   'synchronizationRun.findStaleRunning',
   'synchronizationRun.listByPlaybookSourceId',
   'playbookVersion.listByPlaybookId',
+  'migration',
 ] as const;
 
 describe('persistenceOperationFailed', () => {

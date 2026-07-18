@@ -225,6 +225,10 @@ class StubPlaybookRepository implements PlaybookRepository {
       }
     }
   }
+
+  async insert(): Promise<Result<void, any>> {
+    return ok(undefined);
+  }
 }
 
 interface PlaybookFixtureOptions {

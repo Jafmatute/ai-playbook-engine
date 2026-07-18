@@ -4,6 +4,7 @@ import type { Result } from '@ai-playbook-engine/shared';
 import type { Page, PaginationRequest } from '../../pagination/index.js';
 import type { PlaybookListFilter } from '../playbook-list-filter.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
+import type { PlaybookNameConflictError } from '../../errors/index.js';
 
 export interface FindPlaybookByNormalizedNameOptions {
   readonly includeArchived: boolean;
@@ -26,4 +27,8 @@ export interface PlaybookRepository {
     filter: PlaybookListFilter,
     pagination: PaginationRequest,
   ): Promise<Result<Page<Playbook>, PersistenceOperationFailedError>>;
+
+  insert(
+    playbook: Playbook,
+  ): Promise<Result<void, PlaybookNameConflictError | PersistenceOperationFailedError>>;
 }

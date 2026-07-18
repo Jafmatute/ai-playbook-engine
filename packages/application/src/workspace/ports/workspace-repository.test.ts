@@ -80,6 +80,10 @@ class StubWorkspaceRepository implements WorkspaceRepository {
       }
     }
   }
+
+  async insert(): Promise<Result<void, any>> {
+    return ok(undefined);
+  }
 }
 
 function createValidWorkspace(): Workspace {
