@@ -28,6 +28,7 @@ const operations = [
   'synchronizationRun.findLatestCompletedByPlaybookSourceId',
   'synchronizationSnapshot.findLatestByChecksum',
   'knowledgeRelationship.listBySourceItem',
+  'knowledgeRelationship.listByTargetItem',
 ] as const;
 
 describe('persistenceOperationFailed', () => {

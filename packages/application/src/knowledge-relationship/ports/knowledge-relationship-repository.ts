@@ -14,4 +14,10 @@ export interface KnowledgeRelationshipRepository {
     playbookVersionId: PlaybookVersionId,
     sourceKnowledgeItemId: KnowledgeItemId,
   ): Promise<Result<readonly KnowledgeRelationship[], PersistenceOperationFailedError>>;
+
+  listByTargetItem(
+    workspaceId: WorkspaceId,
+    playbookVersionId: PlaybookVersionId,
+    targetKnowledgeItemId: KnowledgeItemId,
+  ): Promise<Result<readonly KnowledgeRelationship[], PersistenceOperationFailedError>>;
 }
