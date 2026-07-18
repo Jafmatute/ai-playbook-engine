@@ -152,6 +152,15 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     const wrongWorkspace = await repository.findById(workspaceId(workspaceB), sourceId(id));
     expect(wrongWorkspace.success).toBe(true);
     if (wrongWorkspace.success) expect(wrongWorkspace.value).toBeNull();
+    const playbookAFromWorkspaceB = await repository.findEnabledByPlaybookId(
+      workspaceId(workspaceB),
+      playbookId(playbookA),
+    );
+    expect(playbookAFromWorkspaceB.success).toBe(true);
+    if (!playbookAFromWorkspaceB.success) {
+      throw new Error('Expected isolated lookup result.');
+    }
+    expect(playbookAFromWorkspaceB.value).toBeNull();
     const missing = await repository.findById(
       workspaceId(workspaceA),
       sourceId('00000000-0000-0000-0000-000000000199'),
@@ -293,6 +302,7 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
       expect(empty.value.offset).toBe(20);
       expect(empty.value.limit).toBe(5);
       expect(empty.value.totalCount).toBe(4);
+      expect(empty.value.hasMore).toBe(false);
     }
   });
 
@@ -363,6 +373,101 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     await rejects(
       base,
       [
+        '00000000-0000-0000-0000-000000000118',
+        workspaceA,
+        playbookA,
+        type,
+        status,
+        '',
+        configuration,
+        created,
+        null,
+        null,
+        null,
+        null,
+      ],
+      '23514',
+      'playbook_sources_external_root_reference_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000119',
+        workspaceA,
+        playbookA,
+        type,
+        status,
+        ' root ',
+        configuration,
+        created,
+        null,
+        null,
+        null,
+        null,
+      ],
+      '23514',
+      'playbook_sources_external_root_reference_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000120',
+        workspaceA,
+        playbookA,
+        type,
+        status,
+        root,
+        '',
+        created,
+        null,
+        null,
+        null,
+        null,
+      ],
+      '23514',
+      'playbook_sources_configuration_reference_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000121',
+        workspaceA,
+        playbookA,
+        type,
+        status,
+        root,
+        ' ',
+        created,
+        null,
+        null,
+        null,
+        null,
+      ],
+      '23514',
+      'playbook_sources_configuration_reference_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000122',
+        workspaceA,
+        playbookA,
+        type,
+        status,
+        root,
+        ' config ',
+        created,
+        null,
+        null,
+        null,
+        null,
+      ],
+      '23514',
+      'playbook_sources_configuration_reference_check',
+    );
+    await rejects(
+      base,
+      [
         '00000000-0000-0000-0000-000000000113',
         workspaceA,
         playbookA,
@@ -378,6 +483,120 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
       ],
       '23514',
       'playbook_sources_success_metadata_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000123',
+        workspaceA,
+        playbookA,
+        type,
+        status,
+        root,
+        configuration,
+        created,
+        null,
+        created,
+        null,
+        null,
+      ],
+      '23514',
+      'playbook_sources_success_metadata_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000124',
+        workspaceA,
+        playbookA,
+        type,
+        status,
+        root,
+        configuration,
+        created,
+        '00000000-0000-0000-0000-000000000212',
+        '2026-06-30T10:00:00.000Z',
+        null,
+        null,
+      ],
+      '23514',
+      'playbook_sources_success_after_created_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000125',
+        workspaceA,
+        playbookA,
+        type,
+        status,
+        root,
+        configuration,
+        created,
+        null,
+        null,
+        '00000000-0000-0000-0000-000000000213',
+        null,
+      ],
+      '23514',
+      'playbook_sources_failure_metadata_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000126',
+        workspaceA,
+        playbookA,
+        type,
+        status,
+        root,
+        configuration,
+        created,
+        null,
+        null,
+        null,
+        created,
+      ],
+      '23514',
+      'playbook_sources_failure_metadata_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000127',
+        workspaceA,
+        playbookA,
+        type,
+        status,
+        root,
+        configuration,
+        created,
+        null,
+        null,
+        '00000000-0000-0000-0000-000000000214',
+        '2026-06-30T10:00:00.000Z',
+      ],
+      '23514',
+      'playbook_sources_failure_after_created_check',
+    );
+    await rejects(
+      base,
+      [
+        '00000000-0000-0000-0000-000000000128',
+        workspaceA,
+        playbookA,
+        type,
+        status,
+        root,
+        configuration,
+        created,
+        '00000000-0000-0000-0000-000000000215',
+        created,
+        '00000000-0000-0000-0000-000000000215',
+        '2026-07-01T11:00:00.000Z',
+      ],
+      '23514',
+      'playbook_sources_distinct_outcome_runs_check',
     );
     await rejects(
       base,
@@ -419,5 +638,53 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
       'idx_playbook_sources_one_enabled_per_playbook',
     );
     await insertSource({ id: '00000000-0000-0000-0000-000000000117', status: 'disabled' });
+  });
+
+  it('allows valid source history and enabled-source isolation', async () => {
+    await insertSource({ id: '00000000-0000-0000-0000-000000000130' });
+    await insertSource({
+      id: '00000000-0000-0000-0000-000000000131',
+      status: 'disabled',
+      successRun: '00000000-0000-0000-0000-000000000220',
+      successAt: '2026-07-01T10:00:00.000Z',
+      failedRun: '00000000-0000-0000-0000-000000000221',
+      failedAt: '2026-07-01T11:00:00.000Z',
+    });
+    await insertSource({ id: '00000000-0000-0000-0000-000000000132', status: 'disabled' });
+    await insertSource({ id: '00000000-0000-0000-0000-000000000133', playbook: playbookB });
+    await insertSource({
+      id: '00000000-0000-0000-0000-000000000134',
+      workspace: workspaceB,
+      playbook: playbookC,
+    });
+    const grouped = await pool.query<{
+      workspace_id: string;
+      playbook_id: string;
+      status: string;
+      total: string;
+    }>(
+      'SELECT workspace_id, playbook_id, status, COUNT(*) AS total FROM playbook_sources GROUP BY workspace_id, playbook_id, status ORDER BY workspace_id, playbook_id, status',
+    );
+    expect(grouped.rows).toEqual([
+      { workspace_id: workspaceA, playbook_id: playbookA, status: 'disabled', total: '2' },
+      { workspace_id: workspaceA, playbook_id: playbookA, status: 'enabled', total: '1' },
+      { workspace_id: workspaceA, playbook_id: playbookB, status: 'enabled', total: '1' },
+      { workspace_id: workspaceB, playbook_id: playbookC, status: 'enabled', total: '1' },
+    ]);
+    const history = await pool.query<{
+      last_successful_synchronization_run_id: string;
+      last_successful_synchronization_at: Date;
+      last_failed_synchronization_run_id: string;
+      last_failed_synchronization_at: Date;
+    }>(
+      'SELECT last_successful_synchronization_run_id, last_successful_synchronization_at, last_failed_synchronization_run_id, last_failed_synchronization_at FROM playbook_sources WHERE playbook_source_id = $1',
+      ['00000000-0000-0000-0000-000000000131'],
+    );
+    const row = history.rows[0];
+    if (row === undefined) throw new Error('Expected source history.');
+    expect(row.last_successful_synchronization_run_id).toBe('00000000-0000-0000-0000-000000000220');
+    expect(row.last_successful_synchronization_at.toISOString()).toBe('2026-07-01T10:00:00.000Z');
+    expect(row.last_failed_synchronization_run_id).toBe('00000000-0000-0000-0000-000000000221');
+    expect(row.last_failed_synchronization_at.toISOString()).toBe('2026-07-01T11:00:00.000Z');
   });
 });
