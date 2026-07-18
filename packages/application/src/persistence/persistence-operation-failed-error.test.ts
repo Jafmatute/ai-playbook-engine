@@ -32,6 +32,7 @@ const operations = [
   'playbookSource.listByPlaybookId',
   'synchronizationRun.findStaleRunning',
   'synchronizationRun.listByPlaybookSourceId',
+  'playbookVersion.listByPlaybookId',
 ] as const;
 
 describe('persistenceOperationFailed', () => {
