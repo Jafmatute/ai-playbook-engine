@@ -488,18 +488,29 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
   });
 
   it('list — filtered by combined status, prefix, and active version', async () => {
+    const archivedAt = '2026-07-12T11:00:00.000Z';
+
     const pb1 = createPlaybookFixture(workspaceId, '000000000091', 'AI Engineering One');
     await playbookRepo.insert(pb1);
+    const pb1ActiveVersionId = '99999999-9999-9999-9999-000000000001';
     await pool.query(
-      `UPDATE playbooks SET status = 'archived', active_version_id = '99999999-9999-9999-9999-000000000001' WHERE playbook_id = $1`,
-      [pb1.id],
+      `UPDATE playbooks
+       SET status = 'archived',
+           active_version_id = $1,
+           archived_at = $2,
+           updated_at = $2
+       WHERE playbook_id = $3`,
+      [pb1ActiveVersionId, archivedAt, pb1.id],
     );
 
     const pb2 = createPlaybookFixture(workspaceId, '000000000092', 'Other Engineering');
     await playbookRepo.insert(pb2);
+    const pb2ActiveVersionId = '99999999-9999-9999-9999-000000000002';
     await pool.query(
-      `UPDATE playbooks SET active_version_id = '99999999-9999-9999-9999-000000000002' WHERE playbook_id = $1`,
-      [pb2.id],
+      `UPDATE playbooks
+       SET active_version_id = $1
+       WHERE playbook_id = $2`,
+      [pb2ActiveVersionId, pb2.id],
     );
 
     const pb3 = createPlaybookFixture(workspaceId, '000000000093', 'AI Engineering Three');
@@ -507,9 +518,12 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
 
     const pb4 = createPlaybookFixture(workspaceId, '000000000094', 'AI Engineering Four');
     await playbookRepo.insert(pb4);
+    const pb4ActiveVersionId = '99999999-9999-9999-9999-000000000004';
     await pool.query(
-      `UPDATE playbooks SET active_version_id = '99999999-9999-9999-9999-000000000004' WHERE playbook_id = $1`,
-      [pb4.id],
+      `UPDATE playbooks
+       SET active_version_id = $1
+       WHERE playbook_id = $2`,
+      [pb4ActiveVersionId, pb4.id],
     );
 
     const result = await playbookRepo.list(
@@ -534,25 +548,39 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
   });
 
   it('list — orders duplicate archived names by normalized_name ASC then playbook_id ASC', async () => {
+    const archivedAt = '2026-07-12T11:00:00.000Z';
+
     const pbA = createPlaybookFixture(workspaceId, '000000000082', 'Duplicate Name');
     await playbookRepo.insert(pbA);
     await pool.query(
-      `UPDATE playbooks SET status = 'archived', archived_at = NOW() WHERE playbook_id = $1`,
-      [pbA.id],
+      `UPDATE playbooks
+       SET status = 'archived',
+           archived_at = $1,
+           updated_at = $1
+       WHERE playbook_id = $2`,
+      [archivedAt, pbA.id],
     );
 
     const pbC = createPlaybookFixture(workspaceId, '000000000083', 'Alpha Duplicate');
     await playbookRepo.insert(pbC);
     await pool.query(
-      `UPDATE playbooks SET status = 'archived', archived_at = NOW() WHERE playbook_id = $1`,
-      [pbC.id],
+      `UPDATE playbooks
+       SET status = 'archived',
+           archived_at = $1,
+           updated_at = $1
+       WHERE playbook_id = $2`,
+      [archivedAt, pbC.id],
     );
 
     const pbB = createPlaybookFixture(workspaceId, '000000000081', 'Duplicate Name');
     await playbookRepo.insert(pbB);
     await pool.query(
-      `UPDATE playbooks SET status = 'archived', archived_at = NOW() WHERE playbook_id = $1`,
-      [pbB.id],
+      `UPDATE playbooks
+       SET status = 'archived',
+           archived_at = $1,
+           updated_at = $1
+       WHERE playbook_id = $2`,
+      [archivedAt, pbB.id],
     );
 
     const result = await playbookRepo.list(
