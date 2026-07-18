@@ -351,7 +351,7 @@ interface KnowledgeItemFixtureOptions {
   readonly playbookVersionId: string;
   readonly sourceStableKey: string;
   readonly type: KnowledgeType;
-  readonly parentKnowledgeItemId: string | null;
+  readonly parentKnowledgeItemId: KnowledgeItemId | null;
   readonly title: string;
   readonly displayOrder: number;
 }
@@ -435,16 +435,6 @@ function createValidKnowledgeItem(options?: Partial<KnowledgeItemFixtureOptions>
   const type = options?.type ?? 'section';
   const attributes = createKnowledgeItemAttributes(type);
 
-  let parentParsed: KnowledgeItemId | null = null;
-  const parentRaw = options?.parentKnowledgeItemId;
-  if (parentRaw !== undefined && parentRaw !== null) {
-    const parentResult = parseKnowledgeItemId(parentRaw);
-    if (!parentResult.success) {
-      throw new Error('Expected a valid parent knowledge item ID fixture.');
-    }
-    parentParsed = parentResult.value;
-  }
-
   const result = KnowledgeItem.create({
     knowledgeItemId: knowledgeItemIdResult.value,
     workspaceId: workspaceIdResult.value,
@@ -457,7 +447,7 @@ function createValidKnowledgeItem(options?: Partial<KnowledgeItemFixtureOptions>
     content: normalizedContent,
     attributes,
     sourceReference: sourceReferenceResult.value,
-    parentKnowledgeItemId: parentParsed,
+    parentKnowledgeItemId: options?.parentKnowledgeItemId ?? null,
     displayOrder: displayOrderResult.value,
     contentChecksum: contentChecksumResult.value,
     createdAt: createdAtResult.value,
@@ -1207,6 +1197,24 @@ describe('KnowledgeItemRepository', () => {
       expect(result.value.items[1]).toBe(second);
       expect(result.value.items[2]).toBe(third);
 
+      expect(result.value.items[0]?.displayOrder.value).toBe(0);
+      expect(result.value.items[1]?.displayOrder.value).toBe(1);
+      expect(result.value.items[2]?.displayOrder.value).toBe(1);
+
+      const returnedSecond = result.value.items[1];
+      const returnedThird = result.value.items[2];
+
+      expect(returnedSecond).toBeDefined();
+      expect(returnedThird).toBeDefined();
+
+      if (returnedSecond === undefined || returnedThird === undefined) {
+        throw new Error('Expected the configured knowledge items.');
+      }
+
+      expect(returnedSecond.id.toString().localeCompare(returnedThird.id.toString())).toBeLessThan(
+        0,
+      );
+
       for (const item of result.value.items) {
         expect(item.workspaceId).toBe(workspaceId.value);
         expect(item.playbookVersionId).toBe(playbookVersionId.value);
@@ -1261,6 +1269,11 @@ describe('KnowledgeItemRepository', () => {
 
       expect(result.value.items).toHaveLength(1);
       expect(result.value.items[0]).toBe(item);
+      expect(result.value.items[0]?.type).toBe('workflow');
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(1);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(1);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
     });
@@ -1274,7 +1287,7 @@ describe('KnowledgeItemRepository', () => {
       });
       const child = createValidKnowledgeItem({
         knowledgeItemId: '00000000-0000-0000-0000-000000000002',
-        parentKnowledgeItemId: '00000000-0000-0000-0000-000000000001',
+        parentKnowledgeItemId: parent.id,
         displayOrder: 1,
       });
 
@@ -1283,6 +1296,10 @@ describe('KnowledgeItemRepository', () => {
       const filter: KnowledgeItemListFilter = Object.freeze({
         parentKnowledgeItemId: parent.id,
       });
+
+      expect('parentKnowledgeItemId' in filter).toBe(true);
+      expect(filter.parentKnowledgeItemId).toBe(parent.id);
+
       const configuredPage: Page<KnowledgeItem> = {
         items: [child],
         offset: 0,
@@ -1314,6 +1331,7 @@ describe('KnowledgeItemRepository', () => {
 
       expect(result.value.items).toHaveLength(1);
       expect(result.value.items[0]).toBe(child);
+      expect(result.value.items).not.toContain(parent);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
     });
@@ -1328,12 +1346,12 @@ describe('KnowledgeItemRepository', () => {
       });
       const childItem = createValidKnowledgeItem({
         knowledgeItemId: '00000000-0000-0000-0000-000000000002',
-        parentKnowledgeItemId: '00000000-0000-0000-0000-000000000001',
+        parentKnowledgeItemId: rootItem.id,
         displayOrder: 1,
       });
 
       expect(rootItem.parentKnowledgeItemId).toBeNull();
-      expect(childItem.parentKnowledgeItemId).not.toBeNull();
+      expect(childItem.parentKnowledgeItemId).toBe(rootItem.id);
 
       const filter: KnowledgeItemListFilter = Object.freeze({ parentKnowledgeItemId: null });
       expect('parentKnowledgeItemId' in filter).toBe(true);
@@ -1370,6 +1388,10 @@ describe('KnowledgeItemRepository', () => {
       expect(result.value.items).toHaveLength(1);
       expect(result.value.items[0]).toBe(rootItem);
       expect(result.value.items).not.toContain(childItem);
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(2);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(1);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
     });
@@ -1416,8 +1438,10 @@ describe('KnowledgeItemRepository', () => {
         return;
       }
 
+      expect(result.value.items).toHaveLength(1);
       expect(result.value.items[0]).toBe(item);
       expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
     });
   });
 
@@ -1462,8 +1486,10 @@ describe('KnowledgeItemRepository', () => {
         return;
       }
 
+      expect(result.value.items).toHaveLength(1);
       expect(result.value.items[0]).toBe(item);
       expect(Object.isFrozen(result.value)).toBe(true);
+      expect(Object.isFrozen(result.value.items)).toBe(true);
     });
   });
 
@@ -1476,16 +1502,11 @@ describe('KnowledgeItemRepository', () => {
       const item = createValidKnowledgeItem({
         knowledgeItemId: '00000000-0000-0000-0000-000000000002',
         type: 'workflow',
-        parentKnowledgeItemId: '00000000-0000-0000-0000-000000000001',
+        parentKnowledgeItemId: parent.id,
         title: 'Prompt Review Workflow',
         sourceStableKey: 'notion:block:workflow-review',
         displayOrder: 1,
       });
-
-      expect(item.type).toBe('workflow');
-      expect(item.parentKnowledgeItemId).toBe(parent.id);
-      expect(item.title.equals(item.title)).toBe(true);
-      expect(item.sourceStableKey.equals(item.sourceStableKey)).toBe(true);
 
       const filter: KnowledgeItemListFilter = Object.freeze({
         type: item.type,
@@ -1493,6 +1514,24 @@ describe('KnowledgeItemRepository', () => {
         title: item.title,
         sourceStableKey: item.sourceStableKey,
       });
+
+      expect(filter.type).toBe(item.type);
+      expect(filter.parentKnowledgeItemId).toBe(item.parentKnowledgeItemId);
+      expect(filter.title).toBe(item.title);
+
+      if (filter.title === undefined) {
+        throw new Error('Expected a title filter fixture.');
+      }
+
+      expect(item.title.equals(filter.title)).toBe(true);
+
+      expect(filter.sourceStableKey).toBe(item.sourceStableKey);
+
+      if (filter.sourceStableKey === undefined) {
+        throw new Error('Expected a source stable key filter fixture.');
+      }
+
+      expect(item.sourceStableKey.equals(filter.sourceStableKey)).toBe(true);
       const configuredPage: Page<KnowledgeItem> = {
         items: [item],
         offset: 0,
@@ -1794,6 +1833,7 @@ describe('KnowledgeItemRepository', () => {
 
   describe('listByVersion — another version has items', () => {
     it('returns a frozen empty page when only another version has items', async () => {
+      const pagination: PaginationRequest = Object.freeze({ offset: 0, limit: 25 });
       const queriedVersionResult = parsePlaybookVersionId('00000000-0000-0000-0000-00000000000a');
       if (!queriedVersionResult.success) {
         throw new Error('Expected a valid playbook version ID fixture.');
@@ -1813,9 +1853,7 @@ describe('KnowledgeItemRepository', () => {
       expect(otherItem.playbookVersionId).toBe(otherVersionResult.value);
       expect(otherItem.playbookVersionId).not.toBe(queriedVersionResult.value);
 
-      const repository = StubKnowledgeItemRepository.returningEmptyListByVersionPage(
-        Object.freeze({ offset: 0, limit: 25 }),
-      );
+      const repository = StubKnowledgeItemRepository.returningEmptyListByVersionPage(pagination);
       const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
       if (!workspaceId.success) {
         throw new Error('Expected a valid workspace ID fixture.');
@@ -1825,7 +1863,7 @@ describe('KnowledgeItemRepository', () => {
         workspaceId.value,
         queriedVersionResult.value,
         Object.freeze({}),
-        Object.freeze({ offset: 0, limit: 25 }),
+        pagination,
       );
 
       expect(result.success).toBe(true);
@@ -1834,6 +1872,11 @@ describe('KnowledgeItemRepository', () => {
       }
 
       expect(result.value.items).toHaveLength(0);
+      expect(result.value.items).not.toContain(otherItem);
+      expect(result.value.offset).toBe(0);
+      expect(result.value.limit).toBe(25);
+      expect(result.value.hasMore).toBe(false);
+      expect(result.value.totalCount).toBe(0);
       expect(Object.isFrozen(result.value)).toBe(true);
       expect(Object.isFrozen(result.value.items)).toBe(true);
     });
