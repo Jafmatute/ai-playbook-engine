@@ -176,6 +176,7 @@ describe('loadConfig', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.code).toBe(CONFIGURATION_INVALID);
+      expect(result.error.message).not.toContain('not-a-uuid');
     }
   });
 
@@ -188,6 +189,28 @@ describe('loadConfig', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.value.workspaceId).toBe(overrideUuid);
+    }
+  });
+
+  it('normalizes workspaceId override (spaces, casing)', () => {
+    const reader = new MapEnvReader(new Map());
+    const overrideUuidWithSpacesAndCasing = '  de305d54-75b4-431b-adb2-eb6b9e546014  '.toUpperCase();
+    const result = loadConfig(reader, { workspaceId: overrideUuidWithSpacesAndCasing });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.value.workspaceId).toBe(VALID_UUID);
+    }
+  });
+
+  it('rejects invalid workspaceId override and does not expose it', () => {
+    const reader = new MapEnvReader(new Map());
+    const result = loadConfig(reader, { workspaceId: '  INVALID-UUID-123  ' });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe(CONFIGURATION_INVALID);
+      expect(result.error.message).not.toContain('INVALID-UUID-123');
     }
   });
 
@@ -243,7 +266,7 @@ describe('loadConfig', () => {
 });
 
 describe('requireDatabaseUrl', () => {
-  it('returns URL when present', () => {
+  it('returns DatabaseConfig when present', () => {
     const reader = new MapEnvReader(
       new Map([[AI_PLAYBOOK_ENGINE_DATABASE_URL, 'postgres://localhost:5432/db']]),
     );
@@ -254,7 +277,8 @@ describe('requireDatabaseUrl', () => {
     const result = requireDatabaseUrl(configResult.value);
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.value).toBe('postgres://localhost:5432/db');
+      expect(result.value.connectionString).toBe('postgres://localhost:5432/db');
+      expect(Object.isFrozen(result.value)).toBe(true);
     }
   });
 

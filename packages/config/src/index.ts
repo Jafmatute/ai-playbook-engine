@@ -1,4 +1,4 @@
-﻿export {
+export {
   loadConfig,
   requireDatabaseUrl,
   requireWorkspaceId,
@@ -8,7 +8,7 @@
   AI_PLAYBOOK_ENGINE_CLI_OUTPUT,
   DEFAULT_OUTPUT,
 } from './config.js';
-export type { RawConfig, CliOutput, ConfigOverrides } from './config.js';
+export type { RawConfig, CliOutput, ConfigOverrides, DatabaseConfig } from './config.js';
 export { VALID_ENVIRONMENTS, DEFAULT_ENVIRONMENT } from './environment.js';
 export type { Environment } from './environment.js';
 export { ProcessEnvReader, MapEnvReader } from './env-reader.js';

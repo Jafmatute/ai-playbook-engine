@@ -33,6 +33,10 @@ export interface ConfigOverrides {
   readonly cliOutput?: CliOutput;
 }
 
+export interface DatabaseConfig {
+  readonly connectionString: string;
+}
+
 export function loadConfig(
   reader: EnvReader,
   overrides?: ConfigOverrides,
@@ -57,13 +61,18 @@ export function loadConfig(
     return outputResult;
   }
 
-  const effectiveWorkspaceId = overrides?.workspaceId ?? workspaceIdResult.value;
-  if (effectiveWorkspaceId !== undefined && !isCanonicalUuid(effectiveWorkspaceId)) {
-    return err(
-      configurationInvalid(
-        `AI_PLAYBOOK_ENGINE_WORKSPACE_ID must be a canonical UUID. Received: "${effectiveWorkspaceId}".`,
-      ),
-    );
+  let effectiveWorkspaceId: string | undefined = undefined;
+  if (overrides?.workspaceId !== undefined) {
+    effectiveWorkspaceId = overrides.workspaceId.trim().toLowerCase();
+    if (!isCanonicalUuid(effectiveWorkspaceId)) {
+      return err(
+        configurationInvalid(
+          `AI_PLAYBOOK_ENGINE_WORKSPACE_ID must be a canonical UUID.`,
+        ),
+      );
+    }
+  } else {
+    effectiveWorkspaceId = workspaceIdResult.value;
   }
 
   const effectiveOutput = overrides?.cliOutput ?? outputResult.value;
@@ -78,12 +87,16 @@ export function loadConfig(
   );
 }
 
-export function requireDatabaseUrl(raw: RawConfig): Result<string, ConfigurationMissingError> {
+export function requireDatabaseUrl(raw: RawConfig): Result<DatabaseConfig, ConfigurationMissingError> {
   if (raw.databaseUrl === undefined) {
     return err(configurationMissing('AI_PLAYBOOK_ENGINE_DATABASE_URL'));
   }
 
-  return ok(raw.databaseUrl);
+  const dbConfig: DatabaseConfig = Object.freeze({
+    connectionString: raw.databaseUrl,
+  });
+
+  return ok(dbConfig);
 }
 
 export function requireWorkspaceId(raw: RawConfig): Result<string, ConfigurationMissingError> {
@@ -166,7 +179,11 @@ function readOutput(reader: EnvReader): Result<CliOutput, ConfigurationInvalidEr
 }
 
 function isEnvironment(value: string): value is Environment {
-  return (VALID_ENVIRONMENTS as readonly string[]).includes(value);
+  return (
+    value === 'development' ||
+    value === 'test' ||
+    value === 'production'
+  );
 }
 
 function isCliOutput(value: string): value is CliOutput {
