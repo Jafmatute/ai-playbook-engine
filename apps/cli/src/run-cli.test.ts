@@ -34,6 +34,8 @@ import {
   parseWorkspaceId,
   Playbook,
   PlaybookName,
+  PlaybookSourceConfigurationReference,
+  PlaybookSourceExternalRootReference,
 } from '@ai-playbook-engine/core';
 import { migrationFailed } from '@ai-playbook-engine/infrastructure';
 import type { BuildServicesError } from './composition-root.js';
@@ -140,6 +142,24 @@ function createPlaybookId(value: string) {
   }
 
   return result.value;
+}
+
+function createInvalidPlaybookIdError() {
+  const result = parsePlaybookId('not-a-uuid');
+  if (result.success) throw new Error('Expected an invalid playbook ID error.');
+  return result.error;
+}
+
+function createInvalidExternalRootReferenceError() {
+  const result = PlaybookSourceExternalRootReference.create('');
+  if (result.success) throw new Error('Expected an invalid external root reference error.');
+  return result.error;
+}
+
+function createInvalidConfigurationReferenceError() {
+  const result = PlaybookSourceConfigurationReference.create('');
+  if (result.success) throw new Error('Expected an invalid configuration reference error.');
+  return result.error;
 }
 
 function createInstant(value: string): Instant {
@@ -408,6 +428,14 @@ describe('runCli commands and parsing stubs', () => {
       io,
       deps,
     );
+    expect(code).toBe(ExitCode.INVALID_INPUT);
+    expect(deps.getBuildCalled()).toBe(0);
+  });
+
+  it('rejects a valueless status flag', async () => {
+    const io = new MockIo();
+    const deps = createMockDependencies(createMockServices());
+    const code = await runCli(['playbook', 'list', '--status'], envReader, io, deps);
     expect(code).toBe(ExitCode.INVALID_INPUT);
     expect(deps.getBuildCalled()).toBe(0);
   });
@@ -1265,15 +1293,32 @@ describe('runCli playbook source register command', () => {
         createMockDependencies(createMockServices()),
       ),
     ).toBe(ExitCode.SUCCESS);
-    expect(JSON.parse(json.stdout)).toMatchObject({
-      success: true,
-      data: { playbookSourceId: '00000000-0000-0000-0000-000000000003' },
-    });
+    const parsed: unknown = JSON.parse(json.stdout);
+    expect(parsed).not.toBeNull();
+    expect(typeof parsed).toBe('object');
+    if (
+      parsed !== null &&
+      typeof parsed === 'object' &&
+      'success' in parsed &&
+      parsed.success === true &&
+      'data' in parsed &&
+      parsed.data !== null &&
+      typeof parsed.data === 'object' &&
+      'playbookSourceId' in parsed.data &&
+      typeof parsed.data.playbookSourceId === 'string'
+    ) {
+      expect(parsed.data.playbookSourceId).toBe('00000000-0000-0000-0000-000000000003');
+    } else {
+      throw new Error('Invalid source registration JSON success output structure.');
+    }
     expect(json.stderr).toBe('');
   });
 
   it.each([
+    [createInvalidPlaybookIdError(), ExitCode.INVALID_INPUT],
     [playbookSourceTypeUnsupported('unsupported'), ExitCode.INVALID_INPUT],
+    [createInvalidExternalRootReferenceError(), ExitCode.INVALID_INPUT],
+    [createInvalidConfigurationReferenceError(), ExitCode.INVALID_INPUT],
     [playbookNotFound(), ExitCode.NOT_FOUND],
     [playbookArchived(createPlaybookId('00000000-0000-0000-0000-000000000002')), ExitCode.CONFLICT],
     [

@@ -47,6 +47,15 @@ function assertSafeOutput(output: string): void {
   expect(output).not.toContain(testDbUrl);
 }
 
+function expectIsoTimestamp(value: unknown): void {
+  expect(typeof value).toBe('string');
+  if (typeof value !== 'string') {
+    throw new Error('Expected an ISO timestamp string.');
+  }
+  expect(value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  expect(new Date(value).toISOString()).toBe(value);
+}
+
 describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
   it('runs the full workspace and playbook flow', async () => {
     if (!testDbUrl) {
@@ -290,6 +299,15 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(renameConflictJson.success).toBe(false);
       expect(renameConflictJson.error.code).toBe('PLAYBOOK_NAME_CONFLICT');
       expect('details' in renameConflictJson.error).toBe(true);
+      if (
+        'details' in renameConflictJson.error &&
+        renameConflictJson.error.details !== null &&
+        typeof renameConflictJson.error.details === 'object'
+      ) {
+        expect(Object.keys(renameConflictJson.error.details)).toEqual([]);
+      } else {
+        throw new Error('Invalid rename conflict details.');
+      }
     } else {
       throw new Error('Invalid rename conflict json output structure');
     }
@@ -331,8 +349,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(archiveJson.data.playbookId).toMatch(UUID_PATTERN);
       expect(archiveJson.data.name).toBe('Playbook renombrado');
       expect(archiveJson.data.status).toBe('archived');
-      expect(typeof archiveJson.data.archivedAt).toBe('string');
-      expect(archiveJson.data.archivedAt).not.toBe('');
+      expectIsoTimestamp(archiveJson.data.archivedAt);
       expect(archiveJson.data.updatedAt).toBe(archiveJson.data.archivedAt);
       expect('revision' in archiveJson.data).toBe(false);
     } else {
@@ -391,6 +408,16 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(archiveAgainJson.success).toBe(false);
       expect(archiveAgainJson.error.code).toBe('PLAYBOOK_ALREADY_ARCHIVED');
       expect('details' in archiveAgainJson.error).toBe(true);
+      if (
+        'details' in archiveAgainJson.error &&
+        archiveAgainJson.error.details !== null &&
+        typeof archiveAgainJson.error.details === 'object' &&
+        'currentStatus' in archiveAgainJson.error.details
+      ) {
+        expect(archiveAgainJson.error.details.currentStatus).toBe('archived');
+      } else {
+        throw new Error('Invalid archive conflict details.');
+      }
     } else {
       throw new Error('Invalid archive conflict json output structure');
     }
@@ -531,8 +558,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(restoreJson.data.name).toBe('Playbook renombrado');
       expect(restoreJson.data.status).toBe('active');
       expect(restoreJson.data.archivedAt).toBeNull();
-      expect(typeof restoreJson.data.updatedAt).toBe('string');
-      expect(restoreJson.data.updatedAt).not.toBe('');
+      expectIsoTimestamp(restoreJson.data.updatedAt);
       expect('revision' in restoreJson.data).toBe(false);
     } else throw new Error('Invalid restore json output structure');
 
@@ -636,14 +662,14 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       'lastFailedSynchronizationRunId' in registerSourceJson.data &&
       'lastFailedSynchronizationAt' in registerSourceJson.data
     ) {
-      expect(registerSourceJson.data.playbookSourceId).not.toBe('');
+      expect(registerSourceJson.data.playbookSourceId).toMatch(UUID_PATTERN);
       expect(registerSourceJson.data.workspaceId).toBe(workspaceId);
       expect(registerSourceJson.data.playbookId).toBe(playbookId);
       expect(registerSourceJson.data.type).toBe('notion');
       expect(registerSourceJson.data.status).toBe('enabled');
       expect(registerSourceJson.data.externalRootReference).toBe('notion-root-1');
       expect(registerSourceJson.data.configurationReference).toBe('notion/main');
-      expect(typeof registerSourceJson.data.createdAt).toBe('string');
+      expectIsoTimestamp(registerSourceJson.data.createdAt);
       expect(registerSourceJson.data.lastSuccessfulSynchronizationRunId).toBeNull();
       expect(registerSourceJson.data.lastSuccessfulSynchronizationAt).toBeNull();
       expect(registerSourceJson.data.lastFailedSynchronizationRunId).toBeNull();
@@ -698,6 +724,16 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     ) {
       expect(sourceConflictJson.success).toBe(false);
       expect(sourceConflictJson.error.code).toBe('ENABLED_PLAYBOOK_SOURCE_CONFLICT');
+      if (
+        'details' in sourceConflictJson.error &&
+        sourceConflictJson.error.details !== null &&
+        typeof sourceConflictJson.error.details === 'object' &&
+        'playbookId' in sourceConflictJson.error.details
+      ) {
+        expect(sourceConflictJson.error.details.playbookId).toBe(playbookId);
+      } else {
+        throw new Error('Invalid source conflict details.');
+      }
     } else throw new Error('Invalid source conflict json output structure');
 
     // 25. Register a source for the second active Playbook.
@@ -722,6 +758,24 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     expect(registerSource2Res.status).toBe(0);
     expect(registerSource2Res.stderr).toBe('');
     assertSafeOutput(registerSource2Res.stdout);
+    const registerSource2Json: unknown = JSON.parse(registerSource2Res.stdout);
+    if (
+      registerSource2Json !== null &&
+      typeof registerSource2Json === 'object' &&
+      'success' in registerSource2Json &&
+      registerSource2Json.success === true &&
+      'data' in registerSource2Json &&
+      registerSource2Json.data !== null &&
+      typeof registerSource2Json.data === 'object' &&
+      'playbookSourceId' in registerSource2Json.data &&
+      typeof registerSource2Json.data.playbookSourceId === 'string' &&
+      'playbookId' in registerSource2Json.data
+    ) {
+      expect(registerSource2Json.data.playbookSourceId).toMatch(UUID_PATTERN);
+      expect(registerSource2Json.data.playbookId).toBe(playbookId2);
+    } else {
+      throw new Error('Invalid second source registration JSON success output structure.');
+    }
 
     // 26. An archived Playbook rejects source registration before checking existing sources.
     const archiveSecondRes = runCli(
@@ -750,7 +804,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(typeof archiveSecondJson.data.playbookId).toBe('string');
       expect(archiveSecondJson.data.playbookId).toMatch(UUID_PATTERN);
       expect(archiveSecondJson.data.status).toBe('archived');
-      expect(typeof archiveSecondJson.data.archivedAt).toBe('string');
+      expectIsoTimestamp(archiveSecondJson.data.archivedAt);
     } else throw new Error('Invalid second archive json output structure');
     const archivedSourceConflictRes = runCli(
       [
@@ -785,6 +839,16 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     ) {
       expect(archivedSourceConflictJson.success).toBe(false);
       expect(archivedSourceConflictJson.error.code).toBe('PLAYBOOK_ARCHIVED');
+      if (
+        'details' in archivedSourceConflictJson.error &&
+        archivedSourceConflictJson.error.details !== null &&
+        typeof archivedSourceConflictJson.error.details === 'object' &&
+        'playbookId' in archivedSourceConflictJson.error.details
+      ) {
+        expect(archivedSourceConflictJson.error.details.playbookId).toBe(playbookId2);
+      } else {
+        throw new Error('Invalid archived source conflict details.');
+      }
     } else throw new Error('Invalid archived source conflict json output structure');
 
     // 27. The rejected registration leaves the archived Playbook unchanged.

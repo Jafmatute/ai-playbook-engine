@@ -25,6 +25,16 @@ const sourceFixture: PlaybookSourceOutput = Object.freeze({
   lastFailedSynchronizationAt: null,
 });
 
+function createSourceFixture(): PlaybookSourceOutput {
+  return {
+    ...sourceFixture,
+    lastSuccessfulSynchronizationRunId: 'run-success',
+    lastSuccessfulSynchronizationAt: '2026-07-18T11:00:00.000Z',
+    lastFailedSynchronizationRunId: 'run-failed',
+    lastFailedSynchronizationAt: '2026-07-18T12:00:00.000Z',
+  };
+}
+
 describe('renderPlaybookSource', () => {
   it('renders all fields and null synchronization metadata as (none)', () => {
     const result = renderPlaybookSource(sourceFixture);
@@ -44,19 +54,15 @@ describe('renderPlaybookSource', () => {
   });
 
   it('renders synchronization history and excludes sensitive fields', () => {
-    const result = renderPlaybookSource({
-      ...sourceFixture,
-      lastSuccessfulSynchronizationRunId: 'run-success',
-      lastSuccessfulSynchronizationAt: '2026-07-18T11:00:00.000Z',
-      lastFailedSynchronizationRunId: 'run-failed',
-      lastFailedSynchronizationAt: '2026-07-18T12:00:00.000Z',
-    });
+    const source = createSourceFixture();
+    const result = renderPlaybookSource(source);
     expect(result).toContain('Last Successful Run ID:   run-success');
     expect(result).toContain('Last Successful At:       2026-07-18T11:00:00.000Z');
     expect(result).toContain('Last Failed Run ID:       run-failed');
     expect(result).toContain('Last Failed At:           2026-07-18T12:00:00.000Z');
     expect(result).not.toMatch(/revision|token|credential|secret/i);
     expect(result).not.toContain(sourceFixture.workspaceId);
+    expect(source).toEqual(createSourceFixture());
   });
 });
 
@@ -205,7 +211,7 @@ describe('renderPlaybook', () => {
 describe('renderPlaybookList', () => {
   it('renders "No playbooks found." when empty', () => {
     const page = Object.freeze({
-      items: Object.freeze([] as readonly PlaybookOutput[]),
+      items: Object.freeze<readonly PlaybookOutput[]>([]),
       offset: 0,
       limit: 25,
       hasMore: false,
