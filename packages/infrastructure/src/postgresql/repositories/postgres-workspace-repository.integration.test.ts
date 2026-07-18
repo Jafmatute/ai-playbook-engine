@@ -4,7 +4,7 @@ import { Instant, parseWorkspaceId, WorkspaceName, Workspace } from '@ai-playboo
 import { WORKSPACE_ALREADY_INITIALIZED } from '@ai-playbook-engine/application';
 
 import { DatabasePool } from '../connection/pool.js';
-import type { DatabaseConfig } from '../connection/pool.js';
+import type { DatabaseConfig } from '@ai-playbook-engine/config';
 import { runMigrations } from '../migrations/runner.js';
 import { PostgresWorkspaceRepository } from './postgres-workspace-repository.js';
 
@@ -114,5 +114,35 @@ describe.runIf(TEST_DATABASE_URL)('PostgresWorkspaceRepository', () => {
     if (!insert2.success) {
       expect(insert2.error.code).toBe(WORKSPACE_ALREADY_INITIALIZED);
     }
+  });
+
+  it('handles concurrent initializations safely (exactly one succeeds)', async () => {
+    const ws1 = createWorkspaceFixture('first');
+    const ws2 = Workspace.create({
+      workspaceId: parsedWorkspaceId('00000000-0000-0000-0000-000000000002'),
+      name: workspaceName('Second Workspace'),
+      createdAt: instant('2026-07-12T11:00:00Z'),
+      description: 'second',
+    });
+    if (!ws2.success) throw new Error('Failed to create second workspace fixture.');
+
+    const [res1, res2] = await Promise.all([
+      repo.insert(ws1),
+      repo.insert(ws2.value),
+    ]);
+
+    const successes = [res1, res2].filter((r) => r.success);
+    const failures = [res1, res2].filter((r) => !r.success);
+
+    expect(successes).toHaveLength(1);
+    expect(failures).toHaveLength(1);
+
+    const failError = failures[0]!;
+    if (failError.success === false) {
+      expect(failError.error.code).toBe(WORKSPACE_ALREADY_INITIALIZED);
+    }
+
+    const countResult = await pool.query<{ count: string }>('SELECT COUNT(*) AS count FROM workspaces');
+    expect(Number(countResult.rows[0]?.count ?? 0)).toBe(1);
   });
 });

@@ -233,6 +233,12 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
     const withVersion = createPlaybookFixture(workspaceId, '000000000011', 'With Version');
     await playbookRepo.insert(withVersion);
 
+    const activeVersionId = '99999999-9999-9999-9999-999999999999';
+    await pool.query(
+      `UPDATE playbooks SET active_version_id = $1 WHERE playbook_id = $2`,
+      [activeVersionId, withVersion.id]
+    );
+
     const withoutVersion = createPlaybookFixture(workspaceId, '000000000012', 'Without Version');
     await playbookRepo.insert(withoutVersion);
 
@@ -243,7 +249,8 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
     );
     expect(withResult.success).toBe(true);
     if (withResult.success) {
-      expect(withResult.value.items).toHaveLength(0);
+      expect(withResult.value.items).toHaveLength(1);
+      expect(withResult.value.items[0]!.id).toBe(withVersion.id);
     }
 
     const withoutResult = await playbookRepo.list(
@@ -253,7 +260,18 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
     );
     expect(withoutResult.success).toBe(true);
     if (withoutResult.success) {
-      expect(withoutResult.value.items).toHaveLength(2);
+      expect(withoutResult.value.items).toHaveLength(1);
+      expect(withoutResult.value.items[0]!.id).toBe(withoutVersion.id);
+    }
+
+    const allResult = await playbookRepo.list(
+      workspaceId,
+      {},
+      { offset: 0, limit: 25 },
+    );
+    expect(allResult.success).toBe(true);
+    if (allResult.success) {
+      expect(allResult.value.items).toHaveLength(2);
     }
   });
 
@@ -306,7 +324,11 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
 
   it('same name in different workspace (allowed)', async () => {
     const ws2 = createWorkspaceFixture('000000000002', 'Second Workspace');
-    await workspaceRepo.insert(ws2);
+    await pool.query(
+      `INSERT INTO workspaces (workspace_id, name, normalized_name, status, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [ws2.id, ws2.name.value, ws2.name.normalized, 'active', ws2.createdAt.value, ws2.createdAt.value]
+    );
 
     const pb1 = createPlaybookFixture(workspaceId, '000000000015', 'Shared Name');
     const pb2 = createPlaybookFixture(ws2.id, '000000000016', 'Shared Name');
@@ -320,7 +342,11 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
 
   it('workspace isolation', async () => {
     const ws2 = createWorkspaceFixture('000000000003', 'Isolation Workspace');
-    await workspaceRepo.insert(ws2);
+    await pool.query(
+      `INSERT INTO workspaces (workspace_id, name, normalized_name, status, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [ws2.id, ws2.name.value, ws2.name.normalized, 'active', ws2.createdAt.value, ws2.createdAt.value]
+    );
 
     const pbA = createPlaybookFixture(workspaceId, '000000000017', 'Workspace A Playbook');
     await playbookRepo.insert(pbA);
@@ -335,6 +361,54 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
     expect(listB.success).toBe(true);
     if (listB.success) {
       expect(listB.value.items).toHaveLength(0);
+    }
+  });
+
+  it('list — filtered by prefix with literals % and _', async () => {
+    const pbUnder = createPlaybookFixture(workspaceId, '000000000021', 'abc_def');
+    const pbPercent = createPlaybookFixture(workspaceId, '000000000022', 'abc%def');
+    const pbPlain = createPlaybookFixture(workspaceId, '000000000023', 'abcdef');
+
+    await playbookRepo.insert(pbUnder);
+    await playbookRepo.insert(pbPercent);
+    await playbookRepo.insert(pbPlain);
+
+    const resUnder = await playbookRepo.list(
+      workspaceId,
+      { normalizedNamePrefix: 'abc_' },
+      { offset: 0, limit: 25 },
+    );
+    expect(resUnder.success).toBe(true);
+    if (resUnder.success) {
+      expect(resUnder.value.items).toHaveLength(1);
+      expect(resUnder.value.items[0]!.id).toBe(pbUnder.id);
+    }
+
+    const resPercent = await playbookRepo.list(
+      workspaceId,
+      { normalizedNamePrefix: 'abc%' },
+      { offset: 0, limit: 25 },
+    );
+    expect(resPercent.success).toBe(true);
+    if (resPercent.success) {
+      expect(resPercent.value.items).toHaveLength(1);
+      expect(resPercent.value.items[0]!.id).toBe(pbPercent.id);
+    }
+  });
+
+  it('list — returns PERSISTENCE_OPERATION_FAILED if a row has corrupted normalized_name', async () => {
+    const pb = createPlaybookFixture(workspaceId, '000000000024', 'Corrupted Name');
+    await playbookRepo.insert(pb);
+
+    await pool.query(
+      `UPDATE playbooks SET normalized_name = 'totally-mismatched-normalized-name' WHERE playbook_id = $1`,
+      [pb.id]
+    );
+
+    const result = await playbookRepo.list(workspaceId, {}, { offset: 0, limit: 25 });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe('PERSISTENCE_OPERATION_FAILED');
     }
   });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 
 import { DatabasePool } from '../connection/pool.js';
-import type { DatabaseConfig } from '../connection/pool.js';
+import type { DatabaseConfig } from '@ai-playbook-engine/config';
 import { runMigrations } from './runner.js';
 
 const TEST_DATABASE_URL = process.env.AI_PLAYBOOK_ENGINE_TEST_DATABASE_URL;
