@@ -10,7 +10,14 @@ import {
   Playbook,
   type WorkspaceId,
 } from '@ai-playbook-engine/core';
-import { PLAYBOOK_NAME_CONFLICT } from '@ai-playbook-engine/application';
+import {
+  PLAYBOOK_NAME_CONFLICT,
+  PLAYBOOK_NOT_FOUND,
+  PERSISTENCE_REVISION_CONFLICT,
+  PERSISTENCE_OPERATION_FAILED,
+  PersistenceRevision,
+} from '@ai-playbook-engine/application';
+import type { PersistenceOperationFailedError } from '@ai-playbook-engine/application';
 
 import { DatabasePool } from '../connection/pool.js';
 import { runMigrations } from '../migrations/runner.js';
@@ -131,6 +138,9 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
     const pb = createPlaybookFixture(workspaceId, '000000000001');
     const insertResult = await playbookRepo.insert(pb);
     expect(insertResult.success).toBe(true);
+    if (insertResult.success) {
+      expect(insertResult.value.value).toBe(1);
+    }
 
     const found = await playbookRepo.findById(workspaceId, pb.id);
     expect(found.success).toBe(true);
@@ -138,7 +148,8 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
       expect(found.value).not.toBeNull();
       const val = found.value;
       if (val !== null) {
-        expect(val.id).toEqual(pb.id);
+        expect(val.aggregate.id).toEqual(pb.id);
+        expect(val.revision.value).toBe(1);
       }
     }
   });
@@ -471,7 +482,7 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
     const found = await playbookRepo.findById(workspaceId, pb.id);
     expect(found.success).toBe(true);
     if (found.success && found.value) {
-      expect(found.value.activeVersionId).toBeNull();
+      expect(found.value.aggregate.activeVersionId).toBeNull();
     }
   });
 
@@ -603,6 +614,154 @@ describe.runIf(TEST_DATABASE_URL)('PostgresPlaybookRepository', () => {
         expect(item1.id).toBe(pbB.id);
         expect(item2.id).toBe(pbA.id);
       }
+    }
+  });
+
+  it('update playbook — optimistic concurrency success and increment', async () => {
+    const pb = createPlaybookFixture(workspaceId, '000000000301');
+    const insertRes = await playbookRepo.insert(pb);
+    expect(insertRes.success).toBe(true);
+    if (!insertRes.success) return;
+    const initialRevision = insertRes.value;
+
+    const updateRes = await playbookRepo.update(pb, initialRevision);
+    expect(updateRes.success).toBe(true);
+    if (updateRes.success) {
+      expect(updateRes.value.value).toBe(2);
+    }
+
+    const found = await playbookRepo.findById(workspaceId, pb.id);
+    expect(found.success).toBe(true);
+    if (found.success && found.value) {
+      expect(found.value.revision.value).toBe(2);
+    }
+  });
+
+  it('update playbook — optimistic concurrency conflict due to mismatched revision', async () => {
+    const pb = createPlaybookFixture(workspaceId, '000000000302');
+    const insertRes = await playbookRepo.insert(pb);
+    expect(insertRes.success).toBe(true);
+    if (!insertRes.success) return;
+
+    const wrongRevisionResult = PersistenceRevision.from(999);
+    expect(wrongRevisionResult.success).toBe(true);
+    if (!wrongRevisionResult.success) return;
+
+    const updateRes = await playbookRepo.update(pb, wrongRevisionResult.value);
+    expect(updateRes.success).toBe(false);
+    if (!updateRes.success) {
+      expect(updateRes.error.code).toBe(PERSISTENCE_REVISION_CONFLICT);
+    }
+
+    // Verify DB revision remains 1
+    const found = await playbookRepo.findById(workspaceId, pb.id);
+    expect(found.success).toBe(true);
+    if (found.success && found.value) {
+      expect(found.value.revision.value).toBe(1);
+    }
+  });
+
+  it('update playbook — not found error for non-existent playbook', async () => {
+    const pb = createPlaybookFixture(workspaceId, '000000000303');
+    const revisionResult = PersistenceRevision.from(1);
+    expect(revisionResult.success).toBe(true);
+    if (!revisionResult.success) return;
+
+    const updateRes = await playbookRepo.update(pb, revisionResult.value);
+    expect(updateRes.success).toBe(false);
+    if (!updateRes.success) {
+      expect(updateRes.error.code).toBe(PLAYBOOK_NOT_FOUND);
+    }
+  });
+
+  it('update playbook — conflict error for duplicate name in same workspace', async () => {
+    const pb1 = createPlaybookFixture(workspaceId, '000000000304', 'Duplicate One');
+    const pb2 = createPlaybookFixture(workspaceId, '000000000305', 'Duplicate Two');
+    const insert1 = await playbookRepo.insert(pb1);
+    const insert2 = await playbookRepo.insert(pb2);
+    expect(insert1.success).toBe(true);
+    expect(insert2.success).toBe(true);
+    if (!insert1.success || !insert2.success) return;
+
+    // Mutate pb2 name to match pb1 name
+    const renamedPb2 = Playbook.restore({
+      playbookId: pb2.id,
+      workspaceId: pb2.workspaceId,
+      name: pb1.name,
+      status: pb2.status,
+      description: pb2.description,
+      activeVersionId: pb2.activeVersionId,
+      createdAt: pb2.createdAt,
+      updatedAt: pb2.updatedAt,
+      archivedAt: pb2.archivedAt,
+    });
+    expect(renamedPb2.success).toBe(true);
+    if (!renamedPb2.success) return;
+
+    const updateRes = await playbookRepo.update(renamedPb2.value, insert2.value);
+    expect(updateRes.success).toBe(false);
+    if (!updateRes.success) {
+      expect(updateRes.error.code).toBe(PLAYBOOK_NAME_CONFLICT);
+    }
+  });
+
+  it('concurrency test — parallel updates only allow one success', async () => {
+    const pb = createPlaybookFixture(workspaceId, '000000000306');
+    const insertRes = await playbookRepo.insert(pb);
+    expect(insertRes.success).toBe(true);
+    if (!insertRes.success) return;
+    const initialRevision = insertRes.value;
+
+    const p1 = playbookRepo.update(pb, initialRevision);
+    const p2 = playbookRepo.update(pb, initialRevision);
+    const p3 = playbookRepo.update(pb, initialRevision);
+
+    const results = await Promise.all([p1, p2, p3]);
+    const successes = results.filter((r) => r.success);
+    const failures = results.filter((r) => !r.success);
+
+    expect(successes).toHaveLength(1);
+    expect(failures).toHaveLength(2);
+
+    for (const fail of failures) {
+      expect(fail.error.code).toBe(PERSISTENCE_REVISION_CONFLICT);
+    }
+
+    const found = await playbookRepo.findById(workspaceId, pb.id);
+    expect(found.success).toBe(true);
+    if (found.success && found.value) {
+      expect(found.value.revision.value).toBe(2);
+    }
+  });
+
+  it('update playbook — db violation maps to PERSISTENCE_OPERATION_FAILED', async () => {
+    const pb = createPlaybookFixture(workspaceId, '000000000307');
+    const insertRes = await playbookRepo.insert(pb);
+    expect(insertRes.success).toBe(true);
+    if (!insertRes.success) return;
+
+    // Mutate updated_at to be earlier than created_at -> violates playbooks_updated_at_gte_created_at CHECK constraint
+    const invalidPb = Playbook.restore({
+      playbookId: pb.id,
+      workspaceId: pb.workspaceId,
+      name: pb.name,
+      status: pb.status,
+      description: pb.description,
+      activeVersionId: pb.activeVersionId,
+      createdAt: pb.createdAt,
+      updatedAt: instant('2020-01-01T00:00:00Z'), // very old
+      archivedAt: pb.archivedAt,
+    });
+    expect(invalidPb.success).toBe(true);
+    if (!invalidPb.success) return;
+
+    const updateRes = await playbookRepo.update(invalidPb.value, insertRes.value);
+    expect(updateRes.success).toBe(false);
+    if (!updateRes.success) {
+      expect(updateRes.error.code).toBe(PERSISTENCE_OPERATION_FAILED);
+      expect((updateRes.error as PersistenceOperationFailedError).details.operation).toBe(
+        'playbook.update',
+      );
     }
   });
 });

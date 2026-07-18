@@ -7,6 +7,8 @@ import {
 } from '@ai-playbook-engine/core';
 import { Playbook as PlaybookAggregate } from '@ai-playbook-engine/core';
 import type { Playbook } from '@ai-playbook-engine/core';
+import { PersistenceRevision, createPersistedAggregate } from '@ai-playbook-engine/application';
+import type { PersistedAggregate } from '@ai-playbook-engine/application';
 
 export interface PlaybookRow {
   readonly playbook_id: string;
@@ -19,9 +21,10 @@ export interface PlaybookRow {
   readonly created_at: Date;
   readonly updated_at: Date;
   readonly archived_at: Date | null;
+  readonly revision: number;
 }
 
-export function mapRowToPlaybook(row: PlaybookRow): Playbook | null {
+export function mapRowToPersistedPlaybook(row: PlaybookRow): PersistedAggregate<Playbook> | null {
   try {
     const playbookIdResult = parsePlaybookId(row.playbook_id);
     if (!playbookIdResult.success) {
@@ -86,8 +89,18 @@ export function mapRowToPlaybook(row: PlaybookRow): Playbook | null {
       return null;
     }
 
-    return restored.value;
+    const revisionResult = PersistenceRevision.from(row.revision);
+    if (!revisionResult.success) {
+      return null;
+    }
+
+    return createPersistedAggregate(restored.value, revisionResult.value);
   } catch {
     return null;
   }
+}
+
+export function mapRowToPlaybook(row: PlaybookRow): Playbook | null {
+  const persisted = mapRowToPersistedPlaybook(row);
+  return persisted ? persisted.aggregate : null;
 }

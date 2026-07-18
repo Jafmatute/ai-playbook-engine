@@ -6,18 +6,23 @@ import type {
   PlaybookNameConflictError,
   PaginationRequest,
   Page,
+  PersistedAggregate,
+  PlaybookRepositoryUpdateError,
 } from '@ai-playbook-engine/application';
 import {
   persistenceOperationFailed,
   playbookNameConflict,
   createPage,
+  PersistenceRevision,
+  persistenceRevisionConflict,
+  playbookNotFound,
 } from '@ai-playbook-engine/application';
 import type { Playbook, PlaybookId, WorkspaceId } from '@ai-playbook-engine/core';
 import type { Result } from '@ai-playbook-engine/shared';
 import { err, ok } from '@ai-playbook-engine/shared';
 
 import type { DatabasePool, PostgresParameter } from '../connection/pool.js';
-import { mapRowToPlaybook } from '../mapping/playbook-mapper.js';
+import { mapRowToPlaybook, mapRowToPersistedPlaybook } from '../mapping/playbook-mapper.js';
 import type { PlaybookRow } from '../mapping/playbook-mapper.js';
 
 const PLAYBOOK_NAME_CONFLICT_CONSTRAINT = 'idx_playbooks_workspace_normalized_name';
@@ -32,7 +37,7 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
   async findById(
     workspaceId: WorkspaceId,
     playbookId: PlaybookId,
-  ): Promise<Result<Playbook | null, PersistenceOperationFailedError>> {
+  ): Promise<Result<PersistedAggregate<Playbook> | null, PersistenceOperationFailedError>> {
     try {
       const result = await this.#pool.query<PlaybookRow>(
         'SELECT * FROM playbooks WHERE workspace_id = $1 AND playbook_id = $2',
@@ -44,12 +49,12 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
         return ok(null);
       }
 
-      const playbook = mapRowToPlaybook(row);
-      if (playbook === null) {
+      const persisted = mapRowToPersistedPlaybook(row);
+      if (persisted === null) {
         return err(persistenceOperationFailed('playbook.findById'));
       }
 
-      return ok(playbook);
+      return ok(persisted);
     } catch {
       return err(persistenceOperationFailed('playbook.findById'));
     }
@@ -166,16 +171,18 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
 
   async insert(
     playbook: Playbook,
-  ): Promise<Result<void, PlaybookNameConflictError | PersistenceOperationFailedError>> {
+  ): Promise<
+    Result<PersistenceRevision, PlaybookNameConflictError | PersistenceOperationFailedError>
+  > {
     try {
       const snapshot = playbook.toSnapshot();
 
-      await this.#pool.query(
+      const result = await this.#pool.query<{ revision: number }>(
         `INSERT INTO playbooks (
           playbook_id, workspace_id, name, normalized_name,
           status, description, active_version_id,
           created_at, updated_at, archived_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING revision`,
         [
           snapshot.playbookId,
           snapshot.workspaceId,
@@ -190,13 +197,85 @@ export class PostgresPlaybookRepository implements PlaybookRepository {
         ],
       );
 
-      return ok(undefined);
+      const row = result.rows[0];
+      if (row === undefined) {
+        return err(persistenceOperationFailed('playbook.insert'));
+      }
+
+      const revisionResult = PersistenceRevision.from(row.revision);
+      if (!revisionResult.success) {
+        return err(persistenceOperationFailed('playbook.insert'));
+      }
+
+      return ok(revisionResult.value);
     } catch (e) {
       if (isUniqueConstraintViolation(e, PLAYBOOK_NAME_CONFLICT_CONSTRAINT)) {
         return err(playbookNameConflict());
       }
 
       return err(persistenceOperationFailed('playbook.insert'));
+    }
+  }
+
+  async update(
+    playbook: Playbook,
+    expectedRevision: PersistenceRevision,
+  ): Promise<Result<PersistenceRevision, PlaybookRepositoryUpdateError>> {
+    try {
+      const snapshot = playbook.toSnapshot();
+
+      const result = await this.#pool.query<{ revision: number }>(
+        `UPDATE playbooks
+         SET name = $1,
+             normalized_name = $2,
+             status = $3,
+             description = $4,
+             active_version_id = $5,
+             updated_at = $6,
+             archived_at = $7,
+             revision = revision + 1
+         WHERE workspace_id = $8
+           AND playbook_id = $9
+           AND revision = $10
+         RETURNING revision`,
+        [
+          snapshot.name,
+          snapshot.normalizedName,
+          snapshot.status,
+          snapshot.description,
+          snapshot.activeVersionId,
+          snapshot.updatedAt,
+          snapshot.archivedAt,
+          snapshot.workspaceId,
+          snapshot.playbookId,
+          expectedRevision.value,
+        ],
+      );
+
+      const row = result.rows[0];
+      if (row === undefined) {
+        const existResult = await this.#pool.query<{ playbook_id: string }>(
+          'SELECT playbook_id FROM playbooks WHERE workspace_id = $1 AND playbook_id = $2',
+          [snapshot.workspaceId, snapshot.playbookId],
+        );
+        if (existResult.rows.length === 0) {
+          return err(playbookNotFound());
+        }
+        return err(persistenceRevisionConflict(expectedRevision));
+      }
+
+      const revisionResult = PersistenceRevision.from(row.revision);
+      if (!revisionResult.success) {
+        return err(persistenceOperationFailed('playbook.update'));
+      }
+
+      return ok(revisionResult.value);
+    } catch (e) {
+      if (isUniqueConstraintViolation(e, PLAYBOOK_NAME_CONFLICT_CONSTRAINT)) {
+        return err(playbookNameConflict());
+      }
+
+      return err(persistenceOperationFailed('playbook.update'));
     }
   }
 }

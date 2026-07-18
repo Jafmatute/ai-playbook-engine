@@ -1,8 +1,9 @@
-import pg from 'pg';
+import type pg from 'pg';
 import { ok, err, type Result } from '@ai-playbook-engine/shared';
 
 import type { DatabasePool } from '../connection/pool.js';
-import { VERSION, UP } from './001-initial.js';
+import { VERSION as VERSION_001, UP as UP_001 } from './001-initial.js';
+import { VERSION as VERSION_002, UP as UP_002 } from './002-playbook-persistence-revision.js';
 import type { MigrationFailedError } from './migration-error.js';
 import { migrationFailed } from './migration-error.js';
 
@@ -12,7 +13,8 @@ interface Migration {
 }
 
 const MIGRATIONS: readonly Migration[] = Object.freeze([
-  Object.freeze({ version: VERSION, up: UP }),
+  Object.freeze({ version: VERSION_001, up: UP_001 }),
+  Object.freeze({ version: VERSION_002, up: UP_002 }),
 ]);
 
 export interface MigrationResult {
