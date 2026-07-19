@@ -1633,6 +1633,9 @@ describe('runCli playbook source show command', () => {
         expect(parsed.error.details.playbookSourceId).toBe('00000000-0000-0000-0000-000000000003');
       }
       expect(io.stdout).not.toMatch(/token|credential|secret/i);
+      expect(io.stdout).not.toContain('postgres://localhost:5432/db');
+      expect(io.stderr).not.toContain('postgres://localhost:5432/db');
+      expect(io.stderr).not.toMatch(/token|credential|secret/i);
     } else {
       throw new Error('Invalid PLAYBOOK_SOURCE_NOT_FOUND JSON error structure.');
     }
