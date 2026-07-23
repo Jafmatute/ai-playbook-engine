@@ -113,11 +113,14 @@ export type {
   RegisterPlaybookSourceError,
   GetPlaybookSourceQuery,
   GetPlaybookSourceError,
+  ListPlaybookSourcesQuery,
+  ListPlaybookSourcesError,
 } from './playbook-source/index.js';
 export {
   toPlaybookSourceOutput,
   RegisterPlaybookSourceHandler,
   GetPlaybookSourceHandler,
+  ListPlaybookSourcesHandler,
 } from './playbook-source/index.js';
 export type {
   SynchronizationRunListFilter,
