@@ -387,6 +387,54 @@ describe('renderPlaybookSourceList', () => {
     expect(result).toContain('Page: 1-1 of ?');
   });
 
+  it('renders pagination with offset', () => {
+    const items = [
+      Object.freeze<PlaybookSourceOutput>({
+        playbookSourceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        workspaceId: 'ws-1',
+        playbookId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        type: 'notion',
+        status: 'enabled',
+        externalRootReference: 'ref-alpha',
+        configurationReference: 'config-alpha',
+        createdAt: '2026-07-17T10:00:00.000Z',
+        lastSuccessfulSynchronizationRunId: null,
+        lastSuccessfulSynchronizationAt: null,
+        lastFailedSynchronizationRunId: null,
+        lastFailedSynchronizationAt: null,
+      }),
+      Object.freeze<PlaybookSourceOutput>({
+        playbookSourceId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        workspaceId: 'ws-1',
+        playbookId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        type: 'notion',
+        status: 'disabled',
+        externalRootReference: 'ref-beta',
+        configurationReference: 'config-beta',
+        createdAt: '2026-07-17T11:00:00.000Z',
+        lastSuccessfulSynchronizationRunId: null,
+        lastSuccessfulSynchronizationAt: null,
+        lastFailedSynchronizationRunId: null,
+        lastFailedSynchronizationAt: null,
+      }),
+    ];
+    const page: Page<PlaybookSourceOutput> = Object.freeze({
+      items: Object.freeze(items),
+      offset: 10,
+      limit: 5,
+      hasMore: true,
+      totalCount: 20,
+    });
+
+    const result = renderPlaybookSourceList(page);
+    expect(result).toContain('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    expect(result).toContain('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+    expect(result).toContain('Page: 11-12 of 20');
+    expect(result.indexOf('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')).toBeLessThan(
+      result.indexOf('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
+    );
+  });
+
   it('does not mutate the input page', () => {
     const source: PlaybookSourceOutput = Object.freeze({
       playbookSourceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',

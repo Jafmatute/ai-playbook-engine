@@ -21,6 +21,7 @@ import {
   playbookSourceTypeUnsupported,
   playbookSourceNotFound,
   workspaceNotFound,
+  paginationInvalid,
   persistenceRevisionConflict,
   PersistenceRevision,
 } from '@ai-playbook-engine/application';
@@ -1922,8 +1923,73 @@ describe('runCli playbook source list command', () => {
     expect(pool.closeCalled).toBe(1);
   });
 
+  it('omits totalCount from JSON when the page does not have one', async () => {
+    const pool = new MockPool();
+    const items = [
+      createPlaybookSourceOutputFixture({
+        playbookSourceId: '00000000-0000-0000-0000-000000000001',
+        createdAt: '2026-07-17T10:00:00.000Z',
+      }),
+    ];
+    const pageWithoutTotalCount: Page<PlaybookSourceOutput> = {
+      items,
+      offset: 0,
+      limit: 25,
+      hasMore: false,
+    };
+    const listPlaybookSources: CliServices['listPlaybookSources'] = {
+      handle: async () => ok(pageWithoutTotalCount),
+    };
+    const io = new MockIo();
+    expect(
+      await runCli(
+        [...args, '--output', 'json'],
+        envReader,
+        io,
+        createMockDependencies(createMockServices({ pool, listPlaybookSources })),
+      ),
+    ).toBe(ExitCode.SUCCESS);
+    expect(io.stderr).toBe('');
+    const parsed: unknown = JSON.parse(io.stdout);
+    expect(parsed).not.toBeNull();
+    expect(typeof parsed).toBe('object');
+    if (
+      parsed !== null &&
+      typeof parsed === 'object' &&
+      'success' in parsed &&
+      parsed.success === true &&
+      'data' in parsed &&
+      parsed.data !== null &&
+      typeof parsed.data === 'object' &&
+      'items' in parsed.data &&
+      Array.isArray(parsed.data.items) &&
+      'offset' in parsed.data &&
+      'limit' in parsed.data &&
+      'hasMore' in parsed.data
+    ) {
+      expect('totalCount' in parsed.data).toBe(false);
+      expect(parsed.data.items).toHaveLength(1);
+      const item = parsed.data.items[0];
+      if (
+        item !== null &&
+        typeof item === 'object' &&
+        'playbookSourceId' in item &&
+        'type' in item &&
+        'status' in item
+      ) {
+        expect(item.playbookSourceId).toBe('00000000-0000-0000-0000-000000000001');
+        expect('revision' in item).toBe(false);
+        expect('token' in item).toBe(false);
+        expect('credential' in item).toBe(false);
+        expect('secret' in item).toBe(false);
+      } else throw new Error('Invalid item structure in source list JSON (no totalCount).');
+    } else throw new Error('Invalid source list JSON structure (no totalCount).');
+    expect(pool.closeCalled).toBe(1);
+  });
+
   it.each([
     [createInvalidPlaybookIdError(), ExitCode.INVALID_INPUT],
+    [paginationInvalid('limit must be an integer between 1 and 100.'), ExitCode.INVALID_INPUT],
     [workspaceNotFound(), ExitCode.NOT_FOUND],
     [playbookNotFound(), ExitCode.NOT_FOUND],
     [persistenceOperationFailed('playbookSource.listByPlaybookId'), ExitCode.INFRASTRUCTURE_ERROR],

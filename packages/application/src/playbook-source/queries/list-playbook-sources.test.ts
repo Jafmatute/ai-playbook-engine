@@ -27,7 +27,12 @@ import type { PlaybookRepository } from '../../playbook/ports/playbook-repositor
 import type { WorkspaceRepository } from '../../workspace/ports/workspace-repository.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
 import { persistenceOperationFailed } from '../../persistence/index.js';
-import { PAGINATION_INVALID, workspaceNotFound, playbookNotFound } from '../../errors/index.js';
+import {
+  paginationInvalid,
+  workspaceNotFound,
+  playbookNotFound,
+  type PaginationInvalidError,
+} from '../../errors/index.js';
 import {
   ListPlaybookSourcesHandler,
   type ListPlaybookSourcesQuery,
@@ -350,49 +355,74 @@ describe('ListPlaybookSourcesHandler', () => {
     expect(sourceRepo.listCalls).toEqual([]);
   });
 
-  it.each([
-    [
-      'negative offset',
-      { playbookId: '00000000-0000-0000-0000-000000000002', offset: -1, limit: 25 },
-    ],
-    [
-      'non-integer offset',
-      { playbookId: '00000000-0000-0000-0000-000000000002', offset: 1.5, limit: 25 },
-    ],
-    ['limit 0', { playbookId: '00000000-0000-0000-0000-000000000002', offset: 0, limit: 0 }],
-    ['limit 101', { playbookId: '00000000-0000-0000-0000-000000000002', offset: 0, limit: 101 }],
-    [
-      'non-integer limit',
-      { playbookId: '00000000-0000-0000-0000-000000000002', offset: 0, limit: 1.5 },
-    ],
-  ])('returns PAGINATION_INVALID for %s', async (_label, query) => {
-    const provider = new StubCurrentWorkspaceProvider({
-      kind: 'workspaceId',
-      workspaceId: workspaceIdValue,
-    });
-    const workspaceRepo = new StubWorkspaceRepository({
-      kind: 'workspace',
-      workspace: createActiveWorkspace(),
-    });
-    const playbookRepo = new StubPlaybookRepository({ kind: 'null' });
-    const sourceRepo = new StubPlaybookSourceRepository({
-      kind: 'page',
-      page: { items: [], offset: 0, limit: 25, hasMore: false, totalCount: 0 },
-    });
-    const handler = new ListPlaybookSourcesHandler(
-      provider,
-      workspaceRepo,
-      playbookRepo,
-      sourceRepo,
-    );
+  interface InvalidPaginationCase {
+    readonly label: string;
+    readonly query: ListPlaybookSourcesQuery;
+    readonly expectedError: PaginationInvalidError;
+  }
 
-    const result = await handler.handle(query as unknown as ListPlaybookSourcesQuery);
+  const paginationCases: InvalidPaginationCase[] = [
+    {
+      label: 'negative offset',
+      query: { playbookId: '00000000-0000-0000-0000-000000000002', offset: -1, limit: 25 },
+      expectedError: paginationInvalid('offset must be a non-negative integer.'),
+    },
+    {
+      label: 'non-integer offset',
+      query: { playbookId: '00000000-0000-0000-0000-000000000002', offset: 1.5, limit: 25 },
+      expectedError: paginationInvalid('offset must be a non-negative integer.'),
+    },
+    {
+      label: 'limit 0',
+      query: { playbookId: '00000000-0000-0000-0000-000000000002', offset: 0, limit: 0 },
+      expectedError: paginationInvalid('limit must be an integer between 1 and 100.'),
+    },
+    {
+      label: 'limit 101',
+      query: { playbookId: '00000000-0000-0000-0000-000000000002', offset: 0, limit: 101 },
+      expectedError: paginationInvalid('limit must be an integer between 1 and 100.'),
+    },
+    {
+      label: 'non-integer limit',
+      query: { playbookId: '00000000-0000-0000-0000-000000000002', offset: 0, limit: 1.5 },
+      expectedError: paginationInvalid('limit must be an integer between 1 and 100.'),
+    },
+  ];
 
-    expect(result.success).toBe(false);
-    if (result.success) return;
-    expect(result.error).toMatchObject({ code: PAGINATION_INVALID });
-    expect(provider.calls).toEqual([]);
-  });
+  it.each(paginationCases)(
+    'returns PAGINATION_INVALID for $label',
+    async ({ query, expectedError }) => {
+      const provider = new StubCurrentWorkspaceProvider({
+        kind: 'workspaceId',
+        workspaceId: workspaceIdValue,
+      });
+      const workspaceRepo = new StubWorkspaceRepository({
+        kind: 'workspace',
+        workspace: createActiveWorkspace(),
+      });
+      const playbookRepo = new StubPlaybookRepository({ kind: 'null' });
+      const sourceRepo = new StubPlaybookSourceRepository({
+        kind: 'page',
+        page: { items: [], offset: 0, limit: 25, hasMore: false, totalCount: 0 },
+      });
+      const handler = new ListPlaybookSourcesHandler(
+        provider,
+        workspaceRepo,
+        playbookRepo,
+        sourceRepo,
+      );
+
+      const result = await handler.handle(query);
+
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      expect(result.error).toEqual(expectedError);
+      expect(provider.calls).toEqual([]);
+      expect(workspaceRepo.findByIdCalls).toEqual([]);
+      expect(playbookRepo.findByIdCalls).toEqual([]);
+      expect(sourceRepo.listCalls).toEqual([]);
+    },
+  );
 
   it('returns CURRENT_WORKSPACE_UNAVAILABLE without repository calls', async () => {
     const failure = currentWorkspaceUnavailable();
@@ -627,20 +657,19 @@ describe('ListPlaybookSourcesHandler', () => {
     expect(Object.isFrozen(result.value.items)).toBe(true);
   });
 
-  it('returns a page with both enabled and disabled sources preserving order and sync metadata', async () => {
-    const enabledSource = createEnabledSource();
+  it('returns a page with both enabled (with sync history) and disabled sources preserving order', async () => {
+    const syncSource = createSourceWithSyncHistory();
     const disabledSource = createDisabledSource();
+    const snapshotBefore1 = syncSource.toSnapshot();
+    const snapshotBefore2 = disabledSource.toSnapshot();
     const repoPage: Page<PlaybookSourceClass> = {
-      items: [enabledSource, disabledSource],
+      items: [syncSource, disabledSource],
       offset: 0,
       limit: 25,
       hasMore: false,
       totalCount: 2,
     };
 
-    const snapshotBefore1 = enabledSource.toSnapshot();
-    const snapshotBefore2 = disabledSource.toSnapshot();
-
     const provider = new StubCurrentWorkspaceProvider({
       kind: 'workspaceId',
       workspaceId: workspaceIdValue,
@@ -666,82 +695,60 @@ describe('ListPlaybookSourcesHandler', () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
 
-    expect(result.value.items).toHaveLength(2);
-    expect(result.value.offset).toBe(0);
-    expect(result.value.limit).toBe(25);
-    expect(result.value.hasMore).toBe(false);
-    expect(result.value.totalCount).toBe(2);
-
-    const item1 = result.value.items[0];
-    if (item1 === undefined) throw new Error('Expected first item.');
-    expect(item1.playbookSourceId).toBe(sourceId1Value);
-    expect(item1.status).toBe('enabled');
-
-    const item2 = result.value.items[1];
-    if (item2 === undefined) throw new Error('Expected second item.');
-    expect(item2.playbookSourceId).toBe(sourceId2Value);
-    expect(item2.status).toBe('disabled');
-
-    expect(Object.isFrozen(result.value)).toBe(true);
-    expect(Object.isFrozen(result.value.items)).toBe(true);
-    expect(Object.isFrozen(item1)).toBe(true);
-    expect(Object.isFrozen(item2)).toBe(true);
-
-    expect('revision' in item1).toBe(false);
-    expect('token' in item1).toBe(false);
-    expect('credential' in item1).toBe(false);
-    expect('secret' in item1).toBe(false);
-
-    expect(enabledSource.toSnapshot()).toEqual(snapshotBefore1);
-    expect(disabledSource.toSnapshot()).toEqual(snapshotBefore2);
-  });
-
-  it('returns a page with sync metadata preserved for a restored source', async () => {
-    const syncSource = createSourceWithSyncHistory();
-    const repoPage: Page<PlaybookSourceClass> = {
-      items: [syncSource],
+    expect(result.value).toEqual({
+      items: [
+        {
+          playbookSourceId: '00000000-0000-0000-0000-000000000003',
+          workspaceId: '00000000-0000-0000-0000-000000000001',
+          playbookId: '00000000-0000-0000-0000-000000000002',
+          type: 'notion',
+          status: 'enabled',
+          externalRootReference: 'https://example.com/root',
+          configurationReference: 'config-1',
+          createdAt: '2026-07-17T12:00:00.000Z',
+          lastSuccessfulSynchronizationRunId: '00000000-0000-0000-0000-000000000010',
+          lastSuccessfulSynchronizationAt: '2026-07-17T13:00:00.000Z',
+          lastFailedSynchronizationRunId: '00000000-0000-0000-0000-000000000011',
+          lastFailedSynchronizationAt: '2026-07-17T14:00:00.000Z',
+        },
+        {
+          playbookSourceId: '00000000-0000-0000-0000-000000000004',
+          workspaceId: '00000000-0000-0000-0000-000000000001',
+          playbookId: '00000000-0000-0000-0000-000000000002',
+          type: 'notion',
+          status: 'disabled',
+          externalRootReference: 'https://example.com/other',
+          configurationReference: 'config-2',
+          createdAt: '2026-07-17T12:00:00.000Z',
+          lastSuccessfulSynchronizationRunId: null,
+          lastSuccessfulSynchronizationAt: null,
+          lastFailedSynchronizationRunId: null,
+          lastFailedSynchronizationAt: null,
+        },
+      ],
       offset: 0,
       limit: 25,
       hasMore: false,
-      totalCount: 1,
-    };
-
-    const provider = new StubCurrentWorkspaceProvider({
-      kind: 'workspaceId',
-      workspaceId: workspaceIdValue,
+      totalCount: 2,
     });
-    const workspaceRepo = new StubWorkspaceRepository({
-      kind: 'workspace',
-      workspace: createActiveWorkspace(),
-    });
-    const playbookRepo = new StubPlaybookRepository({
-      kind: 'playbook',
-      playbook: createPlaybook(),
-    });
-    const sourceRepo = new StubPlaybookSourceRepository({ kind: 'page', page: repoPage });
-    const handler = new ListPlaybookSourcesHandler(
-      provider,
-      workspaceRepo,
-      playbookRepo,
-      sourceRepo,
-    );
 
-    const result = await handler.handle(validQuery());
+    expect(Object.isFrozen(result.value)).toBe(true);
+    expect(Object.isFrozen(result.value.items)).toBe(true);
+    for (const item of result.value.items) {
+      expect(Object.isFrozen(item)).toBe(true);
+      expect('revision' in item).toBe(false);
+      expect('token' in item).toBe(false);
+      expect('credential' in item).toBe(false);
+      expect('secret' in item).toBe(false);
+    }
 
-    expect(result.success).toBe(true);
-    if (!result.success) return;
-
-    expect(result.value.items).toHaveLength(1);
-    const item = result.value.items[0];
-    if (item === undefined) throw new Error('Expected item.');
-    expect(item.lastSuccessfulSynchronizationRunId).toBe('00000000-0000-0000-0000-000000000010');
-    expect(item.lastSuccessfulSynchronizationAt).toBe('2026-07-17T13:00:00.000Z');
-    expect(item.lastFailedSynchronizationRunId).toBe('00000000-0000-0000-0000-000000000011');
-    expect(item.lastFailedSynchronizationAt).toBe('2026-07-17T14:00:00.000Z');
+    expect(syncSource.toSnapshot()).toEqual(snapshotBefore1);
+    expect(disabledSource.toSnapshot()).toEqual(snapshotBefore2);
   });
 
   it('supports archived playbooks without error', async () => {
     const archived = createArchivedPlaybook();
+    const snapshotBefore = archived.toSnapshot();
     const source = createEnabledSource();
     const repoPage: Page<PlaybookSourceClass> = {
       items: [source],
@@ -774,6 +781,12 @@ describe('ListPlaybookSourcesHandler', () => {
     if (!result.success) return;
     expect(result.value.items).toHaveLength(1);
     expect(sourceRepo.listCalls).toHaveLength(1);
+    const listCall = sourceRepo.listCalls[0];
+    if (listCall === undefined) throw new Error('Expected a list call.');
+    expect(listCall.workspaceId).toBe(workspaceIdValue);
+    expect(listCall.playbookId).toBe(playbookIdValue);
+    expect(listCall.pagination).toEqual({ offset: 0, limit: 25 });
+    expect(archived.toSnapshot()).toEqual(snapshotBefore);
   });
 
   it('preserves offset, limit, hasMore for a subsequent page', async () => {

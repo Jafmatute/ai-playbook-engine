@@ -789,7 +789,7 @@ async function runPlaybookSourceList(
           offset: result.value.offset,
           limit: result.value.limit,
           hasMore: result.value.hasMore,
-          totalCount: result.value.totalCount,
+          ...(result.value.totalCount === undefined ? {} : { totalCount: result.value.totalCount }),
         }) + '\n',
       );
     } else {
