@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PlaybookOutput, PlaybookSourceOutput } from '@ai-playbook-engine/application';
+import type { Page, PlaybookOutput, PlaybookSourceOutput } from '@ai-playbook-engine/application';
 
 import {
   renderWorkspace,
@@ -8,6 +8,7 @@ import {
   renderPlaybook,
   renderPlaybookList,
   renderPlaybookSource,
+  renderPlaybookSourceList,
 } from './human-renderer.js';
 
 const sourceFixture: PlaybookSourceOutput = Object.freeze({
@@ -288,5 +289,130 @@ describe('renderPlaybookList', () => {
 
     const result = renderPlaybookList(page);
     expect(result).toContain('Page: 1-1 of ?');
+  });
+});
+
+describe('renderPlaybookSourceList', () => {
+  it('renders "No playbook sources found." when empty', () => {
+    const page: Page<PlaybookSourceOutput> = Object.freeze({
+      items: Object.freeze([]),
+      offset: 0,
+      limit: 25,
+      hasMore: false,
+      totalCount: 0,
+    });
+
+    expect(renderPlaybookSourceList(page)).toBe('No playbook sources found.');
+  });
+
+  it('renders a table of playbook sources', () => {
+    const alpha: PlaybookSourceOutput = Object.freeze({
+      playbookSourceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      workspaceId: 'ws-1',
+      playbookId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      type: 'notion',
+      status: 'enabled',
+      externalRootReference: 'ref-alpha',
+      configurationReference: 'config-alpha',
+      createdAt: '2026-07-17T10:00:00.000Z',
+      lastSuccessfulSynchronizationRunId: null,
+      lastSuccessfulSynchronizationAt: null,
+      lastFailedSynchronizationRunId: 'run-fail',
+      lastFailedSynchronizationAt: '2026-07-17T11:00:00.000Z',
+    });
+
+    const beta: PlaybookSourceOutput = Object.freeze({
+      playbookSourceId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      workspaceId: 'ws-1',
+      playbookId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      type: 'notion',
+      status: 'disabled',
+      externalRootReference: 'ref-beta',
+      configurationReference: 'config-beta',
+      createdAt: '2026-07-17T12:00:00.000Z',
+      lastSuccessfulSynchronizationRunId: null,
+      lastSuccessfulSynchronizationAt: null,
+      lastFailedSynchronizationRunId: null,
+      lastFailedSynchronizationAt: null,
+    });
+
+    const page: Page<PlaybookSourceOutput> = Object.freeze({
+      items: Object.freeze([alpha, beta]),
+      offset: 0,
+      limit: 25,
+      hasMore: false,
+      totalCount: 2,
+    });
+
+    const result = renderPlaybookSourceList(page);
+    expect(result).toContain('Playbook Sources:');
+    expect(result).toContain('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    expect(result).toContain('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+    expect(result).toContain('enabled');
+    expect(result).toContain('disabled');
+    expect(result).toContain('notion');
+    expect(result).toContain('2026-07-17T10:00:00.000Z');
+    expect(result).toContain('2026-07-17T12:00:00.000Z');
+    expect(result).toContain('Page: 1-2 of 2');
+    expect(result).not.toContain('ref-alpha');
+    expect(result).not.toContain('ws-1');
+    expect(result).not.toMatch(/revision|token|credential|secret/i);
+    expect(result).not.toContain('run-fail');
+  });
+
+  it('renders pagination with unknown total count', () => {
+    const source: PlaybookSourceOutput = Object.freeze({
+      playbookSourceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      workspaceId: 'ws-1',
+      playbookId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      type: 'notion',
+      status: 'enabled',
+      externalRootReference: 'ref',
+      configurationReference: 'config',
+      createdAt: '2026-07-17T10:00:00.000Z',
+      lastSuccessfulSynchronizationRunId: null,
+      lastSuccessfulSynchronizationAt: null,
+      lastFailedSynchronizationRunId: null,
+      lastFailedSynchronizationAt: null,
+    });
+
+    const page: Page<PlaybookSourceOutput> = Object.freeze({
+      items: Object.freeze([source]),
+      offset: 0,
+      limit: 25,
+      hasMore: true,
+    });
+
+    const result = renderPlaybookSourceList(page);
+    expect(result).toContain('Page: 1-1 of ?');
+  });
+
+  it('does not mutate the input page', () => {
+    const source: PlaybookSourceOutput = Object.freeze({
+      playbookSourceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      workspaceId: 'ws-1',
+      playbookId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      type: 'notion',
+      status: 'enabled',
+      externalRootReference: 'ref',
+      configurationReference: 'config',
+      createdAt: '2026-07-17T10:00:00.000Z',
+      lastSuccessfulSynchronizationRunId: null,
+      lastSuccessfulSynchronizationAt: null,
+      lastFailedSynchronizationRunId: null,
+      lastFailedSynchronizationAt: null,
+    });
+    const page: Page<PlaybookSourceOutput> = Object.freeze({
+      items: Object.freeze([source]),
+      offset: 0,
+      limit: 25,
+      hasMore: false,
+      totalCount: 1,
+    });
+    const input = { ...page, items: [...page.items] };
+
+    renderPlaybookSourceList(page);
+
+    expect(page).toEqual(input);
   });
 });

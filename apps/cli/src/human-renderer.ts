@@ -2,8 +2,8 @@ import type {
   WorkspaceOutput,
   PlaybookOutput,
   PlaybookSourceOutput,
+  Page,
 } from '@ai-playbook-engine/application';
-import type { Page } from '@ai-playbook-engine/application';
 
 export function renderWorkspace(output: WorkspaceOutput): string {
   const lines: string[] = [
@@ -66,6 +66,32 @@ export function renderPlaybookSource(output: PlaybookSourceOutput): string {
     `  Last Failed Run ID:       ${output.lastFailedSynchronizationRunId ?? '(none)'}`,
     `  Last Failed At:           ${output.lastFailedSynchronizationAt ?? '(none)'}`,
   ].join('\n');
+}
+
+export function renderPlaybookSourceList(page: Page<PlaybookSourceOutput>): string {
+  if (page.items.length === 0) {
+    return 'No playbook sources found.';
+  }
+
+  const lines: string[] = [
+    'Playbook Sources:',
+    '  ID                                    Status    Type     Created At',
+    '  ' + '-'.repeat(80),
+  ];
+
+  for (const source of page.items) {
+    const id = source.playbookSourceId.padEnd(36).slice(0, 36);
+    const status = source.status.padEnd(8).slice(0, 8);
+    const type = source.type.padEnd(9).slice(0, 9);
+    lines.push(`  ${id}  ${status}  ${type}  ${source.createdAt}`);
+  }
+
+  lines.push('');
+  lines.push(
+    `Page: ${page.offset + 1}-${page.offset + page.items.length} of ${page.totalCount ?? '?'}`,
+  );
+
+  return lines.join('\n');
 }
 
 export function renderPlaybookList(page: Page<PlaybookOutput>): string {
