@@ -8,6 +8,7 @@ import {
   renderPlaybook,
   renderPlaybookList,
   renderPlaybookSource,
+  renderPlaybookSourceList,
 } from './human-renderer.js';
 import { renderJsonSuccess, renderJsonError } from './json-renderer.js';
 import { mapErrorToExitCode, getErrorMessage } from './error-mapper.js';
@@ -30,6 +31,7 @@ export interface CliServices {
   readonly restorePlaybook: Pick<Services['restorePlaybook'], 'handle'>;
   readonly registerPlaybookSource: Pick<Services['registerPlaybookSource'], 'handle'>;
   readonly getPlaybookSource: Pick<Services['getPlaybookSource'], 'handle'>;
+  readonly listPlaybookSources: Pick<Services['listPlaybookSources'], 'handle'>;
   readonly getPlaybook: Pick<Services['getPlaybook'], 'handle'>;
   readonly listPlaybooks: Pick<Services['listPlaybooks'], 'handle'>;
   readonly migrate: Services['migrate'];
@@ -79,6 +81,7 @@ const ALLOWED_FLAGS: ReadonlyMap<string, ReadonlySet<string>> = new Map<
     ]),
   ],
   ['playbook source show', new Set<string>(['id', 'output', 'help'])],
+  ['playbook source list', new Set<string>(['playbook-id', 'offset', 'limit', 'output', 'help'])],
 ]);
 
 const GLOBAL_FLAGS = new Set<string>(['output', 'workspace-id', 'help']);
@@ -210,6 +213,9 @@ export async function runCli(
       }
       case 'playbook source show': {
         return await runPlaybookSourceShow(config, output, flags, io, dependencies);
+      }
+      case 'playbook source list': {
+        return await runPlaybookSourceList(config, output, flags, io, dependencies);
       }
       default: {
         return await handleError(`Unknown command: "${subcommand}".`, 'INVALID_INPUT', output, io);
@@ -701,6 +707,101 @@ async function runPlaybookSourceRegister(
   }
 }
 
+async function runPlaybookSourceList(
+  config: RawConfig,
+  output: CliOutput,
+  flags: ReadonlyMap<string, string | boolean>,
+  io: CliIo,
+  dependencies: RunCliDependencies,
+): Promise<ExitCode> {
+  const playbookId = flags.get('playbook-id');
+  if (typeof playbookId !== 'string' || playbookId.length === 0) {
+    return await handleError('--playbook-id is required', 'INVALID_INPUT', output, io);
+  }
+
+  const offsetRaw = flags.get('offset');
+  let offset = 0;
+  if (offsetRaw !== undefined) {
+    if (typeof offsetRaw !== 'string') {
+      return await handleError(
+        '--offset must be a non-negative integer',
+        'INVALID_INPUT',
+        output,
+        io,
+      );
+    }
+    const parsed = parseStrictInteger(offsetRaw);
+    if (parsed === null || parsed < 0) {
+      return await handleError(
+        '--offset must be a non-negative integer',
+        'INVALID_INPUT',
+        output,
+        io,
+      );
+    }
+    offset = parsed;
+  }
+
+  const limitRaw = flags.get('limit');
+  let limit = 25;
+  if (limitRaw !== undefined) {
+    if (typeof limitRaw !== 'string') {
+      return await handleError(
+        '--limit must be an integer between 1 and 100',
+        'INVALID_INPUT',
+        output,
+        io,
+      );
+    }
+    const parsed = parseStrictInteger(limitRaw);
+    if (parsed === null || parsed < 1 || parsed > 100) {
+      return await handleError(
+        '--limit must be an integer between 1 and 100',
+        'INVALID_INPUT',
+        output,
+        io,
+      );
+    }
+    limit = parsed;
+  }
+
+  const servicesResult = dependencies.buildServices(config);
+  if (!servicesResult.success) {
+    return await handleStructuredError(servicesResult.error, output, io);
+  }
+
+  const services = servicesResult.value;
+  try {
+    const result = await services.listPlaybookSources.handle({
+      playbookId,
+      offset,
+      limit,
+    });
+
+    if (!result.success) {
+      return await handleUseCaseError(result.error, output, io);
+    }
+
+    if (output === 'json') {
+      io.writeStdout(
+        renderJsonSuccess({
+          items: result.value.items,
+          offset: result.value.offset,
+          limit: result.value.limit,
+          hasMore: result.value.hasMore,
+          totalCount: result.value.totalCount,
+        }) + '\n',
+      );
+    } else {
+      io.writeStdout(renderPlaybookSourceList(result.value) + '\n');
+    }
+
+    return ExitCode.SUCCESS;
+  } finally {
+    await services.pool.close();
+  }
+}
+
 async function runPlaybookSourceShow(
   config: RawConfig,
   output: CliOutput,
@@ -814,6 +915,7 @@ Usage:
   playbook restore       --id <uuid>       Restore an archived playbook
   playbook source register  --playbook-id <uuid> --type <type>  Register a playbook source
   playbook source show      --id <uuid>       Show playbook source details
+  playbook source list      --playbook-id <uuid> [options]  List playbook sources
 
 Global flags:
   --workspace-id <uuid>  Override the current workspace ID
@@ -826,5 +928,9 @@ Playbook list options:
   --has-active-version true|false       Filter by active version presence
   --offset <integer>                    Pagination offset (default: 0)
   --limit <integer>                     Pagination limit (default: 25)
+
+Playbook source list options:
+  --offset <integer>  Pagination offset (default: 0)
+  --limit <integer>   Pagination limit (default: 25)
 `);
 }

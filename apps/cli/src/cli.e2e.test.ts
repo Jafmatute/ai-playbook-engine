@@ -1047,5 +1047,212 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(showArchivedSourceJson.data.playbookId).toBe(playbookId2);
       expect(showArchivedSourceJson.data.status).toBe('enabled');
     } else throw new Error('Invalid archived source show json output structure');
+
+    // 33. List first playbook sources as JSON.
+    const listSource1Res = runCli(
+      ['playbook', 'source', 'list', '--playbook-id', playbookId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(listSource1Res.status).toBe(0);
+    expect(listSource1Res.stderr).toBe('');
+    assertSafeOutput(listSource1Res.stdout);
+    const listSource1Json: unknown = JSON.parse(listSource1Res.stdout);
+    if (
+      listSource1Json !== null &&
+      typeof listSource1Json === 'object' &&
+      'success' in listSource1Json &&
+      listSource1Json.success === true &&
+      'data' in listSource1Json &&
+      listSource1Json.data !== null &&
+      typeof listSource1Json.data === 'object' &&
+      'items' in listSource1Json.data &&
+      Array.isArray(listSource1Json.data.items) &&
+      'offset' in listSource1Json.data &&
+      'limit' in listSource1Json.data &&
+      'hasMore' in listSource1Json.data &&
+      'totalCount' in listSource1Json.data
+    ) {
+      expect(listSource1Json.data.offset).toBe(0);
+      expect(listSource1Json.data.limit).toBe(25);
+      expect(listSource1Json.data.hasMore).toBe(false);
+      expect(listSource1Json.data.totalCount).toBe(1);
+      expect(listSource1Json.data.items).toHaveLength(1);
+      const item = listSource1Json.data.items[0];
+      if (
+        item !== null &&
+        typeof item === 'object' &&
+        'playbookSourceId' in item &&
+        'workspaceId' in item &&
+        'playbookId' in item &&
+        'type' in item &&
+        'status' in item &&
+        'externalRootReference' in item &&
+        'configurationReference' in item &&
+        'createdAt' in item &&
+        'lastSuccessfulSynchronizationRunId' in item &&
+        'lastSuccessfulSynchronizationAt' in item &&
+        'lastFailedSynchronizationRunId' in item &&
+        'lastFailedSynchronizationAt' in item
+      ) {
+        expect(item.playbookSourceId).toBe(firstPlaybookSourceId);
+        expect(item.workspaceId).toBe(workspaceId);
+        expect(item.playbookId).toBe(playbookId);
+        expect(item.type).toBe('notion');
+        expect(item.status).toBe('enabled');
+        expect(item.externalRootReference).toBe('notion-root-1');
+        expect(item.configurationReference).toBe('notion/main');
+        expectIsoTimestamp(item.createdAt);
+        expect(item.lastSuccessfulSynchronizationRunId).toBeNull();
+        expect(item.lastSuccessfulSynchronizationAt).toBeNull();
+        expect(item.lastFailedSynchronizationRunId).toBeNull();
+        expect(item.lastFailedSynchronizationAt).toBeNull();
+      } else throw new Error('Invalid item structure in source list JSON.');
+    } else throw new Error('Invalid source list JSON structure.');
+
+    // 34. List first playbook sources as human.
+    const listSource1HumanRes = runCli(
+      ['playbook', 'source', 'list', '--playbook-id', playbookId],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(listSource1HumanRes.status).toBe(0);
+    expect(listSource1HumanRes.stderr).toBe('');
+    expect(listSource1HumanRes.stdout).toContain('Playbook Sources:');
+    expect(listSource1HumanRes.stdout).toContain(firstPlaybookSourceId);
+    expect(listSource1HumanRes.stdout).toContain('enabled');
+    expect(listSource1HumanRes.stdout).toContain('notion');
+    expect(listSource1HumanRes.stdout).toContain('Page: 1-1 of 1');
+    expect(listSource1HumanRes.stdout).not.toContain('notion-root-1');
+    expect(listSource1HumanRes.stdout).not.toContain(workspaceId);
+    assertSafeOutput(listSource1HumanRes.stdout);
+
+    // 35. Pagination out of range.
+    const emptyPageRes = runCli(
+      [
+        'playbook',
+        'source',
+        'list',
+        '--playbook-id',
+        playbookId,
+        '--offset',
+        '10',
+        '--limit',
+        '5',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(emptyPageRes.status).toBe(0);
+    expect(emptyPageRes.stderr).toBe('');
+    assertSafeOutput(emptyPageRes.stdout);
+    const emptyPageJson: unknown = JSON.parse(emptyPageRes.stdout);
+    if (
+      emptyPageJson !== null &&
+      typeof emptyPageJson === 'object' &&
+      'success' in emptyPageJson &&
+      emptyPageJson.success === true &&
+      'data' in emptyPageJson &&
+      emptyPageJson.data !== null &&
+      typeof emptyPageJson.data === 'object' &&
+      'items' in emptyPageJson.data &&
+      Array.isArray(emptyPageJson.data.items) &&
+      'offset' in emptyPageJson.data &&
+      'limit' in emptyPageJson.data &&
+      'hasMore' in emptyPageJson.data &&
+      'totalCount' in emptyPageJson.data
+    ) {
+      expect(emptyPageJson.data.items).toHaveLength(0);
+      expect(emptyPageJson.data.offset).toBe(10);
+      expect(emptyPageJson.data.limit).toBe(5);
+      expect(emptyPageJson.data.hasMore).toBe(false);
+      expect(emptyPageJson.data.totalCount).toBe(1);
+    } else throw new Error('Invalid empty page JSON structure.');
+
+    // 36. List sources for archived playbook.
+    const listArchivedRes = runCli(
+      ['playbook', 'source', 'list', '--playbook-id', playbookId2, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(listArchivedRes.status).toBe(0);
+    expect(listArchivedRes.stderr).toBe('');
+    assertSafeOutput(listArchivedRes.stdout);
+    const listArchivedJson: unknown = JSON.parse(listArchivedRes.stdout);
+    if (
+      listArchivedJson !== null &&
+      typeof listArchivedJson === 'object' &&
+      'success' in listArchivedJson &&
+      listArchivedJson.success === true &&
+      'data' in listArchivedJson &&
+      listArchivedJson.data !== null &&
+      typeof listArchivedJson.data === 'object' &&
+      'items' in listArchivedJson.data &&
+      Array.isArray(listArchivedJson.data.items)
+    ) {
+      expect(listArchivedJson.data.items).toHaveLength(1);
+      const archivedItem = listArchivedJson.data.items[0];
+      if (
+        archivedItem !== null &&
+        typeof archivedItem === 'object' &&
+        'playbookSourceId' in archivedItem &&
+        'playbookId' in archivedItem &&
+        'status' in archivedItem
+      ) {
+        expect(archivedItem.playbookSourceId).toBe(secondPlaybookSourceId);
+        expect(archivedItem.playbookId).toBe(playbookId2);
+        expect(archivedItem.status).toBe('enabled');
+      } else throw new Error('Invalid archived source list item structure.');
+    } else throw new Error('Invalid archived source list JSON structure.');
+
+    // 37. Invalid identifier.
+    const invalidListRes = runCli(
+      ['playbook', 'source', 'list', '--playbook-id', 'not-a-uuid', '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(invalidListRes.status).toBe(2);
+    expect(invalidListRes.stderr).toBe('');
+    assertSafeOutput(invalidListRes.stdout);
+    const invalidListJson: unknown = JSON.parse(invalidListRes.stdout);
+    if (
+      invalidListJson !== null &&
+      typeof invalidListJson === 'object' &&
+      'success' in invalidListJson &&
+      'error' in invalidListJson &&
+      invalidListJson.error !== null &&
+      typeof invalidListJson.error === 'object' &&
+      'code' in invalidListJson.error
+    ) {
+      expect(invalidListJson.success).toBe(false);
+      expect(invalidListJson.error.code).toBe('INVALID_IDENTIFIER');
+    } else throw new Error('Invalid list invalid-id JSON structure.');
+
+    // 38. Non-existent playbook.
+    const nonExistentListRes = runCli(
+      [
+        'playbook',
+        'source',
+        'list',
+        '--playbook-id',
+        '00000000-0000-0000-0000-000000000999',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(nonExistentListRes.status).toBe(3);
+    expect(nonExistentListRes.stderr).toBe('');
+    assertSafeOutput(nonExistentListRes.stdout);
+    const nonExistentListJson: unknown = JSON.parse(nonExistentListRes.stdout);
+    if (
+      nonExistentListJson !== null &&
+      typeof nonExistentListJson === 'object' &&
+      'success' in nonExistentListJson &&
+      'error' in nonExistentListJson &&
+      nonExistentListJson.error !== null &&
+      typeof nonExistentListJson.error === 'object' &&
+      'code' in nonExistentListJson.error
+    ) {
+      expect(nonExistentListJson.success).toBe(false);
+      expect(nonExistentListJson.error.code).toBe('PLAYBOOK_NOT_FOUND');
+    } else throw new Error('Invalid list not-found JSON structure.');
   });
 });

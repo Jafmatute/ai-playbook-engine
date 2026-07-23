@@ -27,6 +27,7 @@ import {
   ListPlaybooksHandler,
   RegisterPlaybookSourceHandler,
   GetPlaybookSourceHandler,
+  ListPlaybookSourcesHandler,
 } from '@ai-playbook-engine/application';
 
 export interface Services {
@@ -41,6 +42,7 @@ export interface Services {
   readonly listPlaybooks: ListPlaybooksHandler;
   readonly registerPlaybookSource: RegisterPlaybookSourceHandler;
   readonly getPlaybookSource: GetPlaybookSourceHandler;
+  readonly listPlaybookSources: ListPlaybookSourcesHandler;
   readonly migrate: () => Promise<Result<MigrationResult, MigrationFailedError>>;
 }
 
@@ -123,6 +125,13 @@ export function buildServices(config: RawConfig): Result<Services, BuildServices
     playbookSourceRepository,
   );
 
+  const listPlaybookSources = new ListPlaybookSourcesHandler(
+    currentWorkspaceProvider,
+    workspaceRepository,
+    playbookRepository,
+    playbookSourceRepository,
+  );
+
   const getPlaybook = new GetPlaybookHandler(
     currentWorkspaceProvider,
     workspaceRepository,
@@ -145,6 +154,7 @@ export function buildServices(config: RawConfig): Result<Services, BuildServices
     restorePlaybook,
     registerPlaybookSource,
     getPlaybookSource,
+    listPlaybookSources,
     getPlaybook,
     listPlaybooks,
     migrate: () => runMigrations(pool),
