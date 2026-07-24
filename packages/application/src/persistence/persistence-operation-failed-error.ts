@@ -13,6 +13,7 @@ export type PersistenceOperation =
   | 'playbookSource.findEnabledByPlaybookId'
   | 'playbookSource.listByPlaybookId'
   | 'playbookSource.insert'
+  | 'playbookSource.update'
   | 'synchronizationRun.findById'
   | 'synchronizationRun.findActiveByPlaybookSourceId'
   | 'synchronizationRun.findLatestCompletedByPlaybookSourceId'

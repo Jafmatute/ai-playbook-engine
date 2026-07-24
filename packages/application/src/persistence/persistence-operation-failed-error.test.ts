@@ -11,6 +11,8 @@ const operations = [
   'playbook.insert',
   'playbook.update',
   'playbookSource.findById',
+  'playbookSource.insert',
+  'playbookSource.update',
   'synchronizationRun.findById',
   'playbookVersion.findById',
   'synchronizationSnapshot.findById',
