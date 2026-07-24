@@ -30,6 +30,7 @@ export interface CliServices {
   readonly archivePlaybook: Pick<Services['archivePlaybook'], 'handle'>;
   readonly restorePlaybook: Pick<Services['restorePlaybook'], 'handle'>;
   readonly registerPlaybookSource: Pick<Services['registerPlaybookSource'], 'handle'>;
+  readonly disablePlaybookSource: Pick<Services['disablePlaybookSource'], 'handle'>;
   readonly getPlaybookSource: Pick<Services['getPlaybookSource'], 'handle'>;
   readonly listPlaybookSources: Pick<Services['listPlaybookSources'], 'handle'>;
   readonly getPlaybook: Pick<Services['getPlaybook'], 'handle'>;
@@ -82,6 +83,7 @@ const ALLOWED_FLAGS: ReadonlyMap<string, ReadonlySet<string>> = new Map<
   ],
   ['playbook source show', new Set<string>(['id', 'output', 'help'])],
   ['playbook source list', new Set<string>(['playbook-id', 'offset', 'limit', 'output', 'help'])],
+  ['playbook source disable', new Set<string>(['id', 'output', 'help'])],
 ]);
 
 const GLOBAL_FLAGS = new Set<string>(['output', 'workspace-id', 'help']);
@@ -216,6 +218,9 @@ export async function runCli(
       }
       case 'playbook source list': {
         return await runPlaybookSourceList(config, output, flags, io, dependencies);
+      }
+      case 'playbook source disable': {
+        return await runPlaybookSourceDisable(config, output, flags, io, dependencies);
       }
       default: {
         return await handleError(`Unknown command: "${subcommand}".`, 'INVALID_INPUT', output, io);
@@ -841,6 +846,45 @@ async function runPlaybookSourceShow(
   }
 }
 
+async function runPlaybookSourceDisable(
+  config: RawConfig,
+  output: CliOutput,
+  flags: ReadonlyMap<string, string | boolean>,
+  io: CliIo,
+  dependencies: RunCliDependencies,
+): Promise<ExitCode> {
+  const id = flags.get('id');
+  if (typeof id !== 'string' || id.length === 0) {
+    return await handleError('--id is required', 'INVALID_INPUT', output, io);
+  }
+
+  const servicesResult = dependencies.buildServices(config);
+  if (!servicesResult.success) {
+    return await handleStructuredError(servicesResult.error, output, io);
+  }
+
+  const services = servicesResult.value;
+  try {
+    const result = await services.disablePlaybookSource.handle({
+      playbookSourceId: id,
+    });
+
+    if (!result.success) {
+      return await handleUseCaseError(result.error, output, io);
+    }
+
+    if (output === 'json') {
+      io.writeStdout(renderJsonSuccess(result.value) + '\n');
+    } else {
+      io.writeStdout(renderPlaybookSource(result.value) + '\n');
+    }
+
+    return ExitCode.SUCCESS;
+  } finally {
+    await services.pool.close();
+  }
+}
+
 async function handleError(
   message: string,
   errorCode: string,
@@ -916,6 +960,7 @@ Usage:
   playbook source register  --playbook-id <uuid> --type <type>  Register a playbook source
   playbook source show      --id <uuid>       Show playbook source details
   playbook source list      --playbook-id <uuid> [options]  List playbook sources
+  playbook source disable   --id <uuid>       Disable a playbook source
 
 Global flags:
   --workspace-id <uuid>  Override the current workspace ID

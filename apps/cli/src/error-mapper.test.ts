@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import { mapErrorToExitCode } from './error-mapper.js';
 import { playbookSourceNotFound } from '@ai-playbook-engine/application';
-import { parsePlaybookSourceId } from '@ai-playbook-engine/core';
+import {
+  PlaybookSource,
+  PlaybookSourceConfigurationReference,
+  PlaybookSourceExternalRootReference,
+  parsePlaybookId,
+  parsePlaybookSourceId,
+  parseWorkspaceId,
+  Instant,
+} from '@ai-playbook-engine/core';
 
 describe('mapErrorToExitCode', () => {
   it.each([
@@ -41,6 +49,7 @@ describe('mapErrorToExitCode', () => {
     ['PLAYBOOK_NOT_ARCHIVED', 4],
     ['ENABLED_PLAYBOOK_SOURCE_CONFLICT', 4],
     ['PLAYBOOK_ARCHIVED', 4],
+    ['PLAYBOOK_SOURCE_TRANSITION_NOT_ALLOWED', 4],
   ])('maps %s to CONFLICT (%i)', (code, expected) => {
     expect(mapErrorToExitCode(code)).toBe(expected);
   });
@@ -58,5 +67,34 @@ describe('mapErrorToExitCode', () => {
 
   it('maps unknown code to UNEXPECTED_ERROR (1)', () => {
     expect(mapErrorToExitCode('SOME_UNKNOWN_CODE')).toBe(1);
+  });
+
+  it('maps real PLAYBOOK_SOURCE_TRANSITION_NOT_ALLOWED error from disable on disabled source to CONFLICT (4)', () => {
+    const workspaceIdResult = parseWorkspaceId('00000000-0000-0000-0000-000000000001');
+    if (!workspaceIdResult.success) throw new Error('Expected valid workspace ID.');
+    const nowResult = Instant.parse('2026-07-17T12:00:00.000Z');
+    if (!nowResult.success) throw new Error('Expected valid instant.');
+    const sourceIdResult = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+    if (!sourceIdResult.success) throw new Error('Expected valid source ID.');
+    const playbookIdResult = parsePlaybookId('00000000-0000-0000-0000-000000000002');
+    if (!playbookIdResult.success) throw new Error('Expected valid playbook ID.');
+    const externalResult = PlaybookSourceExternalRootReference.create('https://example.com/root');
+    if (!externalResult.success) throw new Error('Expected valid external root reference.');
+    const configResult = PlaybookSourceConfigurationReference.create('config-1');
+    if (!configResult.success) throw new Error('Expected valid configuration reference.');
+    const source = PlaybookSource.create({
+      playbookSourceId: sourceIdResult.value,
+      workspaceId: workspaceIdResult.value,
+      playbookId: playbookIdResult.value,
+      type: 'notion',
+      externalRootReference: externalResult.value,
+      configurationReference: configResult.value,
+      createdAt: nowResult.value,
+    });
+    source.disable();
+    const disableResult = source.disable();
+    if (disableResult.success)
+      throw new Error('Expected disable to fail on already disabled source.');
+    expect(mapErrorToExitCode(disableResult.error.code)).toBe(4);
   });
 });

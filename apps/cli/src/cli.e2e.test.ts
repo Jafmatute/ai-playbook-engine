@@ -1254,5 +1254,282 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(nonExistentListJson.success).toBe(false);
       expect(nonExistentListJson.error.code).toBe('PLAYBOOK_NOT_FOUND');
     } else throw new Error('Invalid list not-found JSON structure.');
+
+    // 39. Disable the first playbook source.
+    const disableSourceRes = runCli(
+      ['playbook', 'source', 'disable', '--id', firstPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(disableSourceRes.status).toBe(0);
+    expect(disableSourceRes.stderr).toBe('');
+    assertSafeOutput(disableSourceRes.stdout);
+    const disableSourceJson: unknown = JSON.parse(disableSourceRes.stdout);
+    if (
+      disableSourceJson !== null &&
+      typeof disableSourceJson === 'object' &&
+      'success' in disableSourceJson &&
+      disableSourceJson.success === true &&
+      'data' in disableSourceJson &&
+      disableSourceJson.data !== null &&
+      typeof disableSourceJson.data === 'object' &&
+      'playbookSourceId' in disableSourceJson.data &&
+      typeof disableSourceJson.data.playbookSourceId === 'string' &&
+      'workspaceId' in disableSourceJson.data &&
+      'playbookId' in disableSourceJson.data &&
+      'type' in disableSourceJson.data &&
+      'status' in disableSourceJson.data &&
+      'externalRootReference' in disableSourceJson.data &&
+      'configurationReference' in disableSourceJson.data &&
+      'createdAt' in disableSourceJson.data &&
+      'lastSuccessfulSynchronizationRunId' in disableSourceJson.data &&
+      'lastSuccessfulSynchronizationAt' in disableSourceJson.data &&
+      'lastFailedSynchronizationRunId' in disableSourceJson.data &&
+      'lastFailedSynchronizationAt' in disableSourceJson.data
+    ) {
+      expect(disableSourceJson.data.playbookSourceId).toBe(firstPlaybookSourceId);
+      expect(disableSourceJson.data.workspaceId).toBe(workspaceId);
+      expect(disableSourceJson.data.playbookId).toBe(playbookId);
+      expect(disableSourceJson.data.type).toBe('notion');
+      expect(disableSourceJson.data.status).toBe('disabled');
+      expect(disableSourceJson.data.externalRootReference).toBe('notion-root-1');
+      expect(disableSourceJson.data.configurationReference).toBe('notion/main');
+      expectIsoTimestamp(disableSourceJson.data.createdAt);
+      expect(disableSourceJson.data.lastSuccessfulSynchronizationRunId).toBeNull();
+      expect(disableSourceJson.data.lastSuccessfulSynchronizationAt).toBeNull();
+      expect(disableSourceJson.data.lastFailedSynchronizationRunId).toBeNull();
+      expect(disableSourceJson.data.lastFailedSynchronizationAt).toBeNull();
+      expect('revision' in disableSourceJson.data).toBe(false);
+      expect('token' in disableSourceJson.data).toBe(false);
+      expect('credential' in disableSourceJson.data).toBe(false);
+      expect('secret' in disableSourceJson.data).toBe(false);
+    } else throw new Error('Invalid disable source json output structure');
+
+    // 40. Show the source after disable — must show status disabled.
+    const showDisabledSourceRes = runCli(
+      ['playbook', 'source', 'show', '--id', firstPlaybookSourceId],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(showDisabledSourceRes.status).toBe(0);
+    expect(showDisabledSourceRes.stderr).toBe('');
+    expect(showDisabledSourceRes.stdout).toContain(firstPlaybookSourceId);
+    expect(showDisabledSourceRes.stdout).toContain('Status:                   disabled');
+    assertSafeOutput(showDisabledSourceRes.stdout);
+
+    // 41. List after disable — the disabled source still appears.
+    const listAfterDisableRes = runCli(
+      ['playbook', 'source', 'list', '--playbook-id', playbookId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(listAfterDisableRes.status).toBe(0);
+    expect(listAfterDisableRes.stderr).toBe('');
+    assertSafeOutput(listAfterDisableRes.stdout);
+    const listAfterDisableJson: unknown = JSON.parse(listAfterDisableRes.stdout);
+    if (
+      listAfterDisableJson !== null &&
+      typeof listAfterDisableJson === 'object' &&
+      'success' in listAfterDisableJson &&
+      listAfterDisableJson.success === true &&
+      'data' in listAfterDisableJson &&
+      listAfterDisableJson.data !== null &&
+      typeof listAfterDisableJson.data === 'object' &&
+      'items' in listAfterDisableJson.data &&
+      Array.isArray(listAfterDisableJson.data.items)
+    ) {
+      const items = listAfterDisableJson.data.items;
+      expect(items).toHaveLength(1);
+      if (
+        items[0] !== null &&
+        typeof items[0] === 'object' &&
+        'playbookSourceId' in items[0] &&
+        'status' in items[0]
+      ) {
+        expect(items[0].playbookSourceId).toBe(firstPlaybookSourceId);
+        expect(items[0].status).toBe('disabled');
+      } else throw new Error('Invalid list-after-disable item structure.');
+    } else throw new Error('Invalid list-after-disable JSON structure.');
+
+    // 42. Re-disable returns transition error.
+    const disableAgainRes = runCli(
+      ['playbook', 'source', 'disable', '--id', firstPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(disableAgainRes.status).toBe(4);
+    expect(disableAgainRes.stderr).toBe('');
+    assertSafeOutput(disableAgainRes.stdout);
+    const disableAgainJson: unknown = JSON.parse(disableAgainRes.stdout);
+    if (
+      disableAgainJson !== null &&
+      typeof disableAgainJson === 'object' &&
+      'success' in disableAgainJson &&
+      'error' in disableAgainJson &&
+      disableAgainJson.error !== null &&
+      typeof disableAgainJson.error === 'object' &&
+      'code' in disableAgainJson.error
+    ) {
+      expect(disableAgainJson.success).toBe(false);
+      expect(disableAgainJson.error.code).toBe('PLAYBOOK_SOURCE_TRANSITION_NOT_ALLOWED');
+      if (
+        'details' in disableAgainJson.error &&
+        disableAgainJson.error.details !== null &&
+        typeof disableAgainJson.error.details === 'object' &&
+        'operation' in disableAgainJson.error.details &&
+        'currentStatus' in disableAgainJson.error.details &&
+        'expectedStatus' in disableAgainJson.error.details
+      ) {
+        expect(disableAgainJson.error.details.operation).toBe('disable');
+        expect(disableAgainJson.error.details.currentStatus).toBe('disabled');
+        expect(disableAgainJson.error.details.expectedStatus).toBe('enabled');
+      } else throw new Error('Invalid disable again error details.');
+    } else throw new Error('Invalid disable again json output structure');
+
+    // 43. Show after re-disable failure — source still disabled.
+    const showAfterDisableAgainRes = runCli(
+      ['playbook', 'source', 'show', '--id', firstPlaybookSourceId],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(showAfterDisableAgainRes.status).toBe(0);
+    expect(showAfterDisableAgainRes.stderr).toBe('');
+    expect(showAfterDisableAgainRes.stdout).toContain('Status:                   disabled');
+    assertSafeOutput(showAfterDisableAgainRes.stdout);
+
+    // 44. Register a new enabled source for the same playbook (verifies index is freed).
+    const newSourceAfterDisableRes = runCli(
+      [
+        'playbook',
+        'source',
+        'register',
+        '--playbook-id',
+        playbookId,
+        '--type',
+        'notion',
+        '--external-root-reference',
+        'notion-root-new',
+        '--configuration-reference',
+        'notion/new',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(newSourceAfterDisableRes.status).toBe(0);
+    expect(newSourceAfterDisableRes.stderr).toBe('');
+    assertSafeOutput(newSourceAfterDisableRes.stdout);
+    const newSourceJson: unknown = JSON.parse(newSourceAfterDisableRes.stdout);
+    let newSourceId = '';
+    if (
+      newSourceJson !== null &&
+      typeof newSourceJson === 'object' &&
+      'success' in newSourceJson &&
+      newSourceJson.success === true &&
+      'data' in newSourceJson &&
+      newSourceJson.data !== null &&
+      typeof newSourceJson.data === 'object' &&
+      'playbookSourceId' in newSourceJson.data &&
+      typeof newSourceJson.data.playbookSourceId === 'string' &&
+      'status' in newSourceJson.data &&
+      'playbookId' in newSourceJson.data &&
+      typeof newSourceJson.data.playbookId === 'string'
+    ) {
+      newSourceId = newSourceJson.data.playbookSourceId;
+      expect(newSourceJson.data.status).toBe('enabled');
+      expect(newSourceJson.data.playbookId).toBe(playbookId);
+    } else throw new Error('Invalid new source after disable json output structure');
+
+    // 45. List both sources — one disabled, one enabled.
+    const listBothRes = runCli(
+      ['playbook', 'source', 'list', '--playbook-id', playbookId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(listBothRes.status).toBe(0);
+    expect(listBothRes.stderr).toBe('');
+    assertSafeOutput(listBothRes.stdout);
+    const listBothJson: unknown = JSON.parse(listBothRes.stdout);
+    if (
+      listBothJson !== null &&
+      typeof listBothJson === 'object' &&
+      'success' in listBothJson &&
+      listBothJson.success === true &&
+      'data' in listBothJson &&
+      listBothJson.data !== null &&
+      typeof listBothJson.data === 'object' &&
+      'items' in listBothJson.data &&
+      Array.isArray(listBothJson.data.items)
+    ) {
+      expect(listBothJson.data.items).toHaveLength(2);
+      const foundDisabled = listBothJson.data.items.some(
+        (item: unknown) =>
+          item !== null &&
+          typeof item === 'object' &&
+          'playbookSourceId' in item &&
+          item.playbookSourceId === firstPlaybookSourceId &&
+          'status' in item &&
+          item.status === 'disabled',
+      );
+      const foundEnabled = listBothJson.data.items.some(
+        (item: unknown) =>
+          item !== null &&
+          typeof item === 'object' &&
+          'playbookSourceId' in item &&
+          item.playbookSourceId === newSourceId &&
+          'status' in item &&
+          item.status === 'enabled',
+      );
+      expect(foundDisabled).toBe(true);
+      expect(foundEnabled).toBe(true);
+    } else throw new Error('Invalid list-both JSON structure.');
+
+    // 46. Disable on a source whose playbook is archived must still succeed.
+    const disableArchivedPlaybookSourceRes = runCli(
+      ['playbook', 'source', 'disable', '--id', secondPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(disableArchivedPlaybookSourceRes.status).toBe(0);
+    expect(disableArchivedPlaybookSourceRes.stderr).toBe('');
+    assertSafeOutput(disableArchivedPlaybookSourceRes.stdout);
+    const disableArchivedJson: unknown = JSON.parse(disableArchivedPlaybookSourceRes.stdout);
+    if (
+      disableArchivedJson !== null &&
+      typeof disableArchivedJson === 'object' &&
+      'success' in disableArchivedJson &&
+      disableArchivedJson.success === true &&
+      'data' in disableArchivedJson &&
+      disableArchivedJson.data !== null &&
+      typeof disableArchivedJson.data === 'object' &&
+      'playbookSourceId' in disableArchivedJson.data &&
+      'status' in disableArchivedJson.data
+    ) {
+      expect(disableArchivedJson.data.playbookSourceId).toBe(secondPlaybookSourceId);
+      expect(disableArchivedJson.data.status).toBe('disabled');
+    } else throw new Error('Invalid disable archived playbook source json output structure');
+
+    // 47. Non-existent source returns PLAYBOOK_SOURCE_NOT_FOUND.
+    const disableNonExistentRes = runCli(
+      [
+        'playbook',
+        'source',
+        'disable',
+        '--id',
+        '00000000-0000-0000-0000-000000000999',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(disableNonExistentRes.status).toBe(3);
+    expect(disableNonExistentRes.stderr).toBe('');
+    assertSafeOutput(disableNonExistentRes.stdout);
+    const disableNonExistentJson: unknown = JSON.parse(disableNonExistentRes.stdout);
+    if (
+      disableNonExistentJson !== null &&
+      typeof disableNonExistentJson === 'object' &&
+      'success' in disableNonExistentJson &&
+      'error' in disableNonExistentJson &&
+      disableNonExistentJson.error !== null &&
+      typeof disableNonExistentJson.error === 'object' &&
+      'code' in disableNonExistentJson.error
+    ) {
+      expect(disableNonExistentJson.success).toBe(false);
+      expect(disableNonExistentJson.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
+    } else throw new Error('Invalid disable non-existent json output structure');
   });
 });

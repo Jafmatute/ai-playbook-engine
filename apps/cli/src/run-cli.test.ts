@@ -11,7 +11,11 @@ import type {
   PlaybookSourceOutput,
   Page,
 } from '@ai-playbook-engine/application';
+import type {
+  DisablePlaybookSourceError,
+} from '@ai-playbook-engine/application';
 import {
+  currentWorkspaceUnavailable,
   enabledPlaybookSourceConflict,
   playbookArchived,
   workspaceAlreadyInitialized,
@@ -62,6 +66,7 @@ interface MockServicesOverrides {
   readonly archivePlaybook?: CliServices['archivePlaybook'];
   readonly restorePlaybook?: CliServices['restorePlaybook'];
   readonly registerPlaybookSource?: CliServices['registerPlaybookSource'];
+  readonly disablePlaybookSource?: CliServices['disablePlaybookSource'];
   readonly getPlaybookSource?: CliServices['getPlaybookSource'];
   readonly listPlaybookSources?: CliServices['listPlaybookSources'];
   readonly getPlaybook?: CliServices['getPlaybook'];
@@ -292,6 +297,9 @@ function createMockServices(overrides: MockServicesOverrides = {}): CliServices 
     },
     registerPlaybookSource: overrides.registerPlaybookSource ?? {
       handle: async () => ok(createPlaybookSourceOutputFixture()),
+    },
+    disablePlaybookSource: overrides.disablePlaybookSource ?? {
+      handle: async () => ok(createPlaybookSourceOutputFixture({ status: 'disabled' })),
     },
     getPlaybookSource: overrides.getPlaybookSource ?? {
       handle: async () => ok(createPlaybookSourceOutputFixture()),
@@ -1588,16 +1596,16 @@ describe('runCli playbook source show command', () => {
       ExitCode.NOT_FOUND,
     ],
     [persistenceOperationFailed('playbookSource.findById'), ExitCode.INFRASTRUCTURE_ERROR],
-  ])('maps real $0.code errors to exits and closes once', async (error, expected) => {
+    [currentWorkspaceUnavailable(), ExitCode.CONFIG_ERROR],
+  ])('maps real $0.code errors to exits and closes once (human)', async (error, expected) => {
     const pool = new MockPool();
     const getPlaybookSource: CliServices['getPlaybookSource'] = {
       handle: async () => err(error),
     };
     const io = new MockIo();
-
     expect(
       await runCli(
-        args,
+        ['playbook', 'source', 'show', '--id', '00000000-0000-0000-0000-000000000003'],
         envReader,
         io,
         createMockDependencies(createMockServices({ pool, getPlaybookSource })),
@@ -1607,81 +1615,146 @@ describe('runCli playbook source show command', () => {
     expect(io.stdout).toBe('');
     expect(pool.closeCalled).toBe(1);
   });
+});
 
-  it('renders expected JSON error for PLAYBOOK_SOURCE_NOT_FOUND', async () => {
-    const failure = playbookSourceNotFound(
-      createPlaybookSourceId('00000000-0000-0000-0000-000000000003'),
+describe('runCli playbook source disable command', () => {
+  const envReader = new MapEnvReader(
+    new Map([['AI_PLAYBOOK_ENGINE_DATABASE_URL', 'postgres://localhost:5432/db']]),
+  );
+  const args = ['playbook', 'source', 'disable', '--id', '00000000-0000-0000-0000-000000000003'];
+
+  it('includes help', async () => {
+    const help = new MockIo();
+    expect(
+      await runCli(['--help'], envReader, help, createMockDependencies(createMockServices())),
+    ).toBe(ExitCode.SUCCESS);
+    expect(help.stdout).toContain(
+      'playbook source disable   --id <uuid>       Disable a playbook source',
     );
-    const pool = new MockPool();
-    const getPlaybookSource: CliServices['getPlaybookSource'] = {
-      handle: async () => err(failure),
-    };
-    const io = new MockIo();
+  });
 
+  it.each([
+    ['a missing id', ['playbook', 'source', 'disable']],
+    ['an id flag without a value', ['playbook', 'source', 'disable', '--id']],
+    ['an unknown flag', [...args, '--unexpected']],
+    ['the forbidden --force flag', [...args, '--force', 'true']],
+    ['the forbidden --reason flag', [...args, '--reason', 'test']],
+    [
+      'the forbidden --playbook-id flag',
+      [...args, '--playbook-id', '00000000-0000-0000-0000-000000000002'],
+    ],
+  ])('rejects %s before building services', async (_scenario, invalid) => {
+    const dependencies = createMockDependencies(createMockServices());
+    expect(await runCli(invalid, envReader, new MockIo(), dependencies)).toBe(
+      ExitCode.INVALID_INPUT,
+    );
+    expect(dependencies.getBuildCalled()).toBe(0);
+  });
+
+  it('passes the exact command, renders disabled human and JSON output, and closes once', async () => {
+    const pool = new MockPool();
+    const disablePlaybookSource: CliServices['disablePlaybookSource'] = {
+      handle: async (command) => {
+        expect(command).toEqual({
+          playbookSourceId: '00000000-0000-0000-0000-000000000003',
+        });
+        return ok(createPlaybookSourceOutputFixture({ status: 'disabled' }));
+      },
+    };
+    const human = new MockIo();
+    expect(
+      await runCli(
+        args,
+        envReader,
+        human,
+        createMockDependencies(createMockServices({ pool, disablePlaybookSource })),
+      ),
+    ).toBe(ExitCode.SUCCESS);
+    expect(human.stdout).toContain('Status:                   disabled');
+    expect(human.stderr).toBe('');
+    expect(pool.closeCalled).toBe(1);
+
+    const jsonPool = new MockPool();
+    const json = new MockIo();
     expect(
       await runCli(
         [...args, '--output', 'json'],
         envReader,
-        io,
-        createMockDependencies(createMockServices({ pool, getPlaybookSource })),
+        json,
+        createMockDependencies(createMockServices({ pool: jsonPool })),
       ),
-    ).toBe(ExitCode.NOT_FOUND);
-    expect(io.stderr).toBe('');
-    const parsed: unknown = JSON.parse(io.stdout);
+    ).toBe(ExitCode.SUCCESS);
+    const parsed: unknown = JSON.parse(json.stdout);
+    expect(parsed).not.toBeNull();
+    expect(typeof parsed).toBe('object');
     if (
       parsed !== null &&
       typeof parsed === 'object' &&
       'success' in parsed &&
-      'error' in parsed &&
-      parsed.error !== null &&
-      typeof parsed.error === 'object' &&
-      'code' in parsed.error &&
-      'message' in parsed.error &&
-      'details' in parsed.error &&
-      parsed.error.details !== null &&
-      typeof parsed.error.details === 'object'
+      parsed.success === true &&
+      'data' in parsed &&
+      parsed.data !== null &&
+      typeof parsed.data === 'object' &&
+      'playbookSourceId' in parsed.data &&
+      'workspaceId' in parsed.data &&
+      'playbookId' in parsed.data &&
+      'type' in parsed.data &&
+      'status' in parsed.data &&
+      'externalRootReference' in parsed.data &&
+      'configurationReference' in parsed.data &&
+      'createdAt' in parsed.data &&
+      'lastSuccessfulSynchronizationRunId' in parsed.data &&
+      'lastSuccessfulSynchronizationAt' in parsed.data &&
+      'lastFailedSynchronizationRunId' in parsed.data &&
+      'lastFailedSynchronizationAt' in parsed.data
     ) {
-      expect(parsed.success).toBe(false);
-      expect(parsed.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
-      expect(parsed.error.message).toBe(
-        'The playbook source was not found in the current workspace.',
-      );
-      expect('playbookSourceId' in parsed.error.details).toBe(true);
-      if ('playbookSourceId' in parsed.error.details) {
-        expect(parsed.error.details.playbookSourceId).toBe('00000000-0000-0000-0000-000000000003');
-      }
-      expect(io.stdout).not.toMatch(/token|credential|secret/i);
-      expect(io.stdout).not.toContain('postgres://localhost:5432/db');
-      expect(io.stderr).not.toContain('postgres://localhost:5432/db');
-      expect(io.stderr).not.toMatch(/token|credential|secret/i);
-    } else {
-      throw new Error('Invalid PLAYBOOK_SOURCE_NOT_FOUND JSON error structure.');
-    }
-    expect(pool.closeCalled).toBe(1);
+      expect(parsed.data.status).toBe('disabled');
+      expect('revision' in parsed.data).toBe(false);
+      expect('token' in parsed.data).toBe(false);
+      expect('credential' in parsed.data).toBe(false);
+      expect('secret' in parsed.data).toBe(false);
+    } else throw new Error('Invalid disable JSON success output structure.');
+    expect(json.stderr).toBe('');
+    expect(jsonPool.closeCalled).toBe(1);
   });
 
-  it('closes once and preserves privacy when the handler throws in JSON mode', async () => {
-    const pool = new MockPool();
-    const getPlaybookSource: CliServices['getPlaybookSource'] = {
-      handle: async () => {
-        throw new Error('Secret source show failure');
-      },
-    };
-    const io = new MockIo();
+  const disableErrorCases: readonly (readonly [DisablePlaybookSourceError, ExitCode])[] = [
+    [createInvalidPlaybookSourceIdError(), ExitCode.INVALID_INPUT],
+    [currentWorkspaceUnavailable(), ExitCode.CONFIG_ERROR],
+    [workspaceNotFound(), ExitCode.NOT_FOUND],
+    [persistenceOperationFailed('playbookSource.findById'), ExitCode.INFRASTRUCTURE_ERROR],
+    [
+      playbookSourceNotFound(createPlaybookSourceId('00000000-0000-0000-0000-000000000003')),
+      ExitCode.NOT_FOUND,
+    ],
+    [persistenceRevisionConflict(createPersistenceRevision(1)), ExitCode.CONFLICT],
+    [
+      enabledPlaybookSourceConflict(createPlaybookId('00000000-0000-0000-0000-000000000002')),
+      ExitCode.CONFLICT,
+    ],
+    [persistenceOperationFailed('playbookSource.update'), ExitCode.INFRASTRUCTURE_ERROR],
+  ];
 
-    expect(
-      await runCli(
-        [...args, '--output', 'json'],
-        envReader,
-        io,
-        createMockDependencies(createMockServices({ pool, getPlaybookSource })),
-      ),
-    ).toBe(ExitCode.UNEXPECTED_ERROR);
-    expect(io.stdout).toContain('An unexpected error occurred.');
-    expect(io.stdout).not.toContain('Secret source show failure');
-    expect(io.stderr).toBe('');
-    expect(pool.closeCalled).toBe(1);
-  });
+  it.each(disableErrorCases)(
+    'maps real $0.code error to exit $1 and closes pool exactly once in JSON',
+    async (error, expected) => {
+      const pool = new MockPool();
+      const disablePlaybookSource: CliServices['disablePlaybookSource'] = {
+        handle: async () => err(error),
+      };
+      const io = new MockIo();
+      expect(
+        await runCli(
+          [...args, '--output', 'json'],
+          envReader,
+          io,
+          createMockDependencies(createMockServices({ pool, disablePlaybookSource })),
+        ),
+      ).toBe(expected);
+      expect(io.stderr).toBe('');
+      expect(pool.closeCalled).toBe(1);
+    },
+  );
 });
 
 describe('runCli playbook source list command', () => {
@@ -1703,6 +1776,9 @@ describe('runCli playbook source list command', () => {
     ).toBe(ExitCode.SUCCESS);
     expect(help.stdout).toContain(
       'playbook source list      --playbook-id <uuid> [options]  List playbook sources',
+    );
+    expect(help.stdout).toContain(
+      'playbook source disable   --id <uuid>       Disable a playbook source',
     );
   });
 
