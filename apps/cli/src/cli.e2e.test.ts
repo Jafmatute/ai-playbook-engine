@@ -618,6 +618,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     assertSafeOutput(showAfterRestoreAgainRes.stdout);
 
     let firstPlaybookSourceId: string;
+    let firstPlaybookSourceCreatedAt: string;
     let secondPlaybookSourceId: string;
 
     // 23. Register a source for the restored active Playbook.
@@ -674,6 +675,10 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(registerSourceJson.data.externalRootReference).toBe('notion-root-1');
       expect(registerSourceJson.data.configurationReference).toBe('notion/main');
       expectIsoTimestamp(registerSourceJson.data.createdAt);
+      expect(typeof registerSourceJson.data.createdAt).toBe('string');
+      if (typeof registerSourceJson.data.createdAt !== 'string')
+        throw new Error('Expected createdAt to be a string.');
+      firstPlaybookSourceCreatedAt = registerSourceJson.data.createdAt;
       expect(registerSourceJson.data.lastSuccessfulSynchronizationRunId).toBeNull();
       expect(registerSourceJson.data.lastSuccessfulSynchronizationAt).toBeNull();
       expect(registerSourceJson.data.lastFailedSynchronizationRunId).toBeNull();
@@ -1293,7 +1298,7 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(disableSourceJson.data.status).toBe('disabled');
       expect(disableSourceJson.data.externalRootReference).toBe('notion-root-1');
       expect(disableSourceJson.data.configurationReference).toBe('notion/main');
-      expectIsoTimestamp(disableSourceJson.data.createdAt);
+      expect(disableSourceJson.data.createdAt).toBe(firstPlaybookSourceCreatedAt);
       expect(disableSourceJson.data.lastSuccessfulSynchronizationRunId).toBeNull();
       expect(disableSourceJson.data.lastSuccessfulSynchronizationAt).toBeNull();
       expect(disableSourceJson.data.lastFailedSynchronizationRunId).toBeNull();
@@ -1531,5 +1536,79 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(disableNonExistentJson.success).toBe(false);
       expect(disableNonExistentJson.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
     } else throw new Error('Invalid disable non-existent json output structure');
+
+    // 48. Cross-workspace isolation: disable from the primary workspace does not affect a foreign source.
+    const foreignWorkspaceId = '00000000-0000-0000-0000-000000000901';
+    const foreignPlaybookId = '00000000-0000-0000-0000-000000000902';
+    const foreignSourceId = '00000000-0000-0000-0000-000000000903';
+
+    const foreignPool = new pg.Pool({ connectionString: testDbUrl });
+    try {
+      await foreignPool.query(
+        `INSERT INTO workspaces (workspace_id, name, normalized_name, status, created_at, updated_at)
+         VALUES ($1, 'Foreign', 'foreign', 'active', NOW(), NOW())`,
+        [foreignWorkspaceId],
+      );
+      await foreignPool.query(
+        `INSERT INTO playbooks (workspace_id, playbook_id, name, normalized_name, status, created_at, updated_at, revision)
+         VALUES ($1, $2, 'Foreign Playbook', 'foreign-playbook', 'active', NOW(), NOW(), 1)`,
+        [foreignWorkspaceId, foreignPlaybookId],
+      );
+      await foreignPool.query(
+        `INSERT INTO playbook_sources (playbook_source_id, workspace_id, playbook_id, type, status, external_root_reference, configuration_reference, created_at, revision)
+         VALUES ($1, $2, $3, 'notion', 'enabled', 'foreign-root', 'foreign-config', NOW(), 1)`,
+        [foreignSourceId, foreignWorkspaceId, foreignPlaybookId],
+      );
+    } finally {
+      await foreignPool.end();
+    }
+
+    const disableForeignRes = runCli(
+      ['playbook', 'source', 'disable', '--id', foreignSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(disableForeignRes.status).toBe(3);
+    expect(disableForeignRes.stderr).toBe('');
+    assertSafeOutput(disableForeignRes.stdout);
+    const disableForeignJson: unknown = JSON.parse(disableForeignRes.stdout);
+    if (
+      disableForeignJson !== null &&
+      typeof disableForeignJson === 'object' &&
+      'success' in disableForeignJson &&
+      'error' in disableForeignJson &&
+      disableForeignJson.error !== null &&
+      typeof disableForeignJson.error === 'object' &&
+      'code' in disableForeignJson.error
+    ) {
+      expect(disableForeignJson.success).toBe(false);
+      expect(disableForeignJson.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
+      expect(JSON.stringify(disableForeignJson.error)).not.toContain(foreignWorkspaceId);
+      expect(JSON.stringify(disableForeignJson.error)).not.toContain(foreignPlaybookId);
+      expect(JSON.stringify(disableForeignJson.error)).not.toContain('enabled');
+      expect(JSON.stringify(disableForeignJson.error)).not.toContain('revision');
+    } else throw new Error('Invalid disable foreign source json output structure');
+
+    // 49. Verify foreign source remains unchanged.
+    const verifyPool = new pg.Pool({ connectionString: testDbUrl });
+    try {
+      const verifyResult = await verifyPool.query<{
+        workspace_id: string;
+        playbook_id: string;
+        status: string;
+        revision: number;
+      }>(
+        'SELECT workspace_id, playbook_id, status, revision FROM playbook_sources WHERE playbook_source_id = $1',
+        [foreignSourceId],
+      );
+      expect(verifyResult.rows).toHaveLength(1);
+      if (verifyResult.rows[0] !== undefined) {
+        expect(verifyResult.rows[0].workspace_id).toBe(foreignWorkspaceId);
+        expect(verifyResult.rows[0].playbook_id).toBe(foreignPlaybookId);
+        expect(verifyResult.rows[0].status).toBe('enabled');
+        expect(verifyResult.rows[0].revision).toBe(1);
+      }
+    } finally {
+      await verifyPool.end();
+    }
   });
 });

@@ -91,10 +91,19 @@ describe('mapErrorToExitCode', () => {
       configurationReference: configResult.value,
       createdAt: nowResult.value,
     });
-    source.disable();
-    const disableResult = source.disable();
-    if (disableResult.success)
-      throw new Error('Expected disable to fail on already disabled source.');
-    expect(mapErrorToExitCode(disableResult.error.code)).toBe(4);
+
+    const firstDisableResult = source.disable();
+    expect(firstDisableResult.success).toBe(true);
+    if (!firstDisableResult.success) {
+      throw new Error('Expected the first disable transition to succeed.');
+    }
+
+    const secondDisableResult = source.disable();
+    expect(secondDisableResult.success).toBe(false);
+    if (secondDisableResult.success) {
+      throw new Error('Expected second disable to fail.');
+    }
+
+    expect(mapErrorToExitCode(secondDisableResult.error.code)).toBe(4);
   });
 });

@@ -960,7 +960,7 @@ Usage:
   playbook source register  --playbook-id <uuid> --type <type>  Register a playbook source
   playbook source show      --id <uuid>       Show playbook source details
   playbook source list      --playbook-id <uuid> [options]  List playbook sources
-  playbook source disable   --id <uuid>       Disable a playbook source
+  playbook source disable   --id <uuid> [--output human|json]  Disable a playbook source
 
 Global flags:
   --workspace-id <uuid>  Override the current workspace ID
