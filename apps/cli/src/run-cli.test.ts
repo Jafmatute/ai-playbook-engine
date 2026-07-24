@@ -1844,11 +1844,19 @@ describe('runCli playbook source disable command', () => {
       configurationReference: cfgResult.value,
       createdAt: nowResult.value,
     });
-    const firstDisable = source.disable();
-    if (!firstDisable.success) throw new Error('Expected first disable to succeed.');
-    const secondDisable = source.disable();
-    if (secondDisable.success) throw new Error('Expected second disable to fail.');
-    return secondDisable.error;
+    const firstDisableResult = source.disable();
+    expect(firstDisableResult.success).toBe(true);
+    if (!firstDisableResult.success) {
+      throw new Error('Expected the first disable transition to succeed.');
+    }
+
+    const secondDisableResult = source.disable();
+    expect(secondDisableResult.success).toBe(false);
+    if (secondDisableResult.success) {
+      throw new Error('Expected the second disable transition to fail.');
+    }
+
+    return secondDisableResult.error;
   }
 
   const disableErrorCases: readonly (readonly [DisablePlaybookSourceError, ExitCode])[] = [
@@ -1873,9 +1881,13 @@ describe('runCli playbook source disable command', () => {
   it.each(disableErrorCases)(
     'maps real $0.code error to exit $1 and closes pool exactly once in JSON',
     async (error, expected) => {
+      let handlerCallCount = 0;
       const pool = new MockPool();
       const disablePlaybookSource: CliServices['disablePlaybookSource'] = {
-        handle: async () => err(error),
+        handle: async () => {
+          handlerCallCount += 1;
+          return err(error);
+        },
       };
       const io = new MockIo();
       expect(
@@ -1887,15 +1899,40 @@ describe('runCli playbook source disable command', () => {
         ),
       ).toBe(expected);
       expect(io.stderr).toBe('');
+      expect(handlerCallCount).toBe(1);
       expect(pool.closeCalled).toBe(1);
+
+      const parsed: unknown = JSON.parse(io.stdout);
+      if (
+        parsed !== null &&
+        typeof parsed === 'object' &&
+        'success' in parsed &&
+        'error' in parsed &&
+        parsed.error !== null &&
+        typeof parsed.error === 'object' &&
+        'code' in parsed.error &&
+        'message' in parsed.error &&
+        'details' in parsed.error
+      ) {
+        expect(parsed.success).toBe(false);
+        expect(parsed.error.code).toBe(error.code);
+        expect(parsed.error.message).toBe(error.message);
+        expect(parsed.error.details).toEqual(error.details ?? {});
+      } else {
+        throw new Error('Invalid JSON error structure for disable error matrix.');
+      }
     },
   );
 
   it('renders PLAYBOOK_SOURCE_TRANSITION_NOT_ALLOWED as human error', async () => {
     const transitionError = createTransitionNotAllowedError();
+    let handlerCallCount = 0;
     const pool = new MockPool();
     const disablePlaybookSource: CliServices['disablePlaybookSource'] = {
-      handle: async () => err(transitionError),
+      handle: async () => {
+        handlerCallCount += 1;
+        return err(transitionError);
+      },
     };
     const io = new MockIo();
     expect(
@@ -1908,20 +1945,31 @@ describe('runCli playbook source disable command', () => {
     ).toBe(ExitCode.CONFLICT);
     expect(io.stdout).toBe('');
     expect(io.stderr).toBe('Error: The playbook source transition is not allowed.\n');
+    expect(handlerCallCount).toBe(1);
     expect(pool.closeCalled).toBe(1);
   });
 
-  it('returns build services error without calling handler', async () => {
+  it('returns build services error without calling handler and preserves privacy', async () => {
+    const secretDatabaseUrl = 'postgres://test-user:super-secret@localhost:5432/private-db';
     const configError: BuildServicesError['error'] = {
       code: 'CONFIGURATION_INVALID',
       message: 'Invalid configuration.',
-      details: {},
+      details: { databaseUrl: secretDatabaseUrl },
     };
     const deps = createFailingMockDependencies(configError);
     const io = new MockIo();
     expect(await runCli(args, envReader, io, deps)).toBe(ExitCode.CONFIG_ERROR);
-    expect(io.stderr).toContain('Invalid configuration.');
+    expect(io.stdout).toBe('');
+    expect(io.stderr).toBe('Error: Invalid configuration.\n');
     expect(deps.getBuildCalled()).toBe(1);
+
+    // Privacy: no secrets leaked
+    expect(io.stdout).not.toContain(secretDatabaseUrl);
+    expect(io.stderr).not.toContain(secretDatabaseUrl);
+    expect(io.stdout).not.toContain('super-secret');
+    expect(io.stderr).not.toContain('super-secret');
+    expect(io.stdout).not.toContain('test-user');
+    expect(io.stderr).not.toContain('test-user');
   });
 });
 
