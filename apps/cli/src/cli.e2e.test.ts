@@ -1610,5 +1610,242 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     } finally {
       await verifyPool.end();
     }
+
+    // 50. Disable the new source so we can test enable.
+    const disableNewSourceRes = runCli(
+      ['playbook', 'source', 'disable', '--id', newSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(disableNewSourceRes.status).toBe(0);
+    expect(disableNewSourceRes.stderr).toBe('');
+    assertSafeOutput(disableNewSourceRes.stdout);
+
+    // 51. Enable the first historical source.
+    const enableFirstSourceRes = runCli(
+      ['playbook', 'source', 'enable', '--id', firstPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(enableFirstSourceRes.status).toBe(0);
+    expect(enableFirstSourceRes.stderr).toBe('');
+    assertSafeOutput(enableFirstSourceRes.stdout);
+    const enableFirstJson: unknown = JSON.parse(enableFirstSourceRes.stdout);
+    if (
+      enableFirstJson !== null &&
+      typeof enableFirstJson === 'object' &&
+      'success' in enableFirstJson &&
+      enableFirstJson.success === true &&
+      'data' in enableFirstJson &&
+      enableFirstJson.data !== null &&
+      typeof enableFirstJson.data === 'object' &&
+      'playbookSourceId' in enableFirstJson.data &&
+      typeof enableFirstJson.data.playbookSourceId === 'string' &&
+      'workspaceId' in enableFirstJson.data &&
+      'playbookId' in enableFirstJson.data &&
+      'type' in enableFirstJson.data &&
+      'status' in enableFirstJson.data &&
+      'externalRootReference' in enableFirstJson.data &&
+      'configurationReference' in enableFirstJson.data &&
+      'createdAt' in enableFirstJson.data &&
+      'lastSuccessfulSynchronizationRunId' in enableFirstJson.data &&
+      'lastSuccessfulSynchronizationAt' in enableFirstJson.data &&
+      'lastFailedSynchronizationRunId' in enableFirstJson.data &&
+      'lastFailedSynchronizationAt' in enableFirstJson.data
+    ) {
+      expect(enableFirstJson.data.playbookSourceId).toBe(firstPlaybookSourceId);
+      expect(enableFirstJson.data.workspaceId).toBe(workspaceId);
+      expect(enableFirstJson.data.playbookId).toBe(playbookId);
+      expect(enableFirstJson.data.type).toBe('notion');
+      expect(enableFirstJson.data.status).toBe('enabled');
+      expect(enableFirstJson.data.externalRootReference).toBe('notion-root-1');
+      expect(enableFirstJson.data.configurationReference).toBe('notion/main');
+      expect(enableFirstJson.data.createdAt).toBe(firstPlaybookSourceCreatedAt);
+      expect(enableFirstJson.data.lastSuccessfulSynchronizationRunId).toBeNull();
+      expect(enableFirstJson.data.lastSuccessfulSynchronizationAt).toBeNull();
+      expect(enableFirstJson.data.lastFailedSynchronizationRunId).toBeNull();
+      expect(enableFirstJson.data.lastFailedSynchronizationAt).toBeNull();
+      expect('revision' in enableFirstJson.data).toBe(false);
+      expect('token' in enableFirstJson.data).toBe(false);
+      expect('credential' in enableFirstJson.data).toBe(false);
+      expect('secret' in enableFirstJson.data).toBe(false);
+    } else throw new Error('Invalid enable first source json output structure');
+
+    // 52. Show after enable.
+    const showEnabledRes = runCli(['playbook', 'source', 'show', '--id', firstPlaybookSourceId], {
+      AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId,
+    });
+    expect(showEnabledRes.status).toBe(0);
+    expect(showEnabledRes.stderr).toBe('');
+    expect(showEnabledRes.stdout).toContain('Status:                   enabled');
+    assertSafeOutput(showEnabledRes.stdout);
+
+    // 53. List after enable — one enabled, one disabled.
+    const listAfterEnableRes = runCli(
+      ['playbook', 'source', 'list', '--playbook-id', playbookId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(listAfterEnableRes.status).toBe(0);
+    expect(listAfterEnableRes.stderr).toBe('');
+    assertSafeOutput(listAfterEnableRes.stdout);
+    const listAfterEnableJson: unknown = JSON.parse(listAfterEnableRes.stdout);
+    if (
+      listAfterEnableJson !== null &&
+      typeof listAfterEnableJson === 'object' &&
+      'success' in listAfterEnableJson &&
+      listAfterEnableJson.success === true &&
+      'data' in listAfterEnableJson &&
+      listAfterEnableJson.data !== null &&
+      typeof listAfterEnableJson.data === 'object' &&
+      'items' in listAfterEnableJson.data &&
+      Array.isArray(listAfterEnableJson.data.items)
+    ) {
+      expect(listAfterEnableJson.data.items).toHaveLength(2);
+      const foundEnabled = listAfterEnableJson.data.items.some(
+        (item: unknown) =>
+          item !== null &&
+          typeof item === 'object' &&
+          'playbookSourceId' in item &&
+          item.playbookSourceId === firstPlaybookSourceId &&
+          'status' in item &&
+          item.status === 'enabled',
+      );
+      const foundDisabled = listAfterEnableJson.data.items.some(
+        (item: unknown) =>
+          item !== null &&
+          typeof item === 'object' &&
+          'playbookSourceId' in item &&
+          item.playbookSourceId === newSourceId &&
+          'status' in item &&
+          item.status === 'disabled',
+      );
+      expect(foundEnabled).toBe(true);
+      expect(foundDisabled).toBe(true);
+    } else throw new Error('Invalid list-after-enable JSON structure.');
+
+    // 54. Re-enable returns transition error.
+    const enableAgainRes = runCli(
+      ['playbook', 'source', 'enable', '--id', firstPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(enableAgainRes.status).toBe(4);
+    expect(enableAgainRes.stderr).toBe('');
+    assertSafeOutput(enableAgainRes.stdout);
+    const enableAgainJson: unknown = JSON.parse(enableAgainRes.stdout);
+    if (
+      enableAgainJson !== null &&
+      typeof enableAgainJson === 'object' &&
+      'success' in enableAgainJson &&
+      'error' in enableAgainJson &&
+      enableAgainJson.error !== null &&
+      typeof enableAgainJson.error === 'object' &&
+      'code' in enableAgainJson.error &&
+      'details' in enableAgainJson.error &&
+      enableAgainJson.error.details !== null &&
+      typeof enableAgainJson.error.details === 'object' &&
+      'operation' in enableAgainJson.error.details &&
+      'currentStatus' in enableAgainJson.error.details &&
+      'expectedStatus' in enableAgainJson.error.details
+    ) {
+      expect(enableAgainJson.success).toBe(false);
+      expect(enableAgainJson.error.code).toBe('PLAYBOOK_SOURCE_TRANSITION_NOT_ALLOWED');
+      expect(enableAgainJson.error.details.operation).toBe('enable');
+      expect(enableAgainJson.error.details.currentStatus).toBe('enabled');
+      expect(enableAgainJson.error.details.expectedStatus).toBe('disabled');
+    } else throw new Error('Invalid enable again json output structure');
+
+    // 55. Conflict: try to enable the disabled source while the first is already enabled.
+    const enableConflictRes = runCli(
+      ['playbook', 'source', 'enable', '--id', newSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(enableConflictRes.status).toBe(4);
+    expect(enableConflictRes.stderr).toBe('');
+    assertSafeOutput(enableConflictRes.stdout);
+    const enableConflictJson: unknown = JSON.parse(enableConflictRes.stdout);
+    if (
+      enableConflictJson !== null &&
+      typeof enableConflictJson === 'object' &&
+      'success' in enableConflictJson &&
+      'error' in enableConflictJson &&
+      enableConflictJson.error !== null &&
+      typeof enableConflictJson.error === 'object' &&
+      'code' in enableConflictJson.error
+    ) {
+      expect(enableConflictJson.success).toBe(false);
+      expect(enableConflictJson.error.code).toBe('ENABLED_PLAYBOOK_SOURCE_CONFLICT');
+    } else throw new Error('Invalid enable conflict json output structure');
+
+    // 56. Playbook archived prevents enable.
+    const enableArchivedRes = runCli(
+      ['playbook', 'source', 'enable', '--id', secondPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(enableArchivedRes.status).toBe(4);
+    expect(enableArchivedRes.stderr).toBe('');
+    assertSafeOutput(enableArchivedRes.stdout);
+    const enableArchivedJson: unknown = JSON.parse(enableArchivedRes.stdout);
+    if (
+      enableArchivedJson !== null &&
+      typeof enableArchivedJson === 'object' &&
+      'success' in enableArchivedJson &&
+      'error' in enableArchivedJson &&
+      enableArchivedJson.error !== null &&
+      typeof enableArchivedJson.error === 'object' &&
+      'code' in enableArchivedJson.error
+    ) {
+      expect(enableArchivedJson.success).toBe(false);
+      expect(enableArchivedJson.error.code).toBe('PLAYBOOK_ARCHIVED');
+    } else throw new Error('Invalid enable archived json output structure');
+
+    // 57. Non-existent source returns PLAYBOOK_SOURCE_NOT_FOUND.
+    const enableNonExistentRes = runCli(
+      [
+        'playbook',
+        'source',
+        'enable',
+        '--id',
+        '00000000-0000-0000-0000-000000000999',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(enableNonExistentRes.status).toBe(3);
+    expect(enableNonExistentRes.stderr).toBe('');
+    assertSafeOutput(enableNonExistentRes.stdout);
+    const enableNonExistentJson: unknown = JSON.parse(enableNonExistentRes.stdout);
+    if (
+      enableNonExistentJson !== null &&
+      typeof enableNonExistentJson === 'object' &&
+      'success' in enableNonExistentJson &&
+      'error' in enableNonExistentJson &&
+      enableNonExistentJson.error !== null &&
+      typeof enableNonExistentJson.error === 'object' &&
+      'code' in enableNonExistentJson.error
+    ) {
+      expect(enableNonExistentJson.success).toBe(false);
+      expect(enableNonExistentJson.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
+    } else throw new Error('Invalid enable non-existent json output structure');
+
+    // 58. Enable from primary workspace on foreign source returns not found.
+    const enableForeignRes = runCli(
+      ['playbook', 'source', 'enable', '--id', foreignSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(enableForeignRes.status).toBe(3);
+    expect(enableForeignRes.stderr).toBe('');
+    assertSafeOutput(enableForeignRes.stdout);
+    const enableForeignJson: unknown = JSON.parse(enableForeignRes.stdout);
+    if (
+      enableForeignJson !== null &&
+      typeof enableForeignJson === 'object' &&
+      'success' in enableForeignJson &&
+      'error' in enableForeignJson &&
+      enableForeignJson.error !== null &&
+      typeof enableForeignJson.error === 'object' &&
+      'code' in enableForeignJson.error
+    ) {
+      expect(enableForeignJson.success).toBe(false);
+      expect(enableForeignJson.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
+    } else throw new Error('Invalid enable foreign source json output structure');
   });
 });

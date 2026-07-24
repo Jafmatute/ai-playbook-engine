@@ -11,7 +11,10 @@ import type {
   PlaybookSourceOutput,
   Page,
 } from '@ai-playbook-engine/application';
-import type { DisablePlaybookSourceError } from '@ai-playbook-engine/application';
+import type {
+  DisablePlaybookSourceError,
+  EnablePlaybookSourceError,
+} from '@ai-playbook-engine/application';
 import {
   currentWorkspaceUnavailable,
   enabledPlaybookSourceConflict,
@@ -68,6 +71,7 @@ interface MockServicesOverrides {
   readonly restorePlaybook?: CliServices['restorePlaybook'];
   readonly registerPlaybookSource?: CliServices['registerPlaybookSource'];
   readonly disablePlaybookSource?: CliServices['disablePlaybookSource'];
+  readonly enablePlaybookSource?: CliServices['enablePlaybookSource'];
   readonly getPlaybookSource?: CliServices['getPlaybookSource'];
   readonly listPlaybookSources?: CliServices['listPlaybookSources'];
   readonly getPlaybook?: CliServices['getPlaybook'];
@@ -306,6 +310,9 @@ function createMockServices(overrides: MockServicesOverrides = {}): CliServices 
     },
     disablePlaybookSource: overrides.disablePlaybookSource ?? {
       handle: async () => ok(createPlaybookSourceOutputFixture({ status: 'disabled' })),
+    },
+    enablePlaybookSource: overrides.enablePlaybookSource ?? {
+      handle: async () => ok(createPlaybookSourceOutputFixture({ status: 'enabled' })),
     },
     getPlaybookSource: overrides.getPlaybookSource ?? {
       handle: async () => ok(createPlaybookSourceOutputFixture()),
@@ -1970,6 +1977,352 @@ describe('runCli playbook source disable command', () => {
     expect(io.stderr).not.toContain('super-secret');
     expect(io.stdout).not.toContain('test-user');
     expect(io.stderr).not.toContain('test-user');
+  });
+});
+
+describe('runCli playbook source enable command', () => {
+  const envReader = new MapEnvReader(
+    new Map([['AI_PLAYBOOK_ENGINE_DATABASE_URL', 'postgres://localhost:5432/db']]),
+  );
+  const args = ['playbook', 'source', 'enable', '--id', '00000000-0000-0000-0000-000000000003'];
+
+  it('includes help', async () => {
+    const help = new MockIo();
+    expect(
+      await runCli(['--help'], envReader, help, createMockDependencies(createMockServices())),
+    ).toBe(ExitCode.SUCCESS);
+    expect(help.stdout).toContain(
+      'playbook source enable    --id <uuid> [--output human|json]  Enable a playbook source',
+    );
+  });
+
+  it('rejects missing --id on human output without building services', async () => {
+    const dependencies = createMockDependencies(createMockServices());
+    const io = new MockIo();
+    expect(await runCli(['playbook', 'source', 'enable'], envReader, io, dependencies)).toBe(
+      ExitCode.INVALID_INPUT,
+    );
+    expect(io.stdout).toBe('');
+    expect(io.stderr).toBe('Error: --id is required\n');
+    expect(dependencies.getBuildCalled()).toBe(0);
+  });
+
+  it('rejects missing --id on JSON output without building services', async () => {
+    const dependencies = createMockDependencies(createMockServices());
+    const io = new MockIo();
+    expect(
+      await runCli(
+        ['playbook', 'source', 'enable', '--output', 'json'],
+        envReader,
+        io,
+        dependencies,
+      ),
+    ).toBe(ExitCode.INVALID_INPUT);
+    expect(io.stderr).toBe('');
+    expect(dependencies.getBuildCalled()).toBe(0);
+    const parsed: unknown = JSON.parse(io.stdout);
+    if (
+      parsed !== null &&
+      typeof parsed === 'object' &&
+      'success' in parsed &&
+      'error' in parsed &&
+      parsed.error !== null &&
+      typeof parsed.error === 'object' &&
+      'code' in parsed.error &&
+      'message' in parsed.error &&
+      'details' in parsed.error
+    ) {
+      expect(parsed.success).toBe(false);
+      expect(parsed.error.code).toBe('INVALID_INPUT');
+      expect(parsed.error.message).toBe('--id is required');
+      expect(parsed.error.details).toEqual({});
+    } else throw new Error('Invalid JSON error structure for missing id.');
+  });
+
+  it.each([
+    ['an id flag without a value', ['playbook', 'source', 'enable', '--id']],
+    ['an unknown flag', [...args, '--unexpected']],
+    [
+      'the forbidden --playbook-id flag',
+      [...args, '--playbook-id', '00000000-0000-0000-0000-000000000002'],
+    ],
+    ['the forbidden --revision flag', [...args, '--revision', '1']],
+    ['the forbidden --force flag', [...args, '--force', 'true']],
+    ['the forbidden --replace flag', [...args, '--replace', 'true']],
+    ['the forbidden --disable-current flag', [...args, '--disable-current', 'true']],
+  ])('rejects %s before building services', async (_scenario, invalid) => {
+    const dependencies = createMockDependencies(createMockServices());
+    expect(await runCli(invalid, envReader, new MockIo(), dependencies)).toBe(
+      ExitCode.INVALID_INPUT,
+    );
+    expect(dependencies.getBuildCalled()).toBe(0);
+  });
+
+  it('renders exact human output and tracks handler call count', async () => {
+    const expectedOutput = createPlaybookSourceOutputFixture({
+      status: 'enabled',
+    });
+    let handlerCallCount = 0;
+    const pool = new MockPool();
+    const enablePlaybookSource: CliServices['enablePlaybookSource'] = {
+      handle: async (command) => {
+        expect(command).toEqual({
+          playbookSourceId: '00000000-0000-0000-0000-000000000003',
+        });
+        handlerCallCount += 1;
+        return ok(expectedOutput);
+      },
+    };
+    const io = new MockIo();
+    expect(
+      await runCli(
+        args,
+        envReader,
+        io,
+        createMockDependencies(createMockServices({ pool, enablePlaybookSource })),
+      ),
+    ).toBe(ExitCode.SUCCESS);
+    expect(io.stdout).toBe(renderPlaybookSource(expectedOutput) + '\n');
+    expect(io.stderr).toBe('');
+    expect(handlerCallCount).toBe(1);
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  it('renders complete JSON output with all DTO fields', async () => {
+    const expectedOutput = createPlaybookSourceOutputFixture({
+      status: 'enabled',
+      externalRootReference: 'notion-root-enabled',
+      configurationReference: 'notion/enabled',
+      lastSuccessfulSynchronizationRunId: '00000000-0000-0000-0000-000000000010',
+      lastSuccessfulSynchronizationAt: '2026-07-12T11:00:00.000Z',
+      lastFailedSynchronizationRunId: '00000000-0000-0000-0000-000000000011',
+      lastFailedSynchronizationAt: '2026-07-12T12:00:00.000Z',
+    });
+    let handlerCallCount = 0;
+    const pool = new MockPool();
+    const enablePlaybookSource: CliServices['enablePlaybookSource'] = {
+      handle: async () => {
+        handlerCallCount += 1;
+        return ok(expectedOutput);
+      },
+    };
+    const io = new MockIo();
+    expect(
+      await runCli(
+        [...args, '--output', 'json'],
+        envReader,
+        io,
+        createMockDependencies(createMockServices({ pool, enablePlaybookSource })),
+      ),
+    ).toBe(ExitCode.SUCCESS);
+    expect(io.stderr).toBe('');
+    const parsed: unknown = JSON.parse(io.stdout);
+    if (
+      parsed !== null &&
+      typeof parsed === 'object' &&
+      'success' in parsed &&
+      parsed.success === true &&
+      'data' in parsed &&
+      parsed.data !== null &&
+      typeof parsed.data === 'object' &&
+      'playbookSourceId' in parsed.data &&
+      typeof parsed.data.playbookSourceId === 'string' &&
+      'workspaceId' in parsed.data &&
+      'playbookId' in parsed.data &&
+      'type' in parsed.data &&
+      'status' in parsed.data &&
+      'externalRootReference' in parsed.data &&
+      'configurationReference' in parsed.data &&
+      'createdAt' in parsed.data &&
+      'lastSuccessfulSynchronizationRunId' in parsed.data &&
+      'lastSuccessfulSynchronizationAt' in parsed.data &&
+      'lastFailedSynchronizationRunId' in parsed.data &&
+      'lastFailedSynchronizationAt' in parsed.data
+    ) {
+      expect(parsed.data.playbookSourceId).toBe(expectedOutput.playbookSourceId);
+      expect(parsed.data.workspaceId).toBe(expectedOutput.workspaceId);
+      expect(parsed.data.playbookId).toBe(expectedOutput.playbookId);
+      expect(parsed.data.type).toBe(expectedOutput.type);
+      expect(parsed.data.status).toBe('enabled');
+      expect(parsed.data.externalRootReference).toBe('notion-root-enabled');
+      expect(parsed.data.configurationReference).toBe('notion/enabled');
+      expect(parsed.data.createdAt).toBe(expectedOutput.createdAt);
+      expect(parsed.data.lastSuccessfulSynchronizationRunId).toBe(
+        '00000000-0000-0000-0000-000000000010',
+      );
+      expect(parsed.data.lastSuccessfulSynchronizationAt).toBe('2026-07-12T11:00:00.000Z');
+      expect(parsed.data.lastFailedSynchronizationRunId).toBe(
+        '00000000-0000-0000-0000-000000000011',
+      );
+      expect(parsed.data.lastFailedSynchronizationAt).toBe('2026-07-12T12:00:00.000Z');
+      expect(Object.keys(parsed.data).sort()).toEqual([
+        'configurationReference',
+        'createdAt',
+        'externalRootReference',
+        'lastFailedSynchronizationAt',
+        'lastFailedSynchronizationRunId',
+        'lastSuccessfulSynchronizationAt',
+        'lastSuccessfulSynchronizationRunId',
+        'playbookId',
+        'playbookSourceId',
+        'status',
+        'type',
+        'workspaceId',
+      ]);
+      expect('revision' in parsed.data).toBe(false);
+      expect('token' in parsed.data).toBe(false);
+      expect('credential' in parsed.data).toBe(false);
+      expect('secret' in parsed.data).toBe(false);
+    } else throw new Error('Invalid enable JSON success output structure.');
+    expect(handlerCallCount).toBe(1);
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  const wsId = valueFrom(parseWorkspaceId('00000000-0000-0000-0000-000000000001'));
+
+  function createTransitionNotAllowedError(): EnablePlaybookSourceError {
+    const wsResult = parseWorkspaceId('00000000-0000-0000-0000-000000000001');
+    if (!wsResult.success) throw new Error('Expected valid workspace ID.');
+    const nowResult = Instant.parse('2026-07-17T12:00:00.000Z');
+    if (!nowResult.success) throw new Error('Expected valid instant.');
+    const sourceIdResult = parsePlaybookSourceId('00000000-0000-0000-0000-000000000003');
+    if (!sourceIdResult.success) throw new Error('Expected valid source ID.');
+    const pbIdResult = parsePlaybookId('00000000-0000-0000-0000-000000000002');
+    if (!pbIdResult.success) throw new Error('Expected valid playbook ID.');
+    const extResult = PlaybookSourceExternalRootReference.create('https://example.com/root');
+    if (!extResult.success) throw new Error('Expected valid external root reference.');
+    const cfgResult = PlaybookSourceConfigurationReference.create('config-1');
+    if (!cfgResult.success) throw new Error('Expected valid configuration reference.');
+    const source = PlaybookSource.create({
+      playbookSourceId: sourceIdResult.value,
+      workspaceId: wsResult.value,
+      playbookId: pbIdResult.value,
+      type: 'notion',
+      externalRootReference: extResult.value,
+      configurationReference: cfgResult.value,
+      createdAt: nowResult.value,
+    });
+    const enableResult = source.enable();
+    expect(enableResult.success).toBe(false);
+    if (enableResult.success) {
+      throw new Error('Expected enabling an already enabled source to fail.');
+    }
+    return enableResult.error;
+  }
+
+  const enableErrorCases: readonly (readonly [EnablePlaybookSourceError, ExitCode])[] = [
+    [createInvalidPlaybookSourceIdError(), ExitCode.INVALID_INPUT],
+    [currentWorkspaceUnavailable(), ExitCode.CONFIG_ERROR],
+    [workspaceNotFound(), ExitCode.NOT_FOUND],
+    [workspaceNotActive(wsId, 'archived'), ExitCode.CONFLICT],
+    [
+      playbookSourceNotFound(createPlaybookSourceId('00000000-0000-0000-0000-000000000003')),
+      ExitCode.NOT_FOUND,
+    ],
+    [createTransitionNotAllowedError(), ExitCode.CONFLICT],
+    [playbookNotFound(), ExitCode.NOT_FOUND],
+    [playbookArchived(createPlaybookId('00000000-0000-0000-0000-000000000002')), ExitCode.CONFLICT],
+    [
+      enabledPlaybookSourceConflict(createPlaybookId('00000000-0000-0000-0000-000000000002')),
+      ExitCode.CONFLICT,
+    ],
+    [persistenceRevisionConflict(createPersistenceRevision(1)), ExitCode.CONFLICT],
+    [persistenceOperationFailed('playbookSource.update'), ExitCode.INFRASTRUCTURE_ERROR],
+  ];
+
+  it.each(enableErrorCases)(
+    'maps real $0.code error to exit $1 and closes pool exactly once in JSON',
+    async (error, expected) => {
+      let handlerCallCount = 0;
+      const pool = new MockPool();
+      const enablePlaybookSource: CliServices['enablePlaybookSource'] = {
+        handle: async () => {
+          handlerCallCount += 1;
+          return err(error);
+        },
+      };
+      const io = new MockIo();
+      expect(
+        await runCli(
+          [...args, '--output', 'json'],
+          envReader,
+          io,
+          createMockDependencies(createMockServices({ pool, enablePlaybookSource })),
+        ),
+      ).toBe(expected);
+      expect(io.stderr).toBe('');
+      expect(handlerCallCount).toBe(1);
+      expect(pool.closeCalled).toBe(1);
+
+      const parsed: unknown = JSON.parse(io.stdout);
+      if (
+        parsed !== null &&
+        typeof parsed === 'object' &&
+        'success' in parsed &&
+        'error' in parsed &&
+        parsed.error !== null &&
+        typeof parsed.error === 'object' &&
+        'code' in parsed.error &&
+        'message' in parsed.error &&
+        'details' in parsed.error
+      ) {
+        expect(parsed.success).toBe(false);
+        expect(parsed.error.code).toBe(error.code);
+        expect(parsed.error.message).toBe(error.message);
+        expect(parsed.error.details).toEqual(error.details ?? {});
+      } else {
+        throw new Error('Invalid JSON error structure for enable error matrix.');
+      }
+    },
+  );
+
+  it('renders ENABLED_PLAYBOOK_SOURCE_CONFLICT as human error', async () => {
+    const conflictError = enabledPlaybookSourceConflict(
+      createPlaybookId('00000000-0000-0000-0000-000000000002'),
+    );
+    let handlerCallCount = 0;
+    const pool = new MockPool();
+    const enablePlaybookSource: CliServices['enablePlaybookSource'] = {
+      handle: async () => {
+        handlerCallCount += 1;
+        return err(conflictError);
+      },
+    };
+    const io = new MockIo();
+    expect(
+      await runCli(
+        args,
+        envReader,
+        io,
+        createMockDependencies(createMockServices({ pool, enablePlaybookSource })),
+      ),
+    ).toBe(ExitCode.CONFLICT);
+    expect(io.stdout).toBe('');
+    expect(io.stderr).toBe('Error: An enabled playbook source already exists for this playbook.\n');
+    expect(handlerCallCount).toBe(1);
+    expect(pool.closeCalled).toBe(1);
+  });
+
+  it('returns build services error without calling handler and preserves privacy', async () => {
+    const secretDatabaseUrl = 'postgres://enable-user:enable-secret@localhost:5432/enable-db';
+    const configError: BuildServicesError['error'] = {
+      code: 'CONFIGURATION_INVALID',
+      message: 'Invalid configuration.',
+      details: { databaseUrl: secretDatabaseUrl },
+    };
+    const deps = createFailingMockDependencies(configError);
+    const io = new MockIo();
+    expect(await runCli(args, envReader, io, deps)).toBe(ExitCode.CONFIG_ERROR);
+    expect(io.stdout).toBe('');
+    expect(io.stderr).toBe('Error: Invalid configuration.\n');
+    expect(deps.getBuildCalled()).toBe(1);
+
+    expect(io.stdout).not.toContain(secretDatabaseUrl);
+    expect(io.stderr).not.toContain(secretDatabaseUrl);
+    expect(io.stdout).not.toContain('enable-secret');
+    expect(io.stderr).not.toContain('enable-secret');
+    expect(io.stdout).not.toContain('enable-user');
+    expect(io.stderr).not.toContain('enable-user');
   });
 });
 
