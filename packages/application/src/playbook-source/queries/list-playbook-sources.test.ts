@@ -26,7 +26,11 @@ import type { PlaybookSourceRepository } from '../ports/playbook-source-reposito
 import type { PlaybookRepository } from '../../playbook/ports/playbook-repository.js';
 import type { WorkspaceRepository } from '../../workspace/ports/workspace-repository.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
-import { persistenceOperationFailed } from '../../persistence/index.js';
+import {
+  PersistenceRevision,
+  createPersistedAggregate,
+  persistenceOperationFailed,
+} from '../../persistence/index.js';
 import {
   paginationInvalid,
   workspaceNotFound,
@@ -40,7 +44,6 @@ import {
 import type { PaginationRequest } from '../../pagination/index.js';
 import type { Page } from '../../pagination/index.js';
 import type { PersistedAggregate } from '../../persistence/index.js';
-import { PersistenceRevision, createPersistedAggregate } from '../../persistence/index.js';
 import type { PlaybookRepositoryUpdateError } from '../../playbook/ports/playbook-repository.js';
 
 // ---------------------------------------------------------------------------
@@ -191,16 +194,26 @@ class StubPlaybookSourceRepository implements PlaybookSourceRepository {
     }
   }
 
-  async insert(): Promise<Result<void, never>> {
-    return ok(undefined);
+  async insert(): Promise<Result<PersistenceRevision, never>> {
+    const rev = PersistenceRevision.from(1);
+    if (!rev.success) throw new Error('Expected revision 1 to be valid.');
+    return ok(rev.value);
   }
 
-  async findById(): Promise<Result<PlaybookSourceClass | null, never>> {
+  async findById(): Promise<
+    Result<{ aggregate: PlaybookSourceClass; revision: PersistenceRevision } | null, never>
+  > {
     return ok(null);
   }
 
   async findEnabledByPlaybookId(): Promise<Result<PlaybookSourceClass | null, never>> {
     return ok(null);
+  }
+
+  async update(): Promise<Result<PersistenceRevision, never>> {
+    const rev = PersistenceRevision.from(2);
+    if (!rev.success) throw new Error('Expected revision 2 to be valid.');
+    return ok(rev.value);
   }
 }
 

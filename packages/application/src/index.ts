@@ -108,6 +108,7 @@ export {
 export type {
   PlaybookSourceRepository,
   PlaybookSourceRepositoryInsertError,
+  PlaybookSourceRepositoryUpdateError,
   PlaybookSourceOutput,
   RegisterPlaybookSourceCommand,
   RegisterPlaybookSourceError,

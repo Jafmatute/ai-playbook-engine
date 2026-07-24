@@ -75,6 +75,8 @@ export class GetPlaybookSourceHandler {
       return err(playbookSourceNotFound(playbookSourceIdResult.value));
     }
 
-    return ok(toPlaybookSourceOutput(sourceResult.value));
+    const source = sourceResult.value.aggregate;
+
+    return ok(toPlaybookSourceOutput(source));
   }
 }

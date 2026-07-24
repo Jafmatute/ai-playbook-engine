@@ -23,7 +23,11 @@ import { currentWorkspaceUnavailable } from '../../ports/index.js';
 import type { WorkspaceRepository } from '../../workspace/ports/workspace-repository.js';
 import type { PlaybookSourceRepository } from '../ports/playbook-source-repository.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
-import { persistenceOperationFailed } from '../../persistence/index.js';
+import {
+  PersistenceRevision,
+  createPersistedAggregate,
+  persistenceOperationFailed,
+} from '../../persistence/index.js';
 import { workspaceNotFound, playbookSourceNotFound } from '../../errors/index.js';
 import { GetPlaybookSourceHandler, type GetPlaybookSourceQuery } from './get-playbook-source.js';
 
@@ -93,32 +97,64 @@ class StubWorkspaceRepository implements WorkspaceRepository {
 // ---------------------------------------------------------------------------
 
 type SourceResult =
-  | { readonly kind: 'source'; readonly source: PlaybookSourceClass }
+  | {
+      readonly kind: 'source';
+      readonly source: PlaybookSourceClass;
+      readonly revision?: ReturnType<typeof PersistenceRevision.from> extends Result<
+        infer T,
+        unknown
+      >
+        ? T
+        : never;
+    }
   | { readonly kind: 'null' }
   | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
 
+function buildRevision(
+  value: number,
+): ReturnType<typeof PersistenceRevision.from> extends Result<infer T, unknown> ? T : never {
+  const result = PersistenceRevision.from(value);
+  if (!result.success) throw new Error('Invalid revision fixture.');
+  return result.value;
+}
+
 class StubPlaybookSourceRepository implements PlaybookSourceRepository {
   readonly findByIdCalls: { workspaceId: WorkspaceId; playbookSourceId: PlaybookSourceId }[] = [];
+  readonly #sourceResult: SourceResult;
 
-  constructor(private readonly findResult: SourceResult) {}
+  constructor(findResult: SourceResult) {
+    this.#sourceResult = findResult;
+  }
 
   async findById(
     workspaceId: WorkspaceId,
     playbookSourceId: PlaybookSourceId,
-  ): Promise<Result<PlaybookSourceClass | null, PersistenceOperationFailedError>> {
+  ): Promise<
+    Result<
+      ReturnType<typeof createPersistedAggregate<PlaybookSourceClass>> | null,
+      PersistenceOperationFailedError
+    >
+  > {
     this.findByIdCalls.push({ workspaceId, playbookSourceId });
-    switch (this.findResult.kind) {
-      case 'source':
-        return ok(this.findResult.source);
+    switch (this.#sourceResult.kind) {
+      case 'source': {
+        const rev = this.#sourceResult.revision ?? buildRevision(1);
+        return ok(createPersistedAggregate(this.#sourceResult.source, rev));
+      }
       case 'null':
         return ok(null);
       case 'error':
-        return err(this.findResult.error);
+        return err(this.#sourceResult.error);
     }
   }
 
-  async insert(): Promise<Result<void, never>> {
-    return ok(undefined);
+  async insert(): Promise<
+    Result<
+      ReturnType<typeof PersistenceRevision.from> extends Result<infer T, unknown> ? T : never,
+      never
+    >
+  > {
+    return ok(buildRevision(1));
   }
 
   async findEnabledByPlaybookId(): Promise<Result<PlaybookSourceClass | null, never>> {
@@ -129,6 +165,15 @@ class StubPlaybookSourceRepository implements PlaybookSourceRepository {
     Result<{ items: PlaybookSourceClass[]; offset: number; limit: number; hasMore: boolean }, never>
   > {
     return ok({ items: [], offset: 0, limit: 25, hasMore: false });
+  }
+
+  async update(): Promise<
+    Result<
+      ReturnType<typeof PersistenceRevision.from> extends Result<infer T, unknown> ? T : never,
+      never
+    >
+  > {
+    return ok(buildRevision(2));
   }
 }
 
@@ -236,6 +281,35 @@ describe('GetPlaybookSourceHandler', () => {
     if (sourceCall === undefined) throw new Error('Expected a source findById call.');
     expect(sourceCall.workspaceId).toBe(workspaceIdValue);
     expect(sourceCall.playbookSourceId).toBe(sourceIdValue);
+  });
+
+  it('returns the persisted source with revision 1 from the repository stub', async () => {
+    const provider = new StubCurrentWorkspaceProvider({
+      kind: 'workspaceId',
+      workspaceId: workspaceIdValue,
+    });
+    const workspaceRepo = new StubWorkspaceRepository({
+      kind: 'workspace',
+      workspace: createActiveWorkspace(),
+    });
+    const sourceRepo = new StubPlaybookSourceRepository({
+      kind: 'source',
+      source: createEnabledSource(),
+    });
+    const handler = new GetPlaybookSourceHandler(provider, workspaceRepo, sourceRepo);
+
+    // Capture the internal repository findById result to validate revision
+    const sourceResult = await sourceRepo.findById(workspaceIdValue, sourceIdValue);
+    expect(sourceResult.success).toBe(true);
+    if (sourceResult.success && sourceResult.value !== null) {
+      expect(sourceResult.value.revision.value).toBe(1);
+    }
+
+    const result = await handler.handle(validQuery());
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect('revision' in result.value).toBe(false);
+    }
   });
 
   it('returns the source DTO when found (disabled)', async () => {

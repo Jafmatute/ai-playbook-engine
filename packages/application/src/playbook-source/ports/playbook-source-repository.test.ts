@@ -21,16 +21,27 @@ import type { Page, PaginationRequest } from '../../pagination/index.js';
 import {
   PERSISTENCE_OPERATION_FAILED,
   persistenceOperationFailed,
+  PersistenceRevision,
+  createPersistedAggregate,
+  persistenceRevisionConflict,
+  PERSISTENCE_REVISION_CONFLICT,
 } from '../../persistence/index.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
 import {
   enabledPlaybookSourceConflict,
+  playbookSourceNotFound,
   type EnabledPlaybookSourceConflictError,
 } from '../../errors/index.js';
-import type { PlaybookSourceRepository } from './playbook-source-repository.js';
+import type {
+  PlaybookSourceRepository,
+  PlaybookSourceRepositoryUpdateError,
+} from './playbook-source-repository.js';
 
 type FindByIdStubResult =
-  | { readonly kind: 'playbookSource'; readonly playbookSource: PlaybookSource }
+  | {
+      readonly kind: 'persisted';
+      readonly persisted: ReturnType<typeof createPersistedAggregate<PlaybookSource>>;
+    }
   | { readonly kind: 'null' }
   | { readonly kind: 'error'; readonly error: PersistenceOperationFailedError };
 
@@ -74,21 +85,21 @@ const DEFAULT_EMPTY_PLAYBOOK_SOURCE_PAGE: Page<PlaybookSource> = Object.freeze({
 });
 
 class StubPlaybookSourceRepository implements PlaybookSourceRepository {
-  #insertResult: Result<void, EnabledPlaybookSourceConflictError | PersistenceOperationFailedError>;
+  #insertResult: Result<
+    PersistenceRevision,
+    EnabledPlaybookSourceConflictError | PersistenceOperationFailedError
+  >;
   #insertCallCount = 0;
   #insertedSource: PlaybookSource | null = null;
 
-  async insert(
-    source: PlaybookSource,
-  ): Promise<Result<void, EnabledPlaybookSourceConflictError | PersistenceOperationFailedError>> {
-    this.#insertCallCount += 1;
-    this.#insertedSource = source;
-    return this.#insertResult;
-  }
   readonly #findByIdResult: FindByIdStubResult;
   readonly #findEnabledByPlaybookIdResult: FindEnabledByPlaybookIdStubResult;
   readonly #listByPlaybookIdResult: ListByPlaybookIdStubResult;
   #listByPlaybookIdCall: ListByPlaybookIdCall | null = null;
+  #updateResult: Result<PersistenceRevision, PlaybookSourceRepositoryUpdateError>;
+  #updateCallCount = 0;
+  #updateSource: PlaybookSource | null = null;
+  #updateExpectedRevision: PersistenceRevision | null = null;
 
   private constructor(
     findByIdResult: FindByIdStubResult,
@@ -101,7 +112,10 @@ class StubPlaybookSourceRepository implements PlaybookSourceRepository {
     this.#findByIdResult = findByIdResult;
     this.#findEnabledByPlaybookIdResult = findEnabledByPlaybookIdResult;
     this.#listByPlaybookIdResult = listByPlaybookIdResult;
-    this.#insertResult = ok(undefined);
+    const revisionResult = PersistenceRevision.from(1);
+    if (!revisionResult.success) throw new Error('Expected revision 1 to be valid.');
+    this.#insertResult = ok(revisionResult.value);
+    this.#updateResult = ok(revisionResult.value);
   }
 
   get insertCallCount(): number {
@@ -109,6 +123,15 @@ class StubPlaybookSourceRepository implements PlaybookSourceRepository {
   }
   get insertedSource(): PlaybookSource | null {
     return this.#insertedSource;
+  }
+  get updateCallCount(): number {
+    return this.#updateCallCount;
+  }
+  get updateSource(): PlaybookSource | null {
+    return this.#updateSource;
+  }
+  get updateExpectedRevision(): PersistenceRevision | null {
+    return this.#updateExpectedRevision;
   }
 
   static returningInsertError(
@@ -120,7 +143,12 @@ class StubPlaybookSourceRepository implements PlaybookSourceRepository {
   }
 
   static returningPlaybookSource(playbookSource: PlaybookSource): StubPlaybookSourceRepository {
-    return new StubPlaybookSourceRepository({ kind: 'playbookSource', playbookSource });
+    const revResult = PersistenceRevision.from(1);
+    if (!revResult.success) throw new Error('Expected revision 1 to be valid.');
+    return new StubPlaybookSourceRepository({
+      kind: 'persisted',
+      persisted: createPersistedAggregate(playbookSource, revResult.value),
+    });
   }
 
   static returningNull(): StubPlaybookSourceRepository {
@@ -191,13 +219,31 @@ class StubPlaybookSourceRepository implements PlaybookSourceRepository {
     return this.#listByPlaybookIdCall;
   }
 
+  async insert(
+    source: PlaybookSource,
+  ): Promise<
+    Result<
+      PersistenceRevision,
+      EnabledPlaybookSourceConflictError | PersistenceOperationFailedError
+    >
+  > {
+    this.#insertCallCount += 1;
+    this.#insertedSource = source;
+    return this.#insertResult;
+  }
+
   async findById(
     _workspaceId: WorkspaceId,
     _playbookSourceId: PlaybookSourceId,
-  ): Promise<Result<PlaybookSource | null, PersistenceOperationFailedError>> {
+  ): Promise<
+    Result<
+      ReturnType<typeof createPersistedAggregate<PlaybookSource>> | null,
+      PersistenceOperationFailedError
+    >
+  > {
     switch (this.#findByIdResult.kind) {
-      case 'playbookSource': {
-        return ok(this.#findByIdResult.playbookSource);
+      case 'persisted': {
+        return ok(this.#findByIdResult.persisted);
       }
       case 'null': {
         return ok(null);
@@ -240,6 +286,16 @@ class StubPlaybookSourceRepository implements PlaybookSourceRepository {
         return err(this.#listByPlaybookIdResult.error);
       }
     }
+  }
+
+  async update(
+    source: PlaybookSource,
+    expectedRevision: PersistenceRevision,
+  ): Promise<Result<PersistenceRevision, PlaybookSourceRepositoryUpdateError>> {
+    this.#updateCallCount += 1;
+    this.#updateSource = source;
+    this.#updateExpectedRevision = expectedRevision;
+    return this.#updateResult;
   }
 }
 
@@ -328,6 +384,9 @@ describe('PlaybookSourceRepository', () => {
       expect(result.success).toBe(true);
       expect(repository.insertCallCount).toBe(1);
       expect(repository.insertedSource).toBe(source);
+      if (result.success) {
+        expect(result.value.value).toBe(1);
+      }
     });
 
     it('preserves an enabled conflict without retry', async () => {
@@ -338,7 +397,7 @@ describe('PlaybookSourceRepository', () => {
       const repository = StubPlaybookSourceRepository.returningInsertError(conflict);
       const result = await repository.insert(source);
       expect(result.success).toBe(false);
-      if (!result.success) expect(result.error).toBe(conflict);
+      if (!result.success) expect(result.error).toEqual(conflict);
       expect(repository.insertCallCount).toBe(1);
       expect(repository.insertedSource).toBe(source);
     });
@@ -357,8 +416,8 @@ describe('PlaybookSourceRepository', () => {
     });
   });
 
-  describe('findById — found', () => {
-    it('returns a successful Result with the PlaybookSource instance', async () => {
+  describe('findById', () => {
+    it('returns a PersistedAggregate with the PlaybookSource and revision', async () => {
       const playbookSource = createValidPlaybookSource();
       const repository = StubPlaybookSourceRepository.returningPlaybookSource(playbookSource);
       const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
@@ -373,12 +432,14 @@ describe('PlaybookSourceRepository', () => {
         return;
       }
 
-      expect(result.value).toBe(playbookSource);
+      expect(result.value).not.toBeNull();
+      if (result.value !== null) {
+        expect(result.value.aggregate).toBe(playbookSource);
+        expect(result.value.revision.value).toBe(1);
+      }
     });
-  });
 
-  describe('findById — absent', () => {
-    it('returns a successful Result with null', async () => {
+    it('returns a successful Result with null when absent', async () => {
       const repository = StubPlaybookSourceRepository.returningNull();
       const workspaceId = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
       if (!workspaceId.success) {
@@ -398,36 +459,7 @@ describe('PlaybookSourceRepository', () => {
 
       expect(result.value).toBeNull();
     });
-  });
 
-  describe('findById — wrong workspace', () => {
-    it('returns a successful Result with null when the source belongs to a different workspace', async () => {
-      const repository = StubPlaybookSourceRepository.returningNull();
-      const workspaceA = parseWorkspaceId('00000000-0000-0000-0000-000000000002');
-      if (!workspaceA.success) {
-        throw new Error('Expected a valid workspace ID fixture.');
-      }
-      const workspaceB = parseWorkspaceId('00000000-0000-0000-0000-000000000004');
-      if (!workspaceB.success) {
-        throw new Error('Expected a valid workspace ID fixture.');
-      }
-      const playbookSourceId = parsePlaybookSourceId('00000000-0000-0000-0000-000000000001');
-      if (!playbookSourceId.success) {
-        throw new Error('Expected a valid playbook source ID fixture.');
-      }
-
-      const result = await repository.findById(workspaceB.value, playbookSourceId.value);
-
-      expect(result.success).toBe(true);
-      if (!result.success) {
-        return;
-      }
-
-      expect(result.value).toBeNull();
-    });
-  });
-
-  describe('findById — persistence failure', () => {
     it('returns a failed Result with PersistenceOperationFailedError', async () => {
       const error = persistenceOperationFailed('playbookSource.findById');
       const repository = StubPlaybookSourceRepository.returningError(error);
@@ -629,8 +661,12 @@ describe('PlaybookSourceRepository', () => {
       const _acceptsTypedIds: (
         workspaceId: WorkspaceId,
         playbookSourceId: PlaybookSourceId,
-      ) => Promise<Result<PlaybookSource | null, PersistenceOperationFailedError>> = (wsId, psId) =>
-        repository.findById(wsId, psId);
+      ) => Promise<
+        Result<
+          ReturnType<typeof createPersistedAggregate<PlaybookSource>> | null,
+          PersistenceOperationFailedError
+        >
+      > = (wsId, psId) => repository.findById(wsId, psId);
 
       void _acceptsTypedIds;
     });
@@ -1154,6 +1190,81 @@ describe('PlaybookSourceRepository', () => {
       ) => repository.listByPlaybookId(wsId, pbId, pageRequest);
 
       void _acceptsTypedArguments;
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // update tests
+  // -------------------------------------------------------------------------
+
+  describe('update', () => {
+    it('returns a new revision and captures the exact source once', async () => {
+      const source = createValidPlaybookSource();
+      const repository = StubPlaybookSourceRepository.returningPlaybookSource(source);
+      const revResult = PersistenceRevision.from(4);
+      if (!revResult.success) throw new Error('Expected revision 4 to be valid.');
+
+      const result = await repository.update(source, revResult.value);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.value.value).toBe(1);
+      }
+      expect(repository.updateCallCount).toBe(1);
+      expect(repository.updateSource).toBe(source);
+      expect(repository.updateExpectedRevision).not.toBeNull();
+      if (repository.updateExpectedRevision !== null) {
+        expect(repository.updateExpectedRevision.value).toBe(4);
+      }
+    });
+
+    it('supports playbookSourceNotFound error', async () => {
+      const source = createValidPlaybookSource();
+      const error = playbookSourceNotFound(source.id);
+
+      expect(error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
+      expect(error.details.playbookSourceId).toBe(source.id);
+      expect(Object.isFrozen(error)).toBe(true);
+      expect(Object.isFrozen(error.details)).toBe(true);
+    });
+
+    it('supports enabledPlaybookSourceConflict error', async () => {
+      const source = createValidPlaybookSource();
+      const error = enabledPlaybookSourceConflict(source.playbookId);
+
+      expect(error).toEqual({
+        code: 'ENABLED_PLAYBOOK_SOURCE_CONFLICT',
+        message: 'An enabled playbook source already exists for this playbook.',
+        details: { playbookId: source.playbookId },
+      });
+      expect(Object.isFrozen(error)).toBe(true);
+      expect(Object.isFrozen(error.details)).toBe(true);
+    });
+
+    it('supports persistenceRevisionConflict error', async () => {
+      const revResult = PersistenceRevision.from(3);
+      if (!revResult.success) throw new Error('Expected revision 3 to be valid.');
+      const error = persistenceRevisionConflict(revResult.value);
+
+      expect(error).toEqual({
+        code: PERSISTENCE_REVISION_CONFLICT,
+        message: 'The persisted aggregate was modified by another operation.',
+        details: { operation: 'playbook.update', expectedRevision: 3 },
+      });
+      expect(Object.isFrozen(error)).toBe(true);
+      expect(Object.isFrozen(error.details)).toBe(true);
+    });
+
+    it('supports persistenceOperationFailed error for playbookSource.update', async () => {
+      const error = persistenceOperationFailed('playbookSource.update');
+
+      expect(error).toEqual({
+        code: PERSISTENCE_OPERATION_FAILED,
+        message: 'Persistence operation failed.',
+        details: { operation: 'playbookSource.update' },
+      });
+      expect(Object.isFrozen(error)).toBe(true);
+      expect(Object.isFrozen(error.details)).toBe(true);
     });
   });
 });

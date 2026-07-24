@@ -208,9 +208,10 @@ class SourceStub implements PlaybookSourceRepository {
       PlaybookSource | null,
       PersistenceOperationFailedError
     > = ok(null),
-    private readonly insertResult: Result<void, PlaybookSourceRepositoryInsertError> = ok(
-      undefined,
-    ),
+    private readonly insertResult: Result<
+      PersistenceRevisionType,
+      PlaybookSourceRepositoryInsertError
+    > = ok(revision()),
   ) {}
 
   async findEnabledByPlaybookId(
@@ -223,17 +224,25 @@ class SourceStub implements PlaybookSourceRepository {
     return this.precheckResult;
   }
 
-  async insert(source: PlaybookSource): Promise<Result<void, PlaybookSourceRepositoryInsertError>> {
+  async insert(
+    source: PlaybookSource,
+  ): Promise<Result<PersistenceRevisionType, PlaybookSourceRepositoryInsertError>> {
     this.insertCalls.push(source);
     return this.insertResult;
   }
 
-  async findById(): Promise<Result<PlaybookSource | null, PersistenceOperationFailedError>> {
+  async findById(): Promise<
+    Result<PersistedAggregate<PlaybookSource> | null, PersistenceOperationFailedError>
+  > {
     return ok(null);
   }
 
   async listByPlaybookId(): Promise<Result<Page<PlaybookSource>, PersistenceOperationFailedError>> {
     return ok({ items: [], offset: 0, limit: 25, hasMore: false });
+  }
+
+  async update(): Promise<Result<PersistenceRevisionType, never>> {
+    return ok(revision());
   }
 }
 
