@@ -24,7 +24,6 @@ import {
   PersistenceRevision,
   createPersistedAggregate,
   persistenceRevisionConflict,
-  PERSISTENCE_REVISION_CONFLICT,
 } from '../../persistence/index.js';
 import type { PersistenceOperationFailedError } from '../../persistence/index.js';
 import {
@@ -203,6 +202,14 @@ class StubPlaybookSourceRepository implements PlaybookSourceRepository {
         }),
       },
     );
+  }
+
+  static returningUpdateResult(
+    result: Result<PersistenceRevision, PlaybookSourceRepositoryUpdateError>,
+  ): StubPlaybookSourceRepository {
+    const repository = new StubPlaybookSourceRepository({ kind: 'null' });
+    repository.#updateResult = result;
+    return repository;
   }
 
   static returningListByPlaybookIdError(
@@ -1200,71 +1207,100 @@ describe('PlaybookSourceRepository', () => {
   describe('update', () => {
     it('returns a new revision and captures the exact source once', async () => {
       const source = createValidPlaybookSource();
-      const repository = StubPlaybookSourceRepository.returningPlaybookSource(source);
-      const revResult = PersistenceRevision.from(4);
-      if (!revResult.success) throw new Error('Expected revision 4 to be valid.');
+      const revision3Result = PersistenceRevision.from(3);
+      if (!revision3Result.success) throw new Error('Expected revision 3 to be valid.');
+      const revision3 = revision3Result.value;
+      const revision4Result = PersistenceRevision.from(4);
+      if (!revision4Result.success) throw new Error('Expected revision 4 to be valid.');
+      const revision4 = revision4Result.value;
 
-      const result = await repository.update(source, revResult.value);
+      const repository = StubPlaybookSourceRepository.returningUpdateResult(ok(revision4));
+
+      const result = await repository.update(source, revision3);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.value.value).toBe(1);
+        expect(result.value.value).toBe(4);
       }
       expect(repository.updateCallCount).toBe(1);
       expect(repository.updateSource).toBe(source);
-      expect(repository.updateExpectedRevision).not.toBeNull();
-      if (repository.updateExpectedRevision !== null) {
-        expect(repository.updateExpectedRevision.value).toBe(4);
+      expect(repository.updateExpectedRevision).toBe(revision3);
+    });
+
+    it('propagates playbookSourceNotFound error', async () => {
+      const source = createValidPlaybookSource();
+      const revision1 = PersistenceRevision.from(1);
+      if (!revision1.success) throw new Error('Expected revision 1 to be valid.');
+      const expectedError = playbookSourceNotFound(source.id);
+
+      const repository = StubPlaybookSourceRepository.returningUpdateResult(err(expectedError));
+
+      const result = await repository.update(source, revision1.value);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toEqual(expectedError);
       }
+      expect(repository.updateCallCount).toBe(1);
+      expect(repository.updateSource).toBe(source);
+      expect(repository.updateExpectedRevision).toBe(revision1.value);
     });
 
-    it('supports playbookSourceNotFound error', async () => {
+    it('propagates enabledPlaybookSourceConflict error', async () => {
       const source = createValidPlaybookSource();
-      const error = playbookSourceNotFound(source.id);
+      const revision1 = PersistenceRevision.from(1);
+      if (!revision1.success) throw new Error('Expected revision 1 to be valid.');
+      const expectedError = enabledPlaybookSourceConflict(source.playbookId);
 
-      expect(error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
-      expect(error.details.playbookSourceId).toBe(source.id);
-      expect(Object.isFrozen(error)).toBe(true);
-      expect(Object.isFrozen(error.details)).toBe(true);
+      const repository = StubPlaybookSourceRepository.returningUpdateResult(err(expectedError));
+
+      const result = await repository.update(source, revision1.value);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toEqual(expectedError);
+      }
+      expect(repository.updateCallCount).toBe(1);
+      expect(repository.updateSource).toBe(source);
+      expect(repository.updateExpectedRevision).toBe(revision1.value);
     });
 
-    it('supports enabledPlaybookSourceConflict error', async () => {
+    it('propagates persistenceRevisionConflict error', async () => {
       const source = createValidPlaybookSource();
-      const error = enabledPlaybookSourceConflict(source.playbookId);
+      const revision3 = PersistenceRevision.from(3);
+      if (!revision3.success) throw new Error('Expected revision 3 to be valid.');
+      const expectedError = persistenceRevisionConflict(revision3.value);
 
-      expect(error).toEqual({
-        code: 'ENABLED_PLAYBOOK_SOURCE_CONFLICT',
-        message: 'An enabled playbook source already exists for this playbook.',
-        details: { playbookId: source.playbookId },
-      });
-      expect(Object.isFrozen(error)).toBe(true);
-      expect(Object.isFrozen(error.details)).toBe(true);
+      const repository = StubPlaybookSourceRepository.returningUpdateResult(err(expectedError));
+
+      const result = await repository.update(source, revision3.value);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toEqual(expectedError);
+      }
+      expect(repository.updateCallCount).toBe(1);
+      expect(repository.updateSource).toBe(source);
+      expect(repository.updateExpectedRevision).toBe(revision3.value);
     });
 
-    it('supports persistenceRevisionConflict error', async () => {
-      const revResult = PersistenceRevision.from(3);
-      if (!revResult.success) throw new Error('Expected revision 3 to be valid.');
-      const error = persistenceRevisionConflict(revResult.value);
+    it('propagates persistenceOperationFailed error for playbookSource.update', async () => {
+      const source = createValidPlaybookSource();
+      const revision1 = PersistenceRevision.from(1);
+      if (!revision1.success) throw new Error('Expected revision 1 to be valid.');
+      const expectedError = persistenceOperationFailed('playbookSource.update');
 
-      expect(error).toEqual({
-        code: PERSISTENCE_REVISION_CONFLICT,
-        message: 'The persisted aggregate was modified by another operation.',
-        details: { operation: 'playbook.update', expectedRevision: 3 },
-      });
-      expect(Object.isFrozen(error)).toBe(true);
-      expect(Object.isFrozen(error.details)).toBe(true);
-    });
+      const repository = StubPlaybookSourceRepository.returningUpdateResult(err(expectedError));
 
-    it('supports persistenceOperationFailed error for playbookSource.update', async () => {
-      const error = persistenceOperationFailed('playbookSource.update');
+      const result = await repository.update(source, revision1.value);
 
-      expect(error).toEqual({
-        code: PERSISTENCE_OPERATION_FAILED,
-        message: 'Persistence operation failed.',
-        details: { operation: 'playbookSource.update' },
-      });
-      expect(Object.isFrozen(error)).toBe(true);
-      expect(Object.isFrozen(error.details)).toBe(true);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toEqual(expectedError);
+      }
+      expect(repository.updateCallCount).toBe(1);
+      expect(repository.updateSource).toBe(source);
+      expect(repository.updateExpectedRevision).toBe(revision1.value);
     });
   });
 });

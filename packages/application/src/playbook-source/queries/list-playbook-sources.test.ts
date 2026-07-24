@@ -177,6 +177,10 @@ type SourceListResult =
 
 class StubPlaybookSourceRepository implements PlaybookSourceRepository {
   readonly listCalls: ListCall[] = [];
+  readonly insertCalls: unknown[] = [];
+  readonly findByIdCalls: unknown[] = [];
+  readonly findEnabledByPlaybookIdCalls: unknown[] = [];
+  readonly updateCalls: unknown[] = [];
 
   constructor(private readonly listResult: SourceListResult) {}
 
@@ -195,6 +199,7 @@ class StubPlaybookSourceRepository implements PlaybookSourceRepository {
   }
 
   async insert(): Promise<Result<PersistenceRevision, never>> {
+    this.insertCalls.push(undefined);
     const rev = PersistenceRevision.from(1);
     if (!rev.success) throw new Error('Expected revision 1 to be valid.');
     return ok(rev.value);
@@ -203,14 +208,17 @@ class StubPlaybookSourceRepository implements PlaybookSourceRepository {
   async findById(): Promise<
     Result<{ aggregate: PlaybookSourceClass; revision: PersistenceRevision } | null, never>
   > {
+    this.findByIdCalls.push(undefined);
     return ok(null);
   }
 
   async findEnabledByPlaybookId(): Promise<Result<PlaybookSourceClass | null, never>> {
+    this.findEnabledByPlaybookIdCalls.push(undefined);
     return ok(null);
   }
 
   async update(): Promise<Result<PersistenceRevision, never>> {
+    this.updateCalls.push(undefined);
     const rev = PersistenceRevision.from(2);
     if (!rev.success) throw new Error('Expected revision 2 to be valid.');
     return ok(rev.value);
@@ -366,6 +374,10 @@ describe('ListPlaybookSourcesHandler', () => {
     expect(workspaceRepo.findByIdCalls).toEqual([]);
     expect(playbookRepo.findByIdCalls).toEqual([]);
     expect(sourceRepo.listCalls).toEqual([]);
+    expect(sourceRepo.insertCalls).toEqual([]);
+    expect(sourceRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(sourceRepo.updateCalls).toEqual([]);
   });
 
   interface InvalidPaginationCase {
@@ -434,6 +446,10 @@ describe('ListPlaybookSourcesHandler', () => {
       expect(workspaceRepo.findByIdCalls).toEqual([]);
       expect(playbookRepo.findByIdCalls).toEqual([]);
       expect(sourceRepo.listCalls).toEqual([]);
+      expect(sourceRepo.insertCalls).toEqual([]);
+      expect(sourceRepo.findByIdCalls).toEqual([]);
+      expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
+      expect(sourceRepo.updateCalls).toEqual([]);
     },
   );
 
@@ -465,6 +481,10 @@ describe('ListPlaybookSourcesHandler', () => {
     expect(workspaceRepo.findByIdCalls).toEqual([]);
     expect(playbookRepo.findByIdCalls).toEqual([]);
     expect(sourceRepo.listCalls).toEqual([]);
+    expect(sourceRepo.insertCalls).toEqual([]);
+    expect(sourceRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(sourceRepo.updateCalls).toEqual([]);
   });
 
   it('preserves persistence error when workspace lookup fails', async () => {
@@ -495,6 +515,10 @@ describe('ListPlaybookSourcesHandler', () => {
     expect(workspaceRepo.findByIdCalls).toHaveLength(1);
     expect(playbookRepo.findByIdCalls).toEqual([]);
     expect(sourceRepo.listCalls).toEqual([]);
+    expect(sourceRepo.insertCalls).toEqual([]);
+    expect(sourceRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(sourceRepo.updateCalls).toEqual([]);
   });
 
   it('returns WORKSPACE_NOT_FOUND without playbook or source lookup', async () => {
@@ -557,6 +581,10 @@ describe('ListPlaybookSourcesHandler', () => {
     expect(workspaceRepo.findByIdCalls).toHaveLength(1);
     expect(playbookRepo.findByIdCalls).toHaveLength(1);
     expect(sourceRepo.listCalls).toEqual([]);
+    expect(sourceRepo.insertCalls).toEqual([]);
+    expect(sourceRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(sourceRepo.updateCalls).toEqual([]);
   });
 
   it('returns PLAYBOOK_NOT_FOUND without source lookup', async () => {
@@ -589,6 +617,10 @@ describe('ListPlaybookSourcesHandler', () => {
     expect(workspaceRepo.findByIdCalls).toHaveLength(1);
     expect(playbookRepo.findByIdCalls).toHaveLength(1);
     expect(sourceRepo.listCalls).toEqual([]);
+    expect(sourceRepo.insertCalls).toEqual([]);
+    expect(sourceRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(sourceRepo.updateCalls).toEqual([]);
   });
 
   it('preserves persistence error when source listing fails', async () => {
@@ -627,6 +659,10 @@ describe('ListPlaybookSourcesHandler', () => {
     expect(listCall.workspaceId).toBe(workspaceIdValue);
     expect(listCall.playbookId).toBe(playbookIdValue);
     expect(listCall.pagination).toEqual({ offset: 0, limit: 25 });
+    expect(sourceRepo.insertCalls).toEqual([]);
+    expect(sourceRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(sourceRepo.updateCalls).toEqual([]);
   });
 
   it('returns an empty frozen page when no sources exist', async () => {
@@ -668,6 +704,10 @@ describe('ListPlaybookSourcesHandler', () => {
 
     expect(Object.isFrozen(result.value)).toBe(true);
     expect(Object.isFrozen(result.value.items)).toBe(true);
+    expect(sourceRepo.insertCalls).toEqual([]);
+    expect(sourceRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(sourceRepo.updateCalls).toEqual([]);
   });
 
   it('returns a page with both enabled (with sync history) and disabled sources preserving order', async () => {
@@ -757,6 +797,10 @@ describe('ListPlaybookSourcesHandler', () => {
 
     expect(syncSource.toSnapshot()).toEqual(snapshotBefore1);
     expect(disabledSource.toSnapshot()).toEqual(snapshotBefore2);
+    expect(sourceRepo.insertCalls).toEqual([]);
+    expect(sourceRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(sourceRepo.updateCalls).toEqual([]);
   });
 
   it('supports archived playbooks without error', async () => {
@@ -800,6 +844,10 @@ describe('ListPlaybookSourcesHandler', () => {
     expect(listCall.playbookId).toBe(playbookIdValue);
     expect(listCall.pagination).toEqual({ offset: 0, limit: 25 });
     expect(archived.toSnapshot()).toEqual(snapshotBefore);
+    expect(sourceRepo.insertCalls).toEqual([]);
+    expect(sourceRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(sourceRepo.updateCalls).toEqual([]);
   });
 
   it('preserves offset, limit, hasMore for a subsequent page', async () => {
@@ -844,5 +892,9 @@ describe('ListPlaybookSourcesHandler', () => {
     expect(result.value.limit).toBe(5);
     expect(result.value.hasMore).toBe(true);
     expect(result.value.totalCount).toBe(20);
+    expect(sourceRepo.insertCalls).toEqual([]);
+    expect(sourceRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
+    expect(sourceRepo.updateCalls).toEqual([]);
   });
 });

@@ -463,12 +463,57 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
       expect(result.error).toEqual(persistenceOperationFailed('playbookSource.insert'));
   });
 
+  it('returns persistence operation failed when insert returns no rows', async () => {
+    // Create a trigger that suppresses the insert
+    await pool.query(`
+      CREATE OR REPLACE FUNCTION fn_suppress_playbook_source_insert()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        RETURN NULL;
+      END;
+      $$ LANGUAGE plpgsql
+    `);
+    await pool.query(`
+      CREATE TRIGGER trg_suppress_playbook_source_insert
+        BEFORE INSERT ON playbook_sources
+        FOR EACH ROW
+        EXECUTE FUNCTION fn_suppress_playbook_source_insert()
+    `);
+
+    try {
+      const source = createPlaybookSource({ id: '00000000-0000-0000-0000-000000000309' });
+      const result = await repository.insert(source);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toEqual(persistenceOperationFailed('playbookSource.insert'));
+      }
+
+      // Verify no row was stored
+      const stored = await pool.query<{ count: string }>(
+        'SELECT COUNT(*) AS count FROM playbook_sources WHERE playbook_source_id = $1',
+        [source.id],
+      );
+      expect(Number(stored.rows[0]?.count ?? 0)).toBe(0);
+    } finally {
+      await pool.query(
+        'DROP TRIGGER IF EXISTS trg_suppress_playbook_source_insert ON playbook_sources',
+      );
+      await pool.query('DROP FUNCTION IF EXISTS fn_suppress_playbook_source_insert()');
+    }
+  });
+
   // ---------------------------------------------------------------------------
   // update
   // ---------------------------------------------------------------------------
 
-  it('update succeeds and increments revision', async () => {
-    const source = createPlaybookSource({ id: '00000000-0000-0000-0000-000000000401' });
+  it('update persists all mutable fields and preserves identity', async () => {
+    const source = createPlaybookSource({
+      id: '00000000-0000-0000-0000-000000000401',
+      externalRootReference: 'root-401',
+      configurationReference: 'config-401',
+      createdAt: '2026-07-01T10:00:00.000Z',
+    });
     const insertResult = await repository.insert(source);
     expect(insertResult.success).toBe(true);
     if (!insertResult.success) throw new Error('Expected insert to succeed.');
@@ -476,37 +521,22 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     const revision1 = insertResult.value;
     expect(revision1.value).toBe(1);
 
-    source.disable();
-    const updateResult = await repository.update(source, revision1);
-    expect(updateResult.success).toBe(true);
-    if (!updateResult.success) throw new Error('Expected update to succeed.');
-    expect(updateResult.value.value).toBe(2);
+    // Apply all mutable domain transitions
+    const disableResult = source.disable();
+    expect(disableResult.success).toBe(true);
 
-    const reloaded = await repository.findById(source.workspaceId, source.id);
-    expect(reloaded.success).toBe(true);
-    if (!reloaded.success || reloaded.value === null) throw new Error('Expected reloaded source.');
-    expect(reloaded.value.revision.value).toBe(2);
-    expect(reloaded.value.aggregate.status).toBe('disabled');
-    expect(reloaded.value.aggregate.toSnapshot()).toEqual(source.toSnapshot());
-  });
-
-  it('update preserves ownership and immutable fields', async () => {
-    const source = createPlaybookSource({
-      id: '00000000-0000-0000-0000-000000000402',
-      externalRootReference: 'root-402',
-      configurationReference: 'config-402',
-      createdAt: '2026-07-01T10:00:00.000Z',
+    const newExternalRoot = externalRootReference('https://example.com/updated');
+    const updateExternalResult = source.updateExternalRootReference({
+      externalRootReference: newExternalRoot,
     });
-    const insertResult = await repository.insert(source);
-    expect(insertResult.success).toBe(true);
-    if (!insertResult.success) throw new Error('Expected insert to succeed.');
+    expect(updateExternalResult.success).toBe(true);
 
-    const reloaded1 = await repository.findById(source.workspaceId, source.id);
-    expect(reloaded1.success).toBe(true);
-    if (!reloaded1.success || reloaded1.value === null)
-      throw new Error('Expected reloaded source.');
+    const newConfigRef = configurationReference('config-updated');
+    const updateConfigResult = source.updateConfigurationReference({
+      configurationReference: newConfigRef,
+    });
+    expect(updateConfigResult.success).toBe(true);
 
-    // Record synchronization metadata
     const successRunId = parseSynchronizationRunId('00000000-0000-0000-0000-000000000501');
     if (!successRunId.success) throw new Error('Invalid success run id fixture.');
     const successAt = instant('2026-07-01T11:00:00.000Z');
@@ -515,28 +545,52 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
       succeededAt: successAt,
     });
 
-    const updateResult = await repository.update(source, reloaded1.value.revision);
+    const failedRunId = parseSynchronizationRunId('00000000-0000-0000-0000-000000000601');
+    if (!failedRunId.success) throw new Error('Invalid failed run id fixture.');
+    const failedAt = instant('2026-07-01T12:00:00.000Z');
+    source.recordFailedSynchronization({
+      synchronizationRunId: failedRunId.value,
+      failedAt,
+    });
+
+    const updateResult = await repository.update(source, revision1);
     expect(updateResult.success).toBe(true);
     if (!updateResult.success) throw new Error('Expected update to succeed.');
     expect(updateResult.value.value).toBe(2);
 
-    const reloaded2 = await repository.findById(source.workspaceId, source.id);
-    expect(reloaded2.success).toBe(true);
-    if (!reloaded2.success || reloaded2.value === null)
-      throw new Error('Expected reloaded source.');
+    const reloaded = await repository.findById(source.workspaceId, source.id);
+    expect(reloaded.success).toBe(true);
+    if (!reloaded.success || reloaded.value === null) throw new Error('Expected reloaded source.');
 
-    // Ownership unchanged
-    expect(reloaded2.value.aggregate.workspaceId).toBe(source.workspaceId);
-    expect(reloaded2.value.aggregate.playbookId).toBe(source.playbookId);
-    expect(reloaded2.value.aggregate.id).toBe(source.id);
-    expect(reloaded2.value.aggregate.type).toBe('notion');
-    expect(reloaded2.value.aggregate.createdAt.toString()).toBe('2026-07-01T10:00:00.000Z');
+    // Snapshot exacto completo
+    expect(reloaded.value.aggregate.toSnapshot()).toEqual(source.toSnapshot());
 
-    // Mutation persisted
-    expect(reloaded2.value.aggregate.lastSuccessfulSynchronizationRunId?.toString()).toBe(
+    // Ownership e identidad preservados
+    expect(reloaded.value.aggregate.id).toBe(source.id);
+    expect(reloaded.value.aggregate.workspaceId).toBe(source.workspaceId);
+    expect(reloaded.value.aggregate.playbookId).toBe(source.playbookId);
+    expect(reloaded.value.aggregate.type).toBe('notion');
+    expect(reloaded.value.aggregate.createdAt.toString()).toBe('2026-07-01T10:00:00.000Z');
+
+    // Campos mutables persistidos
+    expect(reloaded.value.aggregate.status).toBe('disabled');
+    expect(reloaded.value.aggregate.externalRootReference.toString()).toBe(
+      'https://example.com/updated',
+    );
+    expect(reloaded.value.aggregate.configurationReference.toString()).toBe('config-updated');
+    expect(reloaded.value.aggregate.lastSuccessfulSynchronizationRunId?.toString()).toBe(
       '00000000-0000-0000-0000-000000000501',
     );
-    expect(reloaded2.value.revision.value).toBe(2);
+    expect(reloaded.value.aggregate.lastSuccessfulSynchronizationAt?.toString()).toBe(
+      '2026-07-01T11:00:00.000Z',
+    );
+    expect(reloaded.value.aggregate.lastFailedSynchronizationRunId?.toString()).toBe(
+      '00000000-0000-0000-0000-000000000601',
+    );
+    expect(reloaded.value.aggregate.lastFailedSynchronizationAt?.toString()).toBe(
+      '2026-07-01T12:00:00.000Z',
+    );
+    expect(reloaded.value.revision.value).toBe(2);
   });
 
   it('update returns revision conflict when expectedRevision does not match', async () => {
@@ -548,29 +602,40 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     const revision1 = insertResult.value;
     expect(revision1.value).toBe(1);
 
-    // First update succeeds
-    source.disable();
+    // First update succeeds: change configuration reference
+    const newConfigRef = configurationReference('config-v2');
+    const updateConfigResult = source.updateConfigurationReference({
+      configurationReference: newConfigRef,
+    });
+    expect(updateConfigResult.success).toBe(true);
+
     const update1 = await repository.update(source, revision1);
     expect(update1.success).toBe(true);
     if (!update1.success) throw new Error('Expected update to succeed.');
 
-    // Second update with stale revision
-    const source2 = createPlaybookSource({
+    // Stale aggregate with a different mutation to prove the conflict is not an identity collision
+    const staleSource = createPlaybookSource({
       id: '00000000-0000-0000-0000-000000000403',
+      configurationReference: 'config-stale',
     });
-    source2.disable();
-    const update2 = await repository.update(source2, revision1);
+    const staleConfigRefResult = staleSource.updateConfigurationReference({
+      configurationReference: configurationReference('config-stale-2'),
+    });
+    expect(staleConfigRefResult.success).toBe(true);
+
+    const update2 = await repository.update(staleSource, revision1);
     expect(update2.success).toBe(false);
     if (!update2.success) {
       expect(update2.error).toEqual(persistenceRevisionConflict(revision1));
     }
 
-    // Verify stored revision is still 2
-    const stored = await pool.query<{ revision: number }>(
-      'SELECT revision FROM playbook_sources WHERE playbook_source_id = $1',
-      [source.id],
-    );
-    expect(stored.rows[0]?.revision).toBe(2);
+    // Verify stored revision is still 2 and state is from the first update
+    const reloaded = await repository.findById(source.workspaceId, source.id);
+    expect(reloaded.success).toBe(true);
+    if (!reloaded.success || reloaded.value === null) throw new Error('Expected reloaded source.');
+    expect(reloaded.value.revision.value).toBe(2);
+    expect(reloaded.value.aggregate.configurationReference.toString()).toBe('config-v2');
+    expect(reloaded.value.aggregate.toSnapshot()).toEqual(source.toSnapshot());
   });
 
   it('update returns source not found for non-existent source', async () => {
@@ -586,18 +651,22 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
   });
 
   it('update returns source not found when workspace does not match', async () => {
+    // Insert source with valid ownership: workspaceB + playbookC
     const source = createPlaybookSource({
       id: '00000000-0000-0000-0000-000000000405',
       workspace: workspaceB,
+      playbook: playbookC,
     });
     const insertResult = await repository.insert(source);
     expect(insertResult.success).toBe(true);
     if (!insertResult.success) throw new Error('Expected insert to succeed.');
+    expect(insertResult.value.value).toBe(1);
 
-    // Source is in workspaceB, try to update from workspaceA
+    // Attempt update with a different valid ownership (workspaceA + playbookA) but same source ID
     const wrongWorkspaceSource = createPlaybookSource({
       id: '00000000-0000-0000-0000-000000000405',
       workspace: workspaceA,
+      playbook: playbookA,
     });
     const revResult = PersistenceRevision.from(1);
     if (!revResult.success) throw new Error('Expected revision 1 to be valid.');
@@ -605,15 +674,26 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     const result = await repository.update(wrongWorkspaceSource, revResult.value);
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
+      expect(result.error).toEqual(playbookSourceNotFound(wrongWorkspaceSource.id));
     }
 
-    // Verify source still exists in workspaceB with revision 1
-    const stored = await pool.query<{ revision: number }>(
-      'SELECT revision FROM playbook_sources WHERE playbook_source_id = $1',
+    // Verify source still exists in workspaceB with playbookC and revision 1
+    const stored = await pool.query<{
+      revision: number;
+      workspace_id: string;
+      playbook_id: string;
+      status: string;
+    }>(
+      'SELECT revision, workspace_id, playbook_id, status FROM playbook_sources WHERE playbook_source_id = $1',
       [source.id],
     );
-    expect(stored.rows[0]?.revision).toBe(1);
+    expect(stored.rows).toHaveLength(1);
+    if (stored.rows[0] !== undefined) {
+      expect(stored.rows[0].revision).toBe(1);
+      expect(stored.rows[0].workspace_id).toBe(workspaceB);
+      expect(stored.rows[0].playbook_id).toBe(playbookC);
+      expect(stored.rows[0].status).toBe('enabled');
+    }
   });
 
   it('update returns enabled source conflict when enabling would conflict', async () => {
