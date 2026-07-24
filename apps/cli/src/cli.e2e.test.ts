@@ -1993,5 +1993,432 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     } finally {
       await verifyForeignPool.end();
     }
+
+    // ================================================================
+    // 11. E2E: Update Playbook Source References
+    // ================================================================
+
+    // 59. External root update on enabled source.
+    const extRootRes = runCli(
+      [
+        'playbook',
+        'source',
+        'update-external-root',
+        '--id',
+        firstPlaybookSourceId,
+        '--external-root-reference',
+        'notion-root-updated',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(extRootRes.status).toBe(0);
+    expect(extRootRes.stderr).toBe('');
+    assertSafeOutput(extRootRes.stdout);
+    const extRootJson: unknown = JSON.parse(extRootRes.stdout);
+    if (
+      extRootJson !== null &&
+      typeof extRootJson === 'object' &&
+      'success' in extRootJson &&
+      extRootJson.success === true &&
+      'data' in extRootJson &&
+      extRootJson.data !== null &&
+      typeof extRootJson.data === 'object' &&
+      'status' in extRootJson.data &&
+      'externalRootReference' in extRootJson.data &&
+      'configurationReference' in extRootJson.data &&
+      'createdAt' in extRootJson.data &&
+      'lastSuccessfulSynchronizationRunId' in extRootJson.data &&
+      'lastSuccessfulSynchronizationAt' in extRootJson.data &&
+      'lastFailedSynchronizationRunId' in extRootJson.data &&
+      'lastFailedSynchronizationAt' in extRootJson.data
+    ) {
+      expect(extRootJson.data.status).toBe('enabled');
+      expect(extRootJson.data.externalRootReference).toBe('notion-root-updated');
+      expect(extRootJson.data.configurationReference).toBe('notion/main');
+      expect(extRootJson.data.createdAt).toBe(firstPlaybookSourceCreatedAt);
+      expect(extRootJson.data.lastSuccessfulSynchronizationRunId).toBeNull();
+      expect(extRootJson.data.lastSuccessfulSynchronizationAt).toBeNull();
+      expect(extRootJson.data.lastFailedSynchronizationRunId).toBeNull();
+      expect(extRootJson.data.lastFailedSynchronizationAt).toBeNull();
+      expect('revision' in extRootJson.data).toBe(false);
+      expect('token' in extRootJson.data).toBe(false);
+      expect('credential' in extRootJson.data).toBe(false);
+      expect('secret' in extRootJson.data).toBe(false);
+    } else throw new Error('Invalid update-external-root JSON structure.');
+
+    // 60. Verify persistence via show.
+    const showAfterExtRootRes = runCli(
+      ['playbook', 'source', 'show', '--id', firstPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(showAfterExtRootRes.status).toBe(0);
+    expect(showAfterExtRootRes.stderr).toBe('');
+    assertSafeOutput(showAfterExtRootRes.stdout);
+    const showAfterExtRootJson: unknown = JSON.parse(showAfterExtRootRes.stdout);
+    if (
+      showAfterExtRootJson !== null &&
+      typeof showAfterExtRootJson === 'object' &&
+      'success' in showAfterExtRootJson &&
+      showAfterExtRootJson.success === true &&
+      'data' in showAfterExtRootJson &&
+      showAfterExtRootJson.data !== null &&
+      typeof showAfterExtRootJson.data === 'object' &&
+      'externalRootReference' in showAfterExtRootJson.data
+    ) {
+      expect(showAfterExtRootJson.data.externalRootReference).toBe('notion-root-updated');
+    } else throw new Error('Invalid show after ext root update JSON structure.');
+
+    // 61. External root unchanged.
+    const extRootSameRes = runCli(
+      [
+        'playbook',
+        'source',
+        'update-external-root',
+        '--id',
+        firstPlaybookSourceId,
+        '--external-root-reference',
+        'notion-root-updated',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(extRootSameRes.status).toBe(4);
+    expect(extRootSameRes.stderr).toBe('');
+    assertSafeOutput(extRootSameRes.stdout);
+    const extRootSameJson: unknown = JSON.parse(extRootSameRes.stdout);
+    if (
+      extRootSameJson !== null &&
+      typeof extRootSameJson === 'object' &&
+      'success' in extRootSameJson &&
+      'error' in extRootSameJson &&
+      extRootSameJson.error !== null &&
+      typeof extRootSameJson.error === 'object' &&
+      'code' in extRootSameJson.error &&
+      'details' in extRootSameJson.error &&
+      extRootSameJson.error.details !== null &&
+      typeof extRootSameJson.error.details === 'object'
+    ) {
+      expect(extRootSameJson.success).toBe(false);
+      expect(extRootSameJson.error.code).toBe('PLAYBOOK_SOURCE_UPDATE_INVALID');
+      expect(
+        typeof extRootSameJson.error.details === 'object' &&
+          extRootSameJson.error.details !== null &&
+          'field' in extRootSameJson.error.details &&
+          'reason' in extRootSameJson.error.details,
+      ).toBe(true);
+      if (
+        typeof extRootSameJson.error.details === 'object' &&
+        extRootSameJson.error.details !== null &&
+        'field' in extRootSameJson.error.details &&
+        'reason' in extRootSameJson.error.details
+      ) {
+        expect(extRootSameJson.error.details.field).toBe('externalRootReference');
+        expect(extRootSameJson.error.details.reason).toBe('unchanged');
+      }
+    } else throw new Error('Invalid unchanged external root JSON structure.');
+
+    // 62. Confirm state unchanged after no-op via show.
+    const showAfterSameExtRootRes = runCli(
+      ['playbook', 'source', 'show', '--id', firstPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(showAfterSameExtRootRes.status).toBe(0);
+    expect(showAfterSameExtRootRes.stderr).toBe('');
+    assertSafeOutput(showAfterSameExtRootRes.stdout);
+    const showAfterSameExtRootJson: unknown = JSON.parse(showAfterSameExtRootRes.stdout);
+    if (
+      showAfterSameExtRootJson !== null &&
+      typeof showAfterSameExtRootJson === 'object' &&
+      'success' in showAfterSameExtRootJson &&
+      showAfterSameExtRootJson.success === true &&
+      'data' in showAfterSameExtRootJson &&
+      showAfterSameExtRootJson.data !== null &&
+      typeof showAfterSameExtRootJson.data === 'object' &&
+      'externalRootReference' in showAfterSameExtRootJson.data &&
+      'status' in showAfterSameExtRootJson.data
+    ) {
+      expect(showAfterSameExtRootJson.data.externalRootReference).toBe('notion-root-updated');
+      expect(showAfterSameExtRootJson.data.status).toBe('enabled');
+    } else throw new Error('Invalid show after unchanged ext root JSON structure.');
+
+    // 63. Configuration update on disabled source with archived playbook.
+    const configRes = runCli(
+      [
+        'playbook',
+        'source',
+        'update-configuration',
+        '--id',
+        secondPlaybookSourceId,
+        '--configuration-reference',
+        'notion/archived-updated',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(configRes.status).toBe(0);
+    expect(configRes.stderr).toBe('');
+    assertSafeOutput(configRes.stdout);
+    const configJson: unknown = JSON.parse(configRes.stdout);
+    if (
+      configJson !== null &&
+      typeof configJson === 'object' &&
+      'success' in configJson &&
+      configJson.success === true &&
+      'data' in configJson &&
+      configJson.data !== null &&
+      typeof configJson.data === 'object' &&
+      'status' in configJson.data &&
+      'configurationReference' in configJson.data &&
+      'externalRootReference' in configJson.data &&
+      'createdAt' in configJson.data
+    ) {
+      expect(configJson.data.status).toBe('disabled');
+      expect(configJson.data.configurationReference).toBe('notion/archived-updated');
+      expect(configJson.data.externalRootReference).toBe('notion-root-2');
+      expectIsoTimestamp(configJson.data.createdAt);
+      expect('revision' in configJson.data).toBe(false);
+      expect('token' in configJson.data).toBe(false);
+      expect('credential' in configJson.data).toBe(false);
+      expect('secret' in configJson.data).toBe(false);
+    } else throw new Error('Invalid update-configuration JSON structure.');
+
+    // 64. Configuration unchanged.
+    const configSameRes = runCli(
+      [
+        'playbook',
+        'source',
+        'update-configuration',
+        '--id',
+        secondPlaybookSourceId,
+        '--configuration-reference',
+        'notion/archived-updated',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(configSameRes.status).toBe(4);
+    expect(configSameRes.stderr).toBe('');
+    assertSafeOutput(configSameRes.stdout);
+    const configSameJson: unknown = JSON.parse(configSameRes.stdout);
+    if (
+      configSameJson !== null &&
+      typeof configSameJson === 'object' &&
+      'success' in configSameJson &&
+      'error' in configSameJson &&
+      configSameJson.error !== null &&
+      typeof configSameJson.error === 'object' &&
+      'code' in configSameJson.error &&
+      'details' in configSameJson.error &&
+      configSameJson.error.details !== null &&
+      typeof configSameJson.error.details === 'object'
+    ) {
+      expect(configSameJson.success).toBe(false);
+      expect(configSameJson.error.code).toBe('PLAYBOOK_SOURCE_UPDATE_INVALID');
+      expect(
+        typeof configSameJson.error.details === 'object' &&
+          configSameJson.error.details !== null &&
+          'field' in configSameJson.error.details &&
+          'reason' in configSameJson.error.details,
+      ).toBe(true);
+      if (
+        typeof configSameJson.error.details === 'object' &&
+        configSameJson.error.details !== null &&
+        'field' in configSameJson.error.details &&
+        'reason' in configSameJson.error.details
+      ) {
+        expect(configSameJson.error.details.field).toBe('configurationReference');
+        expect(configSameJson.error.details.reason).toBe('unchanged');
+      }
+    } else throw new Error('Invalid unchanged configuration JSON structure.');
+
+    // 65. Confirm source still disabled via show.
+    const showAfterConfigRes = runCli(
+      ['playbook', 'source', 'show', '--id', secondPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(showAfterConfigRes.status).toBe(0);
+    expect(showAfterConfigRes.stderr).toBe('');
+    assertSafeOutput(showAfterConfigRes.stdout);
+    const showAfterConfigJson: unknown = JSON.parse(showAfterConfigRes.stdout);
+    if (
+      showAfterConfigJson !== null &&
+      typeof showAfterConfigJson === 'object' &&
+      'success' in showAfterConfigJson &&
+      showAfterConfigJson.success === true &&
+      'data' in showAfterConfigJson &&
+      showAfterConfigJson.data !== null &&
+      typeof showAfterConfigJson.data === 'object' &&
+      'status' in showAfterConfigJson.data
+    ) {
+      expect(showAfterConfigJson.data.status).toBe('disabled');
+    } else throw new Error('Invalid show after config JSON structure.');
+
+    // 66. Non-existent source for external root.
+    const extRootNonExistentRes = runCli(
+      [
+        'playbook',
+        'source',
+        'update-external-root',
+        '--id',
+        '00000000-0000-0000-0000-000000000999',
+        '--external-root-reference',
+        'any-root',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(extRootNonExistentRes.status).toBe(3);
+    expect(extRootNonExistentRes.stderr).toBe('');
+    assertSafeOutput(extRootNonExistentRes.stdout);
+    const extRootNonExistentJson: unknown = JSON.parse(extRootNonExistentRes.stdout);
+    if (
+      extRootNonExistentJson !== null &&
+      typeof extRootNonExistentJson === 'object' &&
+      'success' in extRootNonExistentJson &&
+      'error' in extRootNonExistentJson &&
+      extRootNonExistentJson.error !== null &&
+      typeof extRootNonExistentJson.error === 'object' &&
+      'code' in extRootNonExistentJson.error
+    ) {
+      expect(extRootNonExistentJson.success).toBe(false);
+      expect(extRootNonExistentJson.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
+    } else throw new Error('Invalid non-existent external root JSON structure.');
+
+    // 67. Non-existent source for configuration.
+    const configNonExistentRes = runCli(
+      [
+        'playbook',
+        'source',
+        'update-configuration',
+        '--id',
+        '00000000-0000-0000-0000-000000000999',
+        '--configuration-reference',
+        'any-config',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(configNonExistentRes.status).toBe(3);
+    expect(configNonExistentRes.stderr).toBe('');
+    assertSafeOutput(configNonExistentRes.stdout);
+    const configNonExistentJson: unknown = JSON.parse(configNonExistentRes.stdout);
+    if (
+      configNonExistentJson !== null &&
+      typeof configNonExistentJson === 'object' &&
+      'success' in configNonExistentJson &&
+      'error' in configNonExistentJson &&
+      configNonExistentJson.error !== null &&
+      typeof configNonExistentJson.error === 'object' &&
+      'code' in configNonExistentJson.error
+    ) {
+      expect(configNonExistentJson.success).toBe(false);
+      expect(configNonExistentJson.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
+    } else throw new Error('Invalid non-existent configuration JSON structure.');
+
+    // 68. Cross-workspace: external root on foreign source returns not found.
+    const extRootForeignRes = runCli(
+      [
+        'playbook',
+        'source',
+        'update-external-root',
+        '--id',
+        foreignSourceId,
+        '--external-root-reference',
+        'foreign-root-updated',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(extRootForeignRes.status).toBe(3);
+    expect(extRootForeignRes.stderr).toBe('');
+    assertSafeOutput(extRootForeignRes.stdout);
+    const extRootForeignJson: unknown = JSON.parse(extRootForeignRes.stdout);
+    if (
+      extRootForeignJson !== null &&
+      typeof extRootForeignJson === 'object' &&
+      'success' in extRootForeignJson &&
+      'error' in extRootForeignJson &&
+      extRootForeignJson.error !== null &&
+      typeof extRootForeignJson.error === 'object' &&
+      'code' in extRootForeignJson.error
+    ) {
+      expect(extRootForeignJson.success).toBe(false);
+      expect(extRootForeignJson.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
+      expect(JSON.stringify(extRootForeignJson.error)).not.toContain(foreignWorkspaceId);
+      expect(JSON.stringify(extRootForeignJson.error)).not.toContain(foreignPlaybookId);
+      expect(JSON.stringify(extRootForeignJson.error)).not.toContain('enabled');
+      expect(JSON.stringify(extRootForeignJson.error)).not.toContain('revision');
+    } else throw new Error('Invalid cross-workspace external root JSON structure.');
+
+    // 69. Cross-workspace: configuration on foreign source returns not found.
+    const configForeignRes = runCli(
+      [
+        'playbook',
+        'source',
+        'update-configuration',
+        '--id',
+        foreignSourceId,
+        '--configuration-reference',
+        'foreign-config-updated',
+        '--output',
+        'json',
+      ],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(configForeignRes.status).toBe(3);
+    expect(configForeignRes.stderr).toBe('');
+    assertSafeOutput(configForeignRes.stdout);
+    const configForeignJson: unknown = JSON.parse(configForeignRes.stdout);
+    if (
+      configForeignJson !== null &&
+      typeof configForeignJson === 'object' &&
+      'success' in configForeignJson &&
+      'error' in configForeignJson &&
+      configForeignJson.error !== null &&
+      typeof configForeignJson.error === 'object' &&
+      'code' in configForeignJson.error
+    ) {
+      expect(configForeignJson.success).toBe(false);
+      expect(configForeignJson.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
+      expect(JSON.stringify(configForeignJson.error)).not.toContain(foreignWorkspaceId);
+      expect(JSON.stringify(configForeignJson.error)).not.toContain(foreignPlaybookId);
+      expect(JSON.stringify(configForeignJson.error)).not.toContain('disabled');
+      expect(JSON.stringify(configForeignJson.error)).not.toContain('revision');
+    } else throw new Error('Invalid cross-workspace configuration JSON structure.');
+
+    // 70. Verify foreign source row remains unchanged after both cross-workspace attempts.
+    const verifyForeignAfterPool = new pg.Pool({ connectionString: testDbUrl });
+    try {
+      const verifyResult = await verifyForeignAfterPool.query<{
+        workspace_id: string;
+        playbook_id: string;
+        status: string;
+        revision: number;
+        external_root_reference: string;
+        configuration_reference: string;
+      }>(
+        'SELECT workspace_id, playbook_id, status, revision, external_root_reference, configuration_reference FROM playbook_sources WHERE playbook_source_id = $1',
+        [foreignSourceId],
+      );
+      expect(verifyResult.rows).toHaveLength(1);
+      if (verifyResult.rows[0] !== undefined) {
+        expect(verifyResult.rows[0].workspace_id).toBe(foreignWorkspaceId);
+        expect(verifyResult.rows[0].playbook_id).toBe(foreignPlaybookId);
+        expect(verifyResult.rows[0].status).toBe('enabled');
+        expect(verifyResult.rows[0].revision).toBe(1);
+        expect(verifyResult.rows[0].external_root_reference).toBe('foreign-root');
+        expect(verifyResult.rows[0].configuration_reference).toBe('foreign-config');
+      }
+    } finally {
+      await verifyForeignAfterPool.end();
+    }
   });
 });
