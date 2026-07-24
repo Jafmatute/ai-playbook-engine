@@ -374,13 +374,29 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
       status: string;
       external_root_reference: string;
       configuration_reference: string;
+      created_at: Date;
       revision: number;
       last_successful_synchronization_run_id: string | null;
       last_successful_synchronization_at: Date | null;
       last_failed_synchronization_run_id: string | null;
       last_failed_synchronization_at: Date | null;
     }>(
-      `SELECT playbook_source_id, workspace_id, playbook_id, type, status, external_root_reference, configuration_reference, revision, last_successful_synchronization_run_id, last_successful_synchronization_at, last_failed_synchronization_run_id, last_failed_synchronization_at FROM playbook_sources WHERE playbook_source_id = $1`,
+      `SELECT
+        playbook_source_id,
+        workspace_id,
+        playbook_id,
+        type,
+        status,
+        external_root_reference,
+        configuration_reference,
+        created_at,
+        revision,
+        last_successful_synchronization_run_id,
+        last_successful_synchronization_at,
+        last_failed_synchronization_run_id,
+        last_failed_synchronization_at
+      FROM playbook_sources
+      WHERE playbook_source_id = $1`,
       [psId],
     );
     expect(sourceRow.rows).toHaveLength(1);
@@ -394,6 +410,7 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
       expect(row.status).toBe('enabled');
       expect(row.external_root_reference).toBe('root-page');
       expect(row.configuration_reference).toBe('config-ref');
+      expect(row.created_at.toISOString()).toBe('2026-07-01T10:00:00.000Z');
       expect(row.revision).toBe(1);
       expect(row.last_successful_synchronization_run_id).toBe(
         '00000000-0000-0000-0000-000000000201',

@@ -540,18 +540,26 @@ describe.runIf(databaseUrl)('PostgresPlaybookSourceRepository', () => {
     const successRunId = parseSynchronizationRunId('00000000-0000-0000-0000-000000000501');
     if (!successRunId.success) throw new Error('Invalid success run id fixture.');
     const successAt = instant('2026-07-01T11:00:00.000Z');
-    source.recordSuccessfulSynchronization({
+    const successfulSynchronizationResult = source.recordSuccessfulSynchronization({
       synchronizationRunId: successRunId.value,
       succeededAt: successAt,
     });
+    expect(successfulSynchronizationResult.success).toBe(true);
+    if (!successfulSynchronizationResult.success) {
+      throw new Error('Expected successful synchronization metadata to be recorded.');
+    }
 
     const failedRunId = parseSynchronizationRunId('00000000-0000-0000-0000-000000000601');
     if (!failedRunId.success) throw new Error('Invalid failed run id fixture.');
     const failedAt = instant('2026-07-01T12:00:00.000Z');
-    source.recordFailedSynchronization({
+    const failedSynchronizationResult = source.recordFailedSynchronization({
       synchronizationRunId: failedRunId.value,
       failedAt,
     });
+    expect(failedSynchronizationResult.success).toBe(true);
+    if (!failedSynchronizationResult.success) {
+      throw new Error('Expected failed synchronization metadata to be recorded.');
+    }
 
     const updateResult = await repository.update(source, revision1);
     expect(updateResult.success).toBe(true);
