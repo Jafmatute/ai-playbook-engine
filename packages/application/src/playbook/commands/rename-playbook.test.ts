@@ -196,7 +196,8 @@ class StubWorkspaceRepository implements WorkspaceRepository {
 
 class MockPlaybookRepository implements PlaybookRepository {
   readonly findByIdCalls: [WorkspaceId, PlaybookId][] = [];
-  readonly findByNormalizedNameCalls: [WorkspaceId, string, FindPlaybookByNormalizedNameOptions][] = [];
+  readonly findByNormalizedNameCalls: [WorkspaceId, string, FindPlaybookByNormalizedNameOptions][] =
+    [];
   readonly insertCalls: Playbook[] = [];
   readonly updateCalls: [Playbook, PersistenceRevision][] = [];
 
