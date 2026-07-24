@@ -114,6 +114,8 @@ export type {
   RegisterPlaybookSourceError,
   DisablePlaybookSourceCommand,
   DisablePlaybookSourceError,
+  EnablePlaybookSourceCommand,
+  EnablePlaybookSourceError,
   GetPlaybookSourceQuery,
   GetPlaybookSourceError,
   ListPlaybookSourcesQuery,
@@ -123,6 +125,7 @@ export {
   toPlaybookSourceOutput,
   RegisterPlaybookSourceHandler,
   DisablePlaybookSourceHandler,
+  EnablePlaybookSourceHandler,
   GetPlaybookSourceHandler,
   ListPlaybookSourcesHandler,
 } from './playbook-source/index.js';

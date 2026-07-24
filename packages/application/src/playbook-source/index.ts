@@ -10,6 +10,8 @@ export type {
 export { RegisterPlaybookSourceHandler } from './commands/index.js';
 export type { DisablePlaybookSourceCommand, DisablePlaybookSourceError } from './commands/index.js';
 export { DisablePlaybookSourceHandler } from './commands/index.js';
+export type { EnablePlaybookSourceCommand, EnablePlaybookSourceError } from './commands/index.js';
+export { EnablePlaybookSourceHandler } from './commands/index.js';
 export type { GetPlaybookSourceQuery, GetPlaybookSourceError } from './queries/index.js';
 export { GetPlaybookSourceHandler } from './queries/index.js';
 export type { ListPlaybookSourcesQuery, ListPlaybookSourcesError } from './queries/index.js';

@@ -8,3 +8,8 @@ export type {
   DisablePlaybookSourceError,
 } from './disable-playbook-source.js';
 export { DisablePlaybookSourceHandler } from './disable-playbook-source.js';
+export type {
+  EnablePlaybookSourceCommand,
+  EnablePlaybookSourceError,
+} from './enable-playbook-source.js';
+export { EnablePlaybookSourceHandler } from './enable-playbook-source.js';
