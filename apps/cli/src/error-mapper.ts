@@ -30,6 +30,7 @@ export function mapErrorToExitCode(errorCode: string): ExitCode {
     case 'ENABLED_PLAYBOOK_SOURCE_CONFLICT':
     case 'PLAYBOOK_ARCHIVED':
     case 'PLAYBOOK_SOURCE_TRANSITION_NOT_ALLOWED':
+    case 'PLAYBOOK_SOURCE_UPDATE_INVALID':
       return ExitCode.CONFLICT;
 
     case 'CURRENT_WORKSPACE_UNAVAILABLE':

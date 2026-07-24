@@ -32,6 +32,14 @@ export interface CliServices {
   readonly registerPlaybookSource: Pick<Services['registerPlaybookSource'], 'handle'>;
   readonly disablePlaybookSource: Pick<Services['disablePlaybookSource'], 'handle'>;
   readonly enablePlaybookSource: Pick<Services['enablePlaybookSource'], 'handle'>;
+  readonly updatePlaybookSourceExternalRootReference: Pick<
+    Services['updatePlaybookSourceExternalRootReference'],
+    'handle'
+  >;
+  readonly updatePlaybookSourceConfigurationReference: Pick<
+    Services['updatePlaybookSourceConfigurationReference'],
+    'handle'
+  >;
   readonly getPlaybookSource: Pick<Services['getPlaybookSource'], 'handle'>;
   readonly listPlaybookSources: Pick<Services['listPlaybookSources'], 'handle'>;
   readonly getPlaybook: Pick<Services['getPlaybook'], 'handle'>;
@@ -86,6 +94,14 @@ const ALLOWED_FLAGS: ReadonlyMap<string, ReadonlySet<string>> = new Map<
   ['playbook source list', new Set<string>(['playbook-id', 'offset', 'limit', 'output', 'help'])],
   ['playbook source disable', new Set<string>(['id', 'output', 'help'])],
   ['playbook source enable', new Set<string>(['id', 'output', 'help'])],
+  [
+    'playbook source update-external-root',
+    new Set<string>(['id', 'external-root-reference', 'output', 'help']),
+  ],
+  [
+    'playbook source update-configuration',
+    new Set<string>(['id', 'configuration-reference', 'output', 'help']),
+  ],
 ]);
 
 const GLOBAL_FLAGS = new Set<string>(['output', 'workspace-id', 'help']);
@@ -226,6 +242,24 @@ export async function runCli(
       }
       case 'playbook source enable': {
         return await runPlaybookSourceEnable(config, output, flags, io, dependencies);
+      }
+      case 'playbook source update-external-root': {
+        return await runPlaybookSourceUpdateExternalRootReference(
+          config,
+          output,
+          flags,
+          io,
+          dependencies,
+        );
+      }
+      case 'playbook source update-configuration': {
+        return await runPlaybookSourceUpdateConfigurationReference(
+          config,
+          output,
+          flags,
+          io,
+          dependencies,
+        );
       }
       default: {
         return await handleError(`Unknown command: "${subcommand}".`, 'INVALID_INPUT', output, io);
@@ -929,6 +963,96 @@ async function runPlaybookSourceDisable(
   }
 }
 
+async function runPlaybookSourceUpdateExternalRootReference(
+  config: RawConfig,
+  output: CliOutput,
+  flags: ReadonlyMap<string, string | boolean>,
+  io: CliIo,
+  dependencies: RunCliDependencies,
+): Promise<ExitCode> {
+  const id = flags.get('id');
+  if (typeof id !== 'string' || id.length === 0) {
+    return await handleError('--id is required', 'INVALID_INPUT', output, io);
+  }
+
+  const externalRootReference = flags.get('external-root-reference');
+  if (typeof externalRootReference !== 'string' || externalRootReference.length === 0) {
+    return await handleError('--external-root-reference is required', 'INVALID_INPUT', output, io);
+  }
+
+  const servicesResult = dependencies.buildServices(config);
+  if (!servicesResult.success) {
+    return await handleStructuredError(servicesResult.error, output, io);
+  }
+
+  const services = servicesResult.value;
+  try {
+    const result = await services.updatePlaybookSourceExternalRootReference.handle({
+      playbookSourceId: id,
+      externalRootReference,
+    });
+
+    if (!result.success) {
+      return await handleUseCaseError(result.error, output, io);
+    }
+
+    if (output === 'json') {
+      io.writeStdout(renderJsonSuccess(result.value) + '\n');
+    } else {
+      io.writeStdout(renderPlaybookSource(result.value) + '\n');
+    }
+
+    return ExitCode.SUCCESS;
+  } finally {
+    await services.pool.close();
+  }
+}
+
+async function runPlaybookSourceUpdateConfigurationReference(
+  config: RawConfig,
+  output: CliOutput,
+  flags: ReadonlyMap<string, string | boolean>,
+  io: CliIo,
+  dependencies: RunCliDependencies,
+): Promise<ExitCode> {
+  const id = flags.get('id');
+  if (typeof id !== 'string' || id.length === 0) {
+    return await handleError('--id is required', 'INVALID_INPUT', output, io);
+  }
+
+  const configurationReference = flags.get('configuration-reference');
+  if (typeof configurationReference !== 'string' || configurationReference.length === 0) {
+    return await handleError('--configuration-reference is required', 'INVALID_INPUT', output, io);
+  }
+
+  const servicesResult = dependencies.buildServices(config);
+  if (!servicesResult.success) {
+    return await handleStructuredError(servicesResult.error, output, io);
+  }
+
+  const services = servicesResult.value;
+  try {
+    const result = await services.updatePlaybookSourceConfigurationReference.handle({
+      playbookSourceId: id,
+      configurationReference,
+    });
+
+    if (!result.success) {
+      return await handleUseCaseError(result.error, output, io);
+    }
+
+    if (output === 'json') {
+      io.writeStdout(renderJsonSuccess(result.value) + '\n');
+    } else {
+      io.writeStdout(renderPlaybookSource(result.value) + '\n');
+    }
+
+    return ExitCode.SUCCESS;
+  } finally {
+    await services.pool.close();
+  }
+}
+
 async function handleError(
   message: string,
   errorCode: string,
@@ -1006,6 +1130,8 @@ Usage:
   playbook source list      --playbook-id <uuid> [options]  List playbook sources
   playbook source disable   --id <uuid> [--output human|json]  Disable a playbook source
   playbook source enable    --id <uuid> [--output human|json]  Enable a playbook source
+  playbook source update-external-root  --id <uuid> --external-root-reference <value> [--output human|json]
+  playbook source update-configuration  --id <uuid> --configuration-reference <value> [--output human|json]
 
 Global flags:
   --workspace-id <uuid>  Override the current workspace ID

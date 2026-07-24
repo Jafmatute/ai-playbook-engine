@@ -28,6 +28,8 @@ import {
   RegisterPlaybookSourceHandler,
   DisablePlaybookSourceHandler,
   EnablePlaybookSourceHandler,
+  UpdatePlaybookSourceExternalRootReferenceHandler,
+  UpdatePlaybookSourceConfigurationReferenceHandler,
   GetPlaybookSourceHandler,
   ListPlaybookSourcesHandler,
 } from '@ai-playbook-engine/application';
@@ -45,6 +47,8 @@ export interface Services {
   readonly registerPlaybookSource: RegisterPlaybookSourceHandler;
   readonly disablePlaybookSource: DisablePlaybookSourceHandler;
   readonly enablePlaybookSource: EnablePlaybookSourceHandler;
+  readonly updatePlaybookSourceExternalRootReference: UpdatePlaybookSourceExternalRootReferenceHandler;
+  readonly updatePlaybookSourceConfigurationReference: UpdatePlaybookSourceConfigurationReferenceHandler;
   readonly getPlaybookSource: GetPlaybookSourceHandler;
   readonly listPlaybookSources: ListPlaybookSourcesHandler;
   readonly migrate: () => Promise<Result<MigrationResult, MigrationFailedError>>;
@@ -136,6 +140,20 @@ export function buildServices(config: RawConfig): Result<Services, BuildServices
     playbookSourceRepository,
   );
 
+  const updatePlaybookSourceExternalRootReference =
+    new UpdatePlaybookSourceExternalRootReferenceHandler(
+      currentWorkspaceProvider,
+      workspaceRepository,
+      playbookSourceRepository,
+    );
+
+  const updatePlaybookSourceConfigurationReference =
+    new UpdatePlaybookSourceConfigurationReferenceHandler(
+      currentWorkspaceProvider,
+      workspaceRepository,
+      playbookSourceRepository,
+    );
+
   const getPlaybookSource = new GetPlaybookSourceHandler(
     currentWorkspaceProvider,
     workspaceRepository,
@@ -172,6 +190,8 @@ export function buildServices(config: RawConfig): Result<Services, BuildServices
     registerPlaybookSource,
     disablePlaybookSource,
     enablePlaybookSource,
+    updatePlaybookSourceExternalRootReference,
+    updatePlaybookSourceConfigurationReference,
     getPlaybookSource,
     listPlaybookSources,
     getPlaybook,
