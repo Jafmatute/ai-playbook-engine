@@ -12,6 +12,16 @@ export type { DisablePlaybookSourceCommand, DisablePlaybookSourceError } from '.
 export { DisablePlaybookSourceHandler } from './commands/index.js';
 export type { EnablePlaybookSourceCommand, EnablePlaybookSourceError } from './commands/index.js';
 export { EnablePlaybookSourceHandler } from './commands/index.js';
+export type {
+  UpdatePlaybookSourceExternalRootReferenceCommand,
+  UpdatePlaybookSourceExternalRootReferenceError,
+} from './commands/index.js';
+export { UpdatePlaybookSourceExternalRootReferenceHandler } from './commands/index.js';
+export type {
+  UpdatePlaybookSourceConfigurationReferenceCommand,
+  UpdatePlaybookSourceConfigurationReferenceError,
+} from './commands/index.js';
+export { UpdatePlaybookSourceConfigurationReferenceHandler } from './commands/index.js';
 export type { GetPlaybookSourceQuery, GetPlaybookSourceError } from './queries/index.js';
 export { GetPlaybookSourceHandler } from './queries/index.js';
 export type { ListPlaybookSourcesQuery, ListPlaybookSourcesError } from './queries/index.js';

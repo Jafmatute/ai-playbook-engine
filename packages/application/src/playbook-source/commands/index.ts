@@ -13,3 +13,13 @@ export type {
   EnablePlaybookSourceError,
 } from './enable-playbook-source.js';
 export { EnablePlaybookSourceHandler } from './enable-playbook-source.js';
+export type {
+  UpdatePlaybookSourceExternalRootReferenceCommand,
+  UpdatePlaybookSourceExternalRootReferenceError,
+} from './update-playbook-source-external-root-reference.js';
+export { UpdatePlaybookSourceExternalRootReferenceHandler } from './update-playbook-source-external-root-reference.js';
+export type {
+  UpdatePlaybookSourceConfigurationReferenceCommand,
+  UpdatePlaybookSourceConfigurationReferenceError,
+} from './update-playbook-source-configuration-reference.js';
+export { UpdatePlaybookSourceConfigurationReferenceHandler } from './update-playbook-source-configuration-reference.js';

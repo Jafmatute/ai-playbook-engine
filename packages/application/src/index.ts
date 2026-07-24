@@ -104,7 +104,6 @@ export {
   toPlaybookOutput,
 } from './playbook/index.js';
 
-// Other repository types (unchanged)
 export type {
   PlaybookSourceRepository,
   PlaybookSourceRepositoryInsertError,
@@ -116,6 +115,10 @@ export type {
   DisablePlaybookSourceError,
   EnablePlaybookSourceCommand,
   EnablePlaybookSourceError,
+  UpdatePlaybookSourceExternalRootReferenceCommand,
+  UpdatePlaybookSourceExternalRootReferenceError,
+  UpdatePlaybookSourceConfigurationReferenceCommand,
+  UpdatePlaybookSourceConfigurationReferenceError,
   GetPlaybookSourceQuery,
   GetPlaybookSourceError,
   ListPlaybookSourcesQuery,
@@ -126,6 +129,8 @@ export {
   RegisterPlaybookSourceHandler,
   DisablePlaybookSourceHandler,
   EnablePlaybookSourceHandler,
+  UpdatePlaybookSourceExternalRootReferenceHandler,
+  UpdatePlaybookSourceConfigurationReferenceHandler,
   GetPlaybookSourceHandler,
   ListPlaybookSourcesHandler,
 } from './playbook-source/index.js';
