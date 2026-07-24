@@ -1619,6 +1619,26 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
     expect(disableNewSourceRes.status).toBe(0);
     expect(disableNewSourceRes.stderr).toBe('');
     assertSafeOutput(disableNewSourceRes.stdout);
+    const disableNewSourceJson: unknown = JSON.parse(disableNewSourceRes.stdout);
+    if (
+      disableNewSourceJson !== null &&
+      typeof disableNewSourceJson === 'object' &&
+      'success' in disableNewSourceJson &&
+      disableNewSourceJson.success === true &&
+      'data' in disableNewSourceJson &&
+      disableNewSourceJson.data !== null &&
+      typeof disableNewSourceJson.data === 'object' &&
+      'playbookSourceId' in disableNewSourceJson.data &&
+      typeof disableNewSourceJson.data.playbookSourceId === 'string' &&
+      'status' in disableNewSourceJson.data
+    ) {
+      expect(disableNewSourceJson.data.playbookSourceId).toBe(newSourceId);
+      expect(disableNewSourceJson.data.status).toBe('disabled');
+      expect('revision' in disableNewSourceJson.data).toBe(false);
+      expect('token' in disableNewSourceJson.data).toBe(false);
+      expect('credential' in disableNewSourceJson.data).toBe(false);
+      expect('secret' in disableNewSourceJson.data).toBe(false);
+    } else throw new Error('Invalid disable new source JSON output structure.');
 
     // 51. Enable the first historical source.
     const enableFirstSourceRes = runCli(
@@ -1752,6 +1772,30 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(enableAgainJson.error.details.expectedStatus).toBe('disabled');
     } else throw new Error('Invalid enable again json output structure');
 
+    // Verify state after re-enable rejection: source still enabled.
+    const showAfterEnableAgainRes = runCli(
+      ['playbook', 'source', 'show', '--id', firstPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(showAfterEnableAgainRes.status).toBe(0);
+    expect(showAfterEnableAgainRes.stderr).toBe('');
+    assertSafeOutput(showAfterEnableAgainRes.stdout);
+    const showAfterEnableAgainJson: unknown = JSON.parse(showAfterEnableAgainRes.stdout);
+    if (
+      showAfterEnableAgainJson !== null &&
+      typeof showAfterEnableAgainJson === 'object' &&
+      'success' in showAfterEnableAgainJson &&
+      showAfterEnableAgainJson.success === true &&
+      'data' in showAfterEnableAgainJson &&
+      showAfterEnableAgainJson.data !== null &&
+      typeof showAfterEnableAgainJson.data === 'object' &&
+      'playbookSourceId' in showAfterEnableAgainJson.data &&
+      'status' in showAfterEnableAgainJson.data
+    ) {
+      expect(showAfterEnableAgainJson.data.playbookSourceId).toBe(firstPlaybookSourceId);
+      expect(showAfterEnableAgainJson.data.status).toBe('enabled');
+    } else throw new Error('Invalid show after enable again JSON structure.');
+
     // 55. Conflict: try to enable the disabled source while the first is already enabled.
     const enableConflictRes = runCli(
       ['playbook', 'source', 'enable', '--id', newSourceId, '--output', 'json'],
@@ -1774,6 +1818,53 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(enableConflictJson.error.code).toBe('ENABLED_PLAYBOOK_SOURCE_CONFLICT');
     } else throw new Error('Invalid enable conflict json output structure');
 
+    // Verify both sources after conflict.
+    const showFirstAfterConflictRes = runCli(
+      ['playbook', 'source', 'show', '--id', firstPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(showFirstAfterConflictRes.status).toBe(0);
+    expect(showFirstAfterConflictRes.stderr).toBe('');
+    assertSafeOutput(showFirstAfterConflictRes.stdout);
+    const showFirstAfterConflictJson: unknown = JSON.parse(showFirstAfterConflictRes.stdout);
+    if (
+      showFirstAfterConflictJson !== null &&
+      typeof showFirstAfterConflictJson === 'object' &&
+      'success' in showFirstAfterConflictJson &&
+      showFirstAfterConflictJson.success === true &&
+      'data' in showFirstAfterConflictJson &&
+      showFirstAfterConflictJson.data !== null &&
+      typeof showFirstAfterConflictJson.data === 'object' &&
+      'playbookSourceId' in showFirstAfterConflictJson.data &&
+      'status' in showFirstAfterConflictJson.data
+    ) {
+      expect(showFirstAfterConflictJson.data.playbookSourceId).toBe(firstPlaybookSourceId);
+      expect(showFirstAfterConflictJson.data.status).toBe('enabled');
+    } else throw new Error('Invalid show first after conflict JSON structure.');
+
+    const showNewAfterConflictRes = runCli(
+      ['playbook', 'source', 'show', '--id', newSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(showNewAfterConflictRes.status).toBe(0);
+    expect(showNewAfterConflictRes.stderr).toBe('');
+    assertSafeOutput(showNewAfterConflictRes.stdout);
+    const showNewAfterConflictJson: unknown = JSON.parse(showNewAfterConflictRes.stdout);
+    if (
+      showNewAfterConflictJson !== null &&
+      typeof showNewAfterConflictJson === 'object' &&
+      'success' in showNewAfterConflictJson &&
+      showNewAfterConflictJson.success === true &&
+      'data' in showNewAfterConflictJson &&
+      showNewAfterConflictJson.data !== null &&
+      typeof showNewAfterConflictJson.data === 'object' &&
+      'playbookSourceId' in showNewAfterConflictJson.data &&
+      'status' in showNewAfterConflictJson.data
+    ) {
+      expect(showNewAfterConflictJson.data.playbookSourceId).toBe(newSourceId);
+      expect(showNewAfterConflictJson.data.status).toBe('disabled');
+    } else throw new Error('Invalid show new after conflict JSON structure.');
+
     // 56. Playbook archived prevents enable.
     const enableArchivedRes = runCli(
       ['playbook', 'source', 'enable', '--id', secondPlaybookSourceId, '--output', 'json'],
@@ -1795,6 +1886,30 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(enableArchivedJson.success).toBe(false);
       expect(enableArchivedJson.error.code).toBe('PLAYBOOK_ARCHIVED');
     } else throw new Error('Invalid enable archived json output structure');
+
+    // Verify source remains disabled after playbook archived rejection.
+    const showAfterArchivedRes = runCli(
+      ['playbook', 'source', 'show', '--id', secondPlaybookSourceId, '--output', 'json'],
+      { AI_PLAYBOOK_ENGINE_WORKSPACE_ID: workspaceId },
+    );
+    expect(showAfterArchivedRes.status).toBe(0);
+    expect(showAfterArchivedRes.stderr).toBe('');
+    assertSafeOutput(showAfterArchivedRes.stdout);
+    const showAfterArchivedJson: unknown = JSON.parse(showAfterArchivedRes.stdout);
+    if (
+      showAfterArchivedJson !== null &&
+      typeof showAfterArchivedJson === 'object' &&
+      'success' in showAfterArchivedJson &&
+      showAfterArchivedJson.success === true &&
+      'data' in showAfterArchivedJson &&
+      showAfterArchivedJson.data !== null &&
+      typeof showAfterArchivedJson.data === 'object' &&
+      'playbookSourceId' in showAfterArchivedJson.data &&
+      'status' in showAfterArchivedJson.data
+    ) {
+      expect(showAfterArchivedJson.data.playbookSourceId).toBe(secondPlaybookSourceId);
+      expect(showAfterArchivedJson.data.status).toBe('disabled');
+    } else throw new Error('Invalid show after archived JSON structure.');
 
     // 57. Non-existent source returns PLAYBOOK_SOURCE_NOT_FOUND.
     const enableNonExistentRes = runCli(
@@ -1847,5 +1962,36 @@ describe.runIf(testDbUrl)('CLI E2E Single Flow', () => {
       expect(enableForeignJson.success).toBe(false);
       expect(enableForeignJson.error.code).toBe('PLAYBOOK_SOURCE_NOT_FOUND');
     } else throw new Error('Invalid enable foreign source json output structure');
+
+    // Verify no information leak in the foreign source error.
+    const serializedForeignError = JSON.stringify(enableForeignJson.error);
+    expect(serializedForeignError).not.toContain(foreignWorkspaceId);
+    expect(serializedForeignError).not.toContain(foreignPlaybookId);
+    expect(serializedForeignError).not.toContain('enabled');
+    expect(serializedForeignError).not.toContain('disabled');
+    expect(serializedForeignError).not.toContain('revision');
+
+    // Verify foreign row remains unchanged after the enable attempt.
+    const verifyForeignPool = new pg.Pool({ connectionString: testDbUrl });
+    try {
+      const verifyForeignResult = await verifyForeignPool.query<{
+        workspace_id: string;
+        playbook_id: string;
+        status: string;
+        revision: number;
+      }>(
+        'SELECT workspace_id, playbook_id, status, revision FROM playbook_sources WHERE playbook_source_id = $1',
+        [foreignSourceId],
+      );
+      expect(verifyForeignResult.rows).toHaveLength(1);
+      if (verifyForeignResult.rows[0] !== undefined) {
+        expect(verifyForeignResult.rows[0].workspace_id).toBe(foreignWorkspaceId);
+        expect(verifyForeignResult.rows[0].playbook_id).toBe(foreignPlaybookId);
+        expect(verifyForeignResult.rows[0].status).toBe('enabled');
+        expect(verifyForeignResult.rows[0].revision).toBe(1);
+      }
+    } finally {
+      await verifyForeignPool.end();
+    }
   });
 });

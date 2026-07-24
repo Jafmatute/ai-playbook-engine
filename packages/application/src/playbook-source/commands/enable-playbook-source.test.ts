@@ -429,6 +429,7 @@ describe('EnablePlaybookSourceHandler', () => {
     expect(workspaceRepo.findByIdCalls).toEqual([]);
     expect(sourceRepo.findByIdCalls).toEqual([]);
     expect(playbookRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
     expect(sourceRepo.updateCalls).toEqual([]);
   });
 
@@ -459,6 +460,7 @@ describe('EnablePlaybookSourceHandler', () => {
     expect(workspaceRepo.findByIdCalls).toEqual([]);
     expect(sourceRepo.findByIdCalls).toEqual([]);
     expect(playbookRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
     expect(sourceRepo.updateCalls).toEqual([]);
   });
 
@@ -488,6 +490,7 @@ describe('EnablePlaybookSourceHandler', () => {
     expect(result.error).toEqual(failure);
     expect(sourceRepo.findByIdCalls).toEqual([]);
     expect(playbookRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
     expect(sourceRepo.updateCalls).toEqual([]);
   });
 
@@ -516,6 +519,7 @@ describe('EnablePlaybookSourceHandler', () => {
     expect(result.error).toEqual(workspaceNotFound());
     expect(sourceRepo.findByIdCalls).toEqual([]);
     expect(playbookRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
     expect(sourceRepo.updateCalls).toEqual([]);
   });
 
@@ -547,6 +551,7 @@ describe('EnablePlaybookSourceHandler', () => {
     expect(result.error).toEqual(workspaceNotActive(workspaceIdValue, 'archived'));
     expect(sourceRepo.findByIdCalls).toEqual([]);
     expect(playbookRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
     expect(sourceRepo.updateCalls).toEqual([]);
   });
 
@@ -575,6 +580,7 @@ describe('EnablePlaybookSourceHandler', () => {
     if (result.success) return;
     expect(result.error).toEqual(failure);
     expect(playbookRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
     expect(sourceRepo.updateCalls).toEqual([]);
   });
 
@@ -602,6 +608,7 @@ describe('EnablePlaybookSourceHandler', () => {
     if (result.success) return;
     expect(result.error).toEqual(playbookSourceNotFound(sourceIdValue));
     expect(playbookRepo.findByIdCalls).toEqual([]);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toEqual([]);
     expect(sourceRepo.updateCalls).toEqual([]);
   });
 
@@ -925,8 +932,9 @@ describe('EnablePlaybookSourceHandler', () => {
 
   it('propagates playbookSourceNotFound error from update', async () => {
     const disabledSource = createDisabledSource();
-    const revResult = PersistenceRevision.from(1);
-    if (!revResult.success) throw new Error('Expected revision 1 to be valid.');
+    const expectedRevisionResult = PersistenceRevision.from(5);
+    if (!expectedRevisionResult.success) throw new Error('Expected revision 5 to be valid.');
+    const expectedRevision = expectedRevisionResult.value;
     const expectedError = playbookSourceNotFound(sourceIdValue);
 
     const provider = new StubCurrentWorkspaceProvider({
@@ -943,7 +951,7 @@ describe('EnablePlaybookSourceHandler', () => {
     });
     const sourceRepo = new StubPlaybookSourceRepository({
       kind: 'persisted',
-      persisted: persistedSource(disabledSource),
+      persisted: createPersistedAggregate(disabledSource, expectedRevision),
     });
     sourceRepo.setUpdateResult(err(expectedError));
     const handler = new EnablePlaybookSourceHandler(
@@ -956,16 +964,20 @@ describe('EnablePlaybookSourceHandler', () => {
     const result = await handler.handle(validCommand());
 
     expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toEqual(expectedError);
-    }
+    if (result.success) throw new Error('Expected update to fail.');
+    expect(result.error).toEqual(expectedError);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toHaveLength(1);
     expect(sourceRepo.updateCalls).toHaveLength(1);
+    expect(sourceRepo.updateCalls[0]?.source).toBe(disabledSource);
+    expect(sourceRepo.updateCalls[0]?.revision).toBe(expectedRevision);
+    expect(disabledSource.status).toBe('enabled');
   });
 
   it('propagates enabledPlaybookSourceConflict error from update', async () => {
     const disabledSource = createDisabledSource();
-    const revResult = PersistenceRevision.from(1);
-    if (!revResult.success) throw new Error('Expected revision 1 to be valid.');
+    const expectedRevisionResult = PersistenceRevision.from(5);
+    if (!expectedRevisionResult.success) throw new Error('Expected revision 5 to be valid.');
+    const expectedRevision = expectedRevisionResult.value;
     const expectedError = enabledPlaybookSourceConflict(disabledSource.playbookId);
 
     const provider = new StubCurrentWorkspaceProvider({
@@ -982,7 +994,7 @@ describe('EnablePlaybookSourceHandler', () => {
     });
     const sourceRepo = new StubPlaybookSourceRepository({
       kind: 'persisted',
-      persisted: persistedSource(disabledSource),
+      persisted: createPersistedAggregate(disabledSource, expectedRevision),
     });
     sourceRepo.setUpdateResult(err(expectedError));
     const handler = new EnablePlaybookSourceHandler(
@@ -995,17 +1007,21 @@ describe('EnablePlaybookSourceHandler', () => {
     const result = await handler.handle(validCommand());
 
     expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toEqual(expectedError);
-    }
+    if (result.success) throw new Error('Expected update to fail.');
+    expect(result.error).toEqual(expectedError);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toHaveLength(1);
     expect(sourceRepo.updateCalls).toHaveLength(1);
+    expect(sourceRepo.updateCalls[0]?.source).toBe(disabledSource);
+    expect(sourceRepo.updateCalls[0]?.revision).toBe(expectedRevision);
+    expect(disabledSource.status).toBe('enabled');
   });
 
   it('propagates persistenceRevisionConflict error from update', async () => {
     const disabledSource = createDisabledSource();
-    const revResult = PersistenceRevision.from(3);
-    if (!revResult.success) throw new Error('Expected revision 3 to be valid.');
-    const expectedError = persistenceRevisionConflict(revResult.value);
+    const expectedRevisionResult = PersistenceRevision.from(5);
+    if (!expectedRevisionResult.success) throw new Error('Expected revision 5 to be valid.');
+    const expectedRevision = expectedRevisionResult.value;
+    const expectedError = persistenceRevisionConflict(expectedRevision);
 
     const provider = new StubCurrentWorkspaceProvider({
       kind: 'workspaceId',
@@ -1021,7 +1037,7 @@ describe('EnablePlaybookSourceHandler', () => {
     });
     const sourceRepo = new StubPlaybookSourceRepository({
       kind: 'persisted',
-      persisted: createPersistedAggregate(disabledSource, revResult.value),
+      persisted: createPersistedAggregate(disabledSource, expectedRevision),
     });
     sourceRepo.setUpdateResult(err(expectedError));
     const handler = new EnablePlaybookSourceHandler(
@@ -1034,17 +1050,20 @@ describe('EnablePlaybookSourceHandler', () => {
     const result = await handler.handle(validCommand());
 
     expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toEqual(expectedError);
-    }
+    if (result.success) throw new Error('Expected update to fail.');
+    expect(result.error).toEqual(expectedError);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toHaveLength(1);
     expect(sourceRepo.updateCalls).toHaveLength(1);
-    expect(sourceRepo.updateCalls[0]?.revision).toBe(revResult.value);
+    expect(sourceRepo.updateCalls[0]?.source).toBe(disabledSource);
+    expect(sourceRepo.updateCalls[0]?.revision).toBe(expectedRevision);
+    expect(disabledSource.status).toBe('enabled');
   });
 
   it('propagates persistenceOperationFailed error from update', async () => {
     const disabledSource = createDisabledSource();
-    const revResult = PersistenceRevision.from(1);
-    if (!revResult.success) throw new Error('Expected revision 1 to be valid.');
+    const expectedRevisionResult = PersistenceRevision.from(5);
+    if (!expectedRevisionResult.success) throw new Error('Expected revision 5 to be valid.');
+    const expectedRevision = expectedRevisionResult.value;
     const expectedError = persistenceOperationFailed('playbookSource.update');
 
     const provider = new StubCurrentWorkspaceProvider({
@@ -1061,7 +1080,7 @@ describe('EnablePlaybookSourceHandler', () => {
     });
     const sourceRepo = new StubPlaybookSourceRepository({
       kind: 'persisted',
-      persisted: persistedSource(disabledSource),
+      persisted: createPersistedAggregate(disabledSource, expectedRevision),
     });
     sourceRepo.setUpdateResult(err(expectedError));
     const handler = new EnablePlaybookSourceHandler(
@@ -1074,10 +1093,13 @@ describe('EnablePlaybookSourceHandler', () => {
     const result = await handler.handle(validCommand());
 
     expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toEqual(expectedError);
-    }
+    if (result.success) throw new Error('Expected update to fail.');
+    expect(result.error).toEqual(expectedError);
+    expect(sourceRepo.findEnabledByPlaybookIdCalls).toHaveLength(1);
     expect(sourceRepo.updateCalls).toHaveLength(1);
+    expect(sourceRepo.updateCalls[0]?.source).toBe(disabledSource);
+    expect(sourceRepo.updateCalls[0]?.revision).toBe(expectedRevision);
+    expect(disabledSource.status).toBe('enabled');
   });
 
   it('does not depend on Clock or PlaybookSourceIdGenerator', () => {
