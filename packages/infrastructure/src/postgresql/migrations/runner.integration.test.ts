@@ -52,7 +52,7 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.value.appliedVersions).toEqual([1, 2, 3]);
+      expect(result.value.appliedVersions).toEqual([1, 2, 3, 4]);
     }
 
     const sourcesTable = await pool.query<{ table_name: string }>(
@@ -63,7 +63,7 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
     const versions = await pool.query<{ version: number }>(
       'SELECT version FROM schema_migrations ORDER BY version ASC',
     );
-    expect(versions.rows.map((row) => row.version)).toEqual([1, 2, 3]);
+    expect(versions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4]);
 
     // Verify playbooks table column structure
     const colInfo = await pool.query<{
@@ -94,6 +94,34 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
     if (constraintRow !== undefined) {
       expect(constraintRow.conname).toBe('playbooks_revision_positive');
     }
+
+    // Verify playbook_sources revision column
+    const psColInfo = await pool.query<{
+      column_name: string;
+      data_type: string;
+      is_nullable: string;
+      column_default: string;
+    }>(
+      `SELECT column_name, data_type, is_nullable, column_default
+       FROM information_schema.columns
+       WHERE table_name = 'playbook_sources' AND column_name = 'revision'`,
+    );
+    expect(psColInfo.rows).toHaveLength(1);
+    const psCol = psColInfo.rows[0];
+    expect(psCol).toBeDefined();
+    if (psCol !== undefined) {
+      expect(psCol.data_type).toBe('integer');
+      expect(psCol.is_nullable).toBe('NO');
+      expect(psCol.column_default).toContain('1');
+    }
+
+    const psConstraintInfo = await pool.query<{ conname: string }>(
+      `SELECT conname FROM pg_constraint WHERE conname = 'playbook_sources_revision_positive'`,
+    );
+    expect(psConstraintInfo.rows).toHaveLength(1);
+    if (psConstraintInfo.rows[0] !== undefined) {
+      expect(psConstraintInfo.rows[0].conname).toBe('playbook_sources_revision_positive');
+    }
   });
 
   it('is idempotent (applying twice does not error)', async () => {
@@ -108,7 +136,7 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
     const versions = await pool.query<{ version: number }>(
       'SELECT version FROM schema_migrations ORDER BY version ASC',
     );
-    expect(versions.rows.map((row) => row.version)).toEqual([1, 2, 3]);
+    expect(versions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4]);
   });
 
   it('backfills existing playbooks with default revision 1 when migrating v1 to v2', async () => {
@@ -136,11 +164,11 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
       [pbId, wsId],
     );
 
-    // 3. Run runner to apply v2
+    // 3. Run runner to apply v2+
     const result = await runMigrations(pool);
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.value.appliedVersions).toEqual([2, 3]);
+      expect(result.value.appliedVersions).toEqual([2, 3, 4]);
     }
 
     // 4. Verify the existing playbook got revision = 1
@@ -205,5 +233,76 @@ describe.runIf(TEST_DATABASE_URL)('MigrationRunner', () => {
       }
     }
     expect(failedConstraintNegative).toBe(true);
+  });
+
+  it('enforces playbook_sources revision default and constraints', async () => {
+    await runMigrations(pool);
+
+    const wsId = '00000000-0000-0000-0000-000000000001';
+    const pbId = '00000000-0000-0000-0000-000000000002';
+    await pool.query(
+      `INSERT INTO workspaces (workspace_id, name, normalized_name, status, created_at, updated_at)
+       VALUES ($1, 'Workspace', 'workspace', 'active', NOW(), NOW())`,
+      [wsId],
+    );
+    await pool.query(
+      `INSERT INTO playbooks (playbook_id, workspace_id, name, normalized_name, status, created_at, updated_at, revision)
+       VALUES ($1, $2, 'Playbook', 'playbook', 'active', NOW(), NOW(), 1)`,
+      [pbId, wsId],
+    );
+
+    // Insert playbook_source without specifying revision -> should default to 1
+    await pool.query(
+      `INSERT INTO playbook_sources (playbook_source_id, workspace_id, playbook_id, type, status, external_root_reference, configuration_reference, created_at)
+       VALUES ('00000000-0000-0000-0000-000000000101', $1, $2, 'notion', 'enabled', 'root-page', 'config-ref', NOW())`,
+      [wsId, pbId],
+    );
+
+    const revisionResult = await pool.query<{ revision: number }>(
+      'SELECT revision FROM playbook_sources WHERE playbook_source_id = $1',
+      ['00000000-0000-0000-0000-000000000101'],
+    );
+    expect(revisionResult.rows).toHaveLength(1);
+    if (revisionResult.rows[0] !== undefined) {
+      expect(revisionResult.rows[0].revision).toBe(1);
+    }
+
+    // Try inserting 0 -> should fail positive check constraint
+    let failed0 = false;
+    try {
+      await pool.query(
+        `INSERT INTO playbook_sources (playbook_source_id, workspace_id, playbook_id, type, status, external_root_reference, configuration_reference, created_at, revision)
+         VALUES ('00000000-0000-0000-0000-000000000102', $1, $2, 'notion', 'disabled', 'root-page', 'config-ref', NOW(), 0)`,
+        [wsId, pbId],
+      );
+    } catch (e) {
+      if (
+        isPostgresError(e) &&
+        e.code === '23514' &&
+        e.constraint === 'playbook_sources_revision_positive'
+      ) {
+        failed0 = true;
+      }
+    }
+    expect(failed0).toBe(true);
+
+    // Try inserting -1 -> should fail positive check constraint
+    let failedNeg = false;
+    try {
+      await pool.query(
+        `INSERT INTO playbook_sources (playbook_source_id, workspace_id, playbook_id, type, status, external_root_reference, configuration_reference, created_at, revision)
+         VALUES ('00000000-0000-0000-0000-000000000103', $1, $2, 'notion', 'disabled', 'root-page', 'config-ref', NOW(), -1)`,
+        [wsId, pbId],
+      );
+    } catch (e) {
+      if (
+        isPostgresError(e) &&
+        e.code === '23514' &&
+        e.constraint === 'playbook_sources_revision_positive'
+      ) {
+        failedNeg = true;
+      }
+    }
+    expect(failedNeg).toBe(true);
   });
 });

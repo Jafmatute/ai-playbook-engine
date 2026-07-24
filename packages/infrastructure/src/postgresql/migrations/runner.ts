@@ -5,6 +5,10 @@ import type { DatabasePool } from '../connection/pool.js';
 import { VERSION as VERSION_001, UP as UP_001 } from './001-initial.js';
 import { VERSION as VERSION_002, UP as UP_002 } from './002-playbook-persistence-revision.js';
 import { VERSION as VERSION_003, UP as UP_003 } from './003-playbook-sources.js';
+import {
+  VERSION as VERSION_004,
+  UP as UP_004,
+} from './004-playbook-source-persistence-revision.js';
 import type { MigrationFailedError } from './migration-error.js';
 import { migrationFailed } from './migration-error.js';
 
@@ -17,6 +21,7 @@ const MIGRATIONS: readonly Migration[] = Object.freeze([
   Object.freeze({ version: VERSION_001, up: UP_001 }),
   Object.freeze({ version: VERSION_002, up: UP_002 }),
   Object.freeze({ version: VERSION_003, up: UP_003 }),
+  Object.freeze({ version: VERSION_004, up: UP_004 }),
 ]);
 
 export interface MigrationResult {

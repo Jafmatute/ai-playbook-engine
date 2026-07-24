@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { mapRowToPlaybookSource } from './playbook-source-mapper.js';
+import {
+  mapRowToPlaybookSource,
+  mapRowToPersistedPlaybookSource,
+} from './playbook-source-mapper.js';
 import type { PlaybookSourceRow } from './playbook-source-mapper.js';
 
 const sourceId = '11111111-1111-1111-1111-111111111111';
@@ -20,6 +23,7 @@ function row(overrides: Partial<PlaybookSourceRow> = {}): PlaybookSourceRow {
     external_root_reference: 'root-page',
     configuration_reference: 'configuration-key',
     created_at: createdAt,
+    revision: 1,
     last_successful_synchronization_run_id: null,
     last_successful_synchronization_at: null,
     last_failed_synchronization_run_id: null,
@@ -127,5 +131,55 @@ describe('mapRowToPlaybookSource', () => {
     ],
   ])('returns null for %s', (_name, invalidRow) => {
     expect(mapRowToPlaybookSource(invalidRow)).toBeNull();
+  });
+});
+
+describe('mapRowToPersistedPlaybookSource', () => {
+  it('maps a valid row with revision 1', () => {
+    const persisted = mapRowToPersistedPlaybookSource(row());
+
+    expect(persisted).not.toBeNull();
+    if (persisted !== null) {
+      expect(persisted.aggregate.toSnapshot()).toEqual({
+        playbookSourceId: sourceId,
+        workspaceId,
+        playbookId,
+        type: 'notion',
+        status: 'enabled',
+        externalRootReference: 'root-page',
+        configurationReference: 'configuration-key',
+        createdAt: '2026-07-01T10:00:00.000Z',
+        lastSuccessfulSynchronizationRunId: null,
+        lastSuccessfulSynchronizationAt: null,
+        lastFailedSynchronizationRunId: null,
+        lastFailedSynchronizationAt: null,
+      });
+      expect(persisted.revision.value).toBe(1);
+    }
+  });
+
+  it('returns a PersistedAggregate with revision 7', () => {
+    const persisted = mapRowToPersistedPlaybookSource(row({ revision: 7 }));
+
+    expect(persisted).not.toBeNull();
+    if (persisted !== null) {
+      expect(persisted.revision.value).toBe(7);
+    }
+  });
+
+  it('returns null for revision 0', () => {
+    expect(mapRowToPersistedPlaybookSource(row({ revision: 0 }))).toBeNull();
+  });
+
+  it('returns null for revision -1', () => {
+    expect(mapRowToPersistedPlaybookSource(row({ revision: -1 }))).toBeNull();
+  });
+
+  it('returns null for decimal revision', () => {
+    expect(mapRowToPersistedPlaybookSource(row({ revision: 1.5 }))).toBeNull();
+  });
+
+  it('returns null when the domain row is invalid', () => {
+    expect(mapRowToPersistedPlaybookSource(row({ type: 'other' }))).toBeNull();
   });
 });

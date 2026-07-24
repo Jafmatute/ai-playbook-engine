@@ -14,6 +14,8 @@ import type {
   PlaybookSource as PlaybookSourceAggregate,
   SynchronizationRunId,
 } from '@ai-playbook-engine/core';
+import { PersistenceRevision, createPersistedAggregate } from '@ai-playbook-engine/application';
+import type { PersistedAggregate } from '@ai-playbook-engine/application';
 
 export interface PlaybookSourceRow {
   readonly playbook_source_id: string;
@@ -24,6 +26,7 @@ export interface PlaybookSourceRow {
   readonly external_root_reference: string;
   readonly configuration_reference: string;
   readonly created_at: Date;
+  readonly revision: number;
   readonly last_successful_synchronization_run_id: string | null;
   readonly last_successful_synchronization_at: Date | null;
   readonly last_failed_synchronization_run_id: string | null;
@@ -79,6 +82,16 @@ export function mapRowToPlaybookSource(row: PlaybookSourceRow): PlaybookSourceAg
   } catch {
     return null;
   }
+}
+
+export function mapRowToPersistedPlaybookSource(
+  row: PlaybookSourceRow,
+): PersistedAggregate<PlaybookSourceAggregate> | null {
+  const source = mapRowToPlaybookSource(row);
+  if (source === null) return null;
+  const revisionResult = PersistenceRevision.from(row.revision);
+  if (!revisionResult.success) return null;
+  return createPersistedAggregate(source, revisionResult.value);
 }
 
 function parseSynchronizationMetadata(
